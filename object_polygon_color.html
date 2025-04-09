@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>XDWorld 샘플 - object_polygon_color</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+    #map { width: 100%; height: 100%; position: relative; }
+    #interface {
+      position: absolute;
+      z-index: 9;
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 6px;
+      margin: 8px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map">
+    <div id="interface">
+      <!-- 샘플 UI 코드 여기에 삽입 -->
+    </div>
+  </div>
+
+  <script>
+    var Module = {
+      locateFile : function(s) {
+        return "https://cdn.xdworld.kr/latest/"+ s;
+      },
+      postRun: function() {
+        Module.initialize({
+          container: document.getElementById("map"),
+          terrain: {
+            dem : {
+              url : "https://xdworld.vworld.kr",
+              name : "dem",
+              servername : "XDServer3d",
+              encoding : true
+            },
+            image : {
+              url : "https://xdworld.vworld.kr",
+              name : "tile",
+              servername : "XDServer3d"
+            }
+          },
+          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+        });
+      }
+    };
+
+    var script = document.createElement('script');
+    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>
