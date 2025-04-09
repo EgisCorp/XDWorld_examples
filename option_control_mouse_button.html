@@ -20,39 +20,139 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <table>
+        <tr>
+          <td>Panning</td>
+          <td>
+            <select id="panning" onchange="updateMapping('translate', this.value)">
+              <option value="0">Left Button</option>
+              <option value="1">Middle Button</option>
+              <option value="2">Right Button</option>
+            </select>
+            <span id="warn-panning" style="color: red; display: none;">⚠</span>
+          </td>
+        </tr>
+        <tr>
+          <td>Rotation</td>
+          <td>
+            <select id="rotation" onchange="updateMapping('rotate', this.value)">
+              <option value="0">Left Button</option>
+              <option value="1">Middle Button</option>
+              <option value="2">Right Button</option>
+            </select>
+            <span id="warn-rotation" style="color: red; display: none;">⚠</span>
+          </td>
+        </tr>
+        <tr>
+          <td>Zoom</td>
+          <td>
+            <select id="zoom" onchange="updateMapping('zoom', this.value)">
+              <option value="0">Left Button</option>
+              <option value="1">Middle Button</option>
+              <option value="2">Right Button</option>
+            </select>
+            <span id="warn-zoom" style="color: red; display: none;">⚠</span>
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  initMappingDropdowns();
+}
+};
+
+// Mouse control mapping
+// 0: Left, 1: Middle, 2: Right
+function updateMapping(action, value) {
+
+  value = parseInt(value);
+  Module.getControl().setMouseControlEvent(action, value);
+
+  checkForConflicts();
+}
+
+// Mouse control mapping dropdowns
+function initMappingDropdowns() {
+  const mapping = {
+      translate: document.getElementById("panning"),
+      rotate: document.getElementById("rotation"),
+      zoom: document.getElementById("zoom"),
+  };
+
+  // Initialize dropdowns with current values
+  ["translate", "rotate", "zoom"].forEach(action => {
+      const btnIndex = Module.getControl().getMouseControlEvent(action);
+      if (btnIndex >= 0 && btnIndex <= 2) {
+          mapping[action].value = btnIndex;
+      }
+  });
+
+  checkForConflicts();
+}
+
+// Check for conflicts in mouse control mapping
+function checkForConflicts() {
+
+  const values = {
+      translate: parseInt(document.getElementById("panning").value),
+      rotate: parseInt(document.getElementById("rotation").value),
+      zoom: parseInt(document.getElementById("zoom").value),
+  };
+
+  // setup for conflict checking
+  const used = {};
+  const warnings = {
+      translate: document.getElementById("warn-panning"),
+      rotate: document.getElementById("warn-rotation"),
+      zoom: document.getElementById("warn-zoom")
+  };
+
+  // Hide all warnings initially
+  Object.values(warnings).forEach(w => w.style.display = "none");
+
+  for (const [action, button] of Object.entries(values)) {
+      if (used[button] !== undefined) {
+          
+          // Show warning for conflicting actions
+          warnings[action].style.display = "inline";
+          warnings[used[button]].style.display = "inline";
+      } else {
+          used[button] = action;
+      }
+  }
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

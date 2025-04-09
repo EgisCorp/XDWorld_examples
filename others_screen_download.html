@@ -20,39 +20,99 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="Download Map Image" onClick="downloadMapImage();"></input>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Download map screen image */
+function downloadMapImage() {
+
+var mapCanvas = Module.canvas;
+
+if (mapCanvas == null) {
+  return;
+}
+
+// Create canvas for taking a screenshot
+var captureCanvas = document.createElement('canvas'),
+  ctx = captureCanvas.getContext('2d')
+  ;
+
+// Set the size to match the map canvas
+captureCanvas.width = mapCanvas.width;
+captureCanvas.height = mapCanvas.height;
+
+// Load the map canvas image
+var img = new Image();
+img.onload = function() {
+  
+  // Copy the map canvas screen
+      ctx.drawImage(this, 0, 0, mapCanvas.width, mapCanvas.height);
+  
+  // Draw watermark image
+  ctx.drawImage(this, canvas.width-this.width, canvas.height-this.height);
+    
+  if (captureCanvas.msToBlob) {
+      
+    // Handling and downloading images in IE
+    var blob = captureCanvas.msToBlob();
+    return window.navigator.msSaveBlob(blob, 'MapScreenShot.png');
+            
+  } else {
+
+    // Handling and downloading images in FireFox and Chrome
+    captureCanvas.toBlob(function(e) {
+        
+      var data = URL.createObjectURL(e),
+        eLink = document.createElement("a")
+        ;
+      
+      eLink.setAttribute("href", data);
+      eLink.setAttribute("download", "MapScreenShot.png");
+      document.body.appendChild(eLink);
+      eLink.click();
+      document.body.removeChild(eLink);
+
+      return true;
+    
+    }, "image/png", 1);
+  }
+};
+img.src = mapCanvas.toDataURL("image/jpeg");	
+}
   </script>
 </body>
 </html>

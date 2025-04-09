@@ -20,39 +20,349 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <table>
+        <tr>
+          <td>
+            <span>Layer List</span>
+          </td>
+          <td>
+            <Select id="layerList" onChange="GLOBAL.index = parseInt(this.value);"></Select>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span>FPS</span>
+          </td>
+          <td>
+            <input type="text" id="fps" value="">
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span>Terrain Request Count</span>
+          </td>
+          <td>
+            <input type="text" id="TerrainRequestCount" value="">
+          </td>
+        </tr>
+      </table>
+      
+      <details>
+        <summary>Dem</summary>	
+        <table>
+          <tr>
+            <td>
+              <span>Dem URL</span>
+            </td>
+            <td>
+              <input type="text" id="Dem" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Request Count</span>
+            </td>
+            <td>
+              <input type="text" id="DemRequestCount" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Success Request Count</span>
+            </td>
+            <td>
+              <input type="text" id="DemSuccessCount" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Total Request Time</span>
+            </td>
+            <td>
+              <input type="text" id="DemTotalRequestTime" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Max Request Time</span>
+            </td>
+            <td>
+              <input type="text" id="DemMaxRequestTime" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Average Request Time</span>
+            </td>
+            <td>
+              <input type="text" id="DemAvgRequestTime" value="">
+            </td>
+          </tr>
+        </table>
+      </details>
+        
+        
+      <details>
+        <summary>Image</summary>
+        <table>
+          <tr>
+            <td>
+              <span>Image URL</span>
+            </td>
+            <td>
+              <input type="text" id="Image" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Request Count</span>
+            </td>
+            <td>
+              <input type="text" id="ImageRequestCount" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Success Request Count</span>
+            </td>
+            <td>
+              <input type="text" id="ImageSuccessCount" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Total Request Time</span>
+            </td>
+            <td>
+              <input type="text" id="ImageTotalRequestTime" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Max Request Time</span>
+            </td>
+            <td>
+              <input type="text" id="ImageMaxRequestTime" value="">
+            </td>
+          </tr>		
+          <tr>
+            <td>
+              <span>Average Request Time</span>
+            </td>
+            <td>
+              <input type="text" id="ImageAvgRequestTime" value="">
+            </td>
+          </tr>
+        </table>
+      </details>
+        
+      <details>
+        <summary>Layer</summary>
+        <table>
+          <tr>
+            <td>
+              <span>Layer Type</span>
+            </td>
+            <td>
+              <input type="text" id="layertype" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Object Count</span>
+            </td>
+            <td>
+              <input type="text" id="objectcount" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Face Count</span>
+            </td>
+            <td>
+              <input type="text" id="facecount" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Render Object Count</span>
+            </td>
+            <td>
+              <input type="text" id="renderobjectcount" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Average Render Time</span>
+            </td>
+            <td>
+              <input type="text" id="averagerendertime" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Max Render Time</span>
+            </td>
+            <td>
+              <input type="text" id="maxrendertime" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Request Count</span>
+            </td>
+            <td>
+              <input type="text" id="requestcount" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Success Request Count</span>
+            </td>
+            <td>
+              <input type="text" id="successrequestcount" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Average Request Time</span>
+            </td>
+            <td>
+              <input type="text" id="avgrequesttime" value="">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>Max Request Time</span>
+            </td>
+            <td>
+              <input type="text" id="maxrequesttime" value="">
+            </td>
+          </tr>
+        </table>
+      </details>
+      
+      <input type="button" value="Clear" onclick="Module.refreshInspector();">
+      <input type="button" value="End" onclick="Module.setInspector(false);">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.92836647767662, 37.52439503321471, 1000.0));
+  
+  // Add building layer
+  var layer = Module.getTileLayerList().createXDServerLayer({
+    url : "https://xdworld.vworld.kr",
+    servername : "XDServer3d",
+    name : "facility_build",
+    type : 9,
+    minLevel : 0,
+    maxLevel : 15
+  });
+  
+  startInspector();
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+var GLOBAL = {	
+layerCount : 0,
+index : -1,
+inspectorData : null,
+updateInterval : null
+};
+
+function startInspector() 
+{
+Module.setInspector(true);
+
+GLOBAL.updateInterval = setInterval(function() {
+  getInspector();
+}, 100);
+}
+
+function getInspector()
+{
+GLOBAL.inspectorData = Module.getInspector();
+
+document.getElementById("fps").value = GLOBAL.inspectorData.FPS;
+
+document.getElementById("TerrainRequestCount").value = GLOBAL.inspectorData.TerrainRequestCount;
+
+document.getElementById("Dem").value = GLOBAL.inspectorData.Dem.Dem;
+document.getElementById("DemRequestCount").value = GLOBAL.inspectorData.Dem.RequestCount;
+document.getElementById("DemSuccessCount").value = GLOBAL.inspectorData.Dem.SuccessCount;
+document.getElementById("DemAvgRequestTime").value = GLOBAL.inspectorData.Dem.AvgRequestTime;
+document.getElementById("DemMaxRequestTime").value = GLOBAL.inspectorData.Dem.MaxRequestTime;
+document.getElementById("DemTotalRequestTime").value = GLOBAL.inspectorData.Dem.TotalRequestTime;
+
+document.getElementById("Image").value = GLOBAL.inspectorData.Image.Image;
+document.getElementById("ImageRequestCount").value = GLOBAL.inspectorData.Image.RequestCount;
+document.getElementById("ImageSuccessCount").value = GLOBAL.inspectorData.Image.SuccessCount;
+document.getElementById("ImageAvgRequestTime").value = GLOBAL.inspectorData.Image.AvgRequestTime;
+document.getElementById("ImageMaxRequestTime").value = GLOBAL.inspectorData.Image.MaxRequestTime;
+document.getElementById("ImageTotalRequestTime").value = GLOBAL.inspectorData.Image.TotalRequestTime;	
+
+var html = "";
+if(GLOBAL.layerCount != GLOBAL.inspectorData.LayerCount)
+{
+  GLOBAL.layerCount = GLOBAL.inspectorData.LayerCount;
+  
+  for(var i = 0; i<GLOBAL.layerCount; i++)
+  {			
+    html += "<option value="+i+">"+GLOBAL.inspectorData.Layer[i].LayerName+"</option>";
+  }		
+  $('#layerList').append(html);
+}
+
+if(GLOBAL.index != -1) changeLayerInfo();
+}
+
+function changeLayerInfo()
+{
+document.getElementById("layertype").value = GLOBAL.inspectorData.Layer[GLOBAL.index].LayerType;
+document.getElementById("objectcount").value = GLOBAL.inspectorData.Layer[GLOBAL.index].ObjectCount;
+document.getElementById("facecount").value = GLOBAL.inspectorData.Layer[GLOBAL.index].FaceCount;
+
+document.getElementById("renderobjectcount").value = GLOBAL.inspectorData.Layer[GLOBAL.index].RenderObjCount;
+document.getElementById("averagerendertime").value = GLOBAL.inspectorData.Layer[GLOBAL.index].AvgRenderTime;
+document.getElementById("maxrendertime").value = GLOBAL.inspectorData.Layer[GLOBAL.index].MaxRenderTime;
+
+document.getElementById("requestcount").value = GLOBAL.inspectorData.Layer[GLOBAL.index].RequestCount;
+document.getElementById("successrequestcount").value = GLOBAL.inspectorData.Layer[GLOBAL.index].SuccessCount;
+document.getElementById("avgrequesttime").value = GLOBAL.inspectorData.Layer[GLOBAL.index].AvgRequestTime;
+document.getElementById("maxrequesttime").value = GLOBAL.inspectorData.Layer[GLOBAL.index].MaxRequestTime;
+}
   </script>
 </body>
 </html>

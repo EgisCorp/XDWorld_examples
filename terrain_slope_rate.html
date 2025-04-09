@@ -20,39 +20,53 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="range" min="0.0" max="1.0" step="0.01" value="1.0" onchange="setDemRate(this.value);">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera position
+    Module.getViewCamera().look(
+      new Module.JSVector3D(126.97306649914725, 37.41691701905674, 948.2506512934342),
+      new Module.JSVector3D(126.94474330590697, 37.44020976941725, 282.83868949115276)
+    );
+}
+};
+
+/* Set DEM height rate */
+function setDemRate(_value) {
+Module.getTerrain().demRate = parseFloat(_value);
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

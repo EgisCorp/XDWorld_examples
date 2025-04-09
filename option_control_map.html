@@ -20,39 +20,182 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <table>
+        <tr>
+          <td colspan="2">Align</td>
+          <td colspan="2">
+            <select id="SE_NaviAlign" onChange="setNavigationAlign(this.value);">
+              <option value="0">Left/Top</option>
+              <option value="1">Right/Top</option>
+              <option value="2">Left/Bottom</option>
+              <option value="3">Right/Bottom</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">Visible</td>
+          <td colspan="2">
+            <select id="SE_NaviVisible" onChange="setNavigationVisible(this.value);">
+              <option value="0">Off</option>
+              <option value="1">On</option>
+              <option value="2">Auto</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td rowspan="2">Padding</td>
+          <td>X</td>
+          <td>
+            <input type="text" id="TX_PaddingX" style="width:30px;">
+          </td>
+          <td rowspan="2">
+            <input type="button" value="Set" onClick="setNavigationPadding();">
+          </td>
+        </tr>
+        <tr>
+          <td>Y</td>
+          <td>
+            <input type="text" id="TX_PaddingY" style="width:30px;">
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Navigation : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set resource server path
+		Module.SetResourceServerAddr("https://www.egiscloud.com/assets/resource/");
+	    
+		GLOBAL.Navigation = Module.getNavigation();
+		
+		getNavigationProperties();
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Retrieve navigation properties */
+function getNavigationProperties() {
+	
+	if (GLOBAL.Navigation == null) {
+		return;
+	}
+	
+	// Retrieve alignment setting
+	var naviAlign = GLOBAL.Navigation.getNaviPos();
+	switch (naviAlign) {
+		case Module.JS_NAVIGATION_LT :
+			document.getElementById("SE_NaviAlign").value = 0;
+			break;
+		case Module.JS_NAVIGATION_RT :
+			document.getElementById("SE_NaviAlign").value = 1;
+			break;
+		case Module.JS_NAVIGATION_LB :
+			document.getElementById("SE_NaviAlign").value = 2;
+			break;
+		case Module.JS_NAVIGATION_RB :
+			document.getElementById("SE_NaviAlign").value = 3;
+			break;
+		default : break;
+	}
+	
+	// Initial map control(ON)
+	document.getElementById("SE_NaviVisible").value = 1;
+	GLOBAL.Navigation.setNaviVisible(Module.JS_VISIBLE_ON);
+	
+	// Retrieve padding value
+	var naviPadding = GLOBAL.Navigation.getPadding();
+	document.getElementById("TX_PaddingX").value = parseInt(naviPadding.x);
+	document.getElementById("TX_PaddingY").value = parseInt(naviPadding.y);
+}
+
+/* Set navigation alignment */
+function setNavigationAlign(_value) {
+	
+	switch (_value) {
+		case "0" :
+			GLOBAL.Navigation.setNaviPos(Module.JS_NAVIGATION_LT);
+			break;
+		case "1" :
+			GLOBAL.Navigation.setNaviPos(Module.JS_NAVIGATION_RT);
+			break;
+		case "2" :
+			GLOBAL.Navigation.setNaviPos(Module.JS_NAVIGATION_LB);
+			break;
+		case "3" :
+			GLOBAL.Navigation.setNaviPos(Module.JS_NAVIGATION_RB);
+			break;
+		default : break;
+	}
+	
+	// Update screen
+	Module.XDRenderData();
+}
+
+/* Set navigation visibility */
+function setNavigationVisible(_value) {
+	
+	switch (_value) {
+		case "0" :
+			GLOBAL.Navigation.setNaviVisible(Module.JS_VISIBLE_OFF);
+			break;
+		case "1" :
+			GLOBAL.Navigation.setNaviVisible(Module.JS_VISIBLE_ON);
+			break;
+		case "2" :
+			GLOBAL.Navigation.setNaviVisible(Module.JS_VISIBLE_AUTO);
+			break;
+		default : break;
+	}
+	
+	// Update screen
+	Module.XDRenderData();
+}
+
+/* Set navigation padding */
+function setNavigationPadding() {
+	
+	var paddingX = parseInt(document.getElementById("TX_PaddingX").value),
+		paddingY = parseInt(document.getElementById("TX_PaddingY").value)
+		;
+		
+	GLOBAL.Navigation.setPadding(paddingX, paddingY);
+	
+	// Update screen
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

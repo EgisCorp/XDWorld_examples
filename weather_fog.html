@@ -20,39 +20,135 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      Fog Effect
+<input type="radio" id="fog_type_white" name="fogType" onchange="setFog();" checked>Fog
+<input type="radio" id="fog_type_yellow" name="fogType" onchange="setFog();">Smog
+<br>
+<table>
+	<tr>
+		<td>Fog Start Distance</td>
+		<td><input type="range" id="fogStartDistance" value="5.8" min="0.0" max="100.0" step="0.1" onChange="setFog();"/> </td>
+		<td><span id="textFogStartDistance">5.8</span></td>
+	</tr>
+	<tr>
+		<td>Fog Gradient Distance</td>
+		<td><input type="range" id="fogGradientDistance" value="1705.2" min="10.0" max="5000.0" step="0.1" onChange="setFog();"/></td>
+		<td><span id="textFogGradientDistance">1705.2</span></td>
+	</tr>
+	<tr>
+		<td>Fog Density</td>
+		<td><input type="range" id="fogDensity" value="0.9" min="0.5" max="1.0" step="0.1" onChange="setFog();"/> </td>
+		<td><span id="textFogDensity">0.9</span></td>
+	</tr>
+</table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	gFogStart : 0.0,
+	gFogEnd : 5000.0,
+	gDensity : 0.3
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+		
+		var camera = Module.getViewCamera();
+		camera.setTilt(30.0);
+		camera.setLocation(new Module.JSVector3D(126.940377021424, 37.509456734136604, 800.0));
+		
+		Module.getMap().setFogLimitAltitude(6000000.0);
+		Module.getMap().setFogEnable(true);
+		
+		setFog();
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function SetFog(_bSet)
+{
+	var pMap = Module.getMap();
+	
+	if(_bSet==true)
+	{
+		var color = new Module.JSColor(255, 255, 255, 255);
+		pMap.setFog(color, GLOBAL.gFogStart, GLOBAL.gFogEnd, GLOBAL.gDensity);
+	}
+}
+
+function SetFogStart(_dDistance)
+{
+	GLOBAL.gFogEnd+=_dDistance;
+	
+	var pMap = Module.getMap();
+	var color = new Module.JSColor(255, 255, 255, 255);
+	pMap.setFog(color, GLOBAL.gFogStart, GLOBAL.gFogEnd, GLOBAL.gDensity);
+}
+
+function SetFogDensity(_dDensity)
+{
+	GLOBAL.gDensity +=_dDensity;
+	
+	setFog();
+}
+
+function setFog(_visible, _startDist, _endDist, _density) {
+	
+	var color = null;
+	if (document.getElementById("fog_type_white").checked) {
+		color = new Module.JSColor(255, 255, 255, 255);
+	} else {
+		color = new Module.JSColor(255, 255, 255, 100);
+	}
+	
+	var fogStartDist = parseFloat(document.getElementById("fogStartDistance").value);
+	var fogGradientDist = parseFloat(document.getElementById("fogGradientDistance").value);
+	var fogDensity = parseFloat(document.getElementById("fogDensity").value);
+	
+	Module.getMap().setFog(color, fogStartDist, fogStartDist+fogGradientDist, fogDensity);
+	
+	document.getElementById("textFogStartDistance").innerHTML = fogStartDist.toString();
+	document.getElementById("textFogGradientDistance").innerHTML = fogGradientDist.toString();
+	document.getElementById("textFogDensity").innerHTML = fogDensity.toString();
+	
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

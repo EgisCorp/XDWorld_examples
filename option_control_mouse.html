@@ -20,39 +20,113 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      [Mouse Button Options]
+<table>
+	<tr>
+		<td>Panning</td>
+		<td><button class="controlbutton" id="BT_Pan" onClick="setMouseOption('pan');">Enable</button></td>
+	</tr>
+	<tr>
+		<td>Rotation</td>
+		<td><button class="controlbutton" id="BT_Rot" onClick="setMouseOption('rot');">Enable</button></td>
+	</tr>
+	<tr>
+		<td>Zoom</td>
+		<td><button class="controlbutton" id="BT_Zoom" onClick="setMouseOption('zoom');">Enable</button></td>
+	</tr>
+</table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Control : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Retrieve the JSControl object
+		GLOBAL.Control = Module.getControl();
+		
+		// Set button styles
+		setButtonStyle(document.getElementById("BT_Pan"), GLOBAL.Control.getMousePanMode());
+		setButtonStyle(document.getElementById("BT_Rot"), GLOBAL.Control.getMouseRotMode());
+		setButtonStyle(document.getElementById("BT_Zoom"), GLOBAL.Control.getMouseZoomMode());
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Function to set mouse options */
+function setMouseOption(_type) {
+	
+	var param;
+	switch (_type) {
+		
+		// Set mouse pan mode
+		case 'pan' : 
+			param = !GLOBAL.Control.getMousePanMode();
+			GLOBAL.Control.setMousePanMode(param);
+			setButtonStyle(document.getElementById("BT_Pan"), param);
+			break;
+		
+		// Set mouse rotation mode
+		case 'rot' : 
+			param = !GLOBAL.Control.getMouseRotMode();
+			GLOBAL.Control.setMouseRotMode(param);
+			setButtonStyle(document.getElementById("BT_Rot"), param);
+			break;
+			
+		// Set mouse zoom mode
+		case 'zoom' : 
+			param = !GLOBAL.Control.getMouseZoomMode();
+			GLOBAL.Control.setMouseZoomMode(param);
+			setButtonStyle(document.getElementById("BT_Zoom"), param);
+			break;
+			
+		default : break;
+	}
+	
+	
+}
+
+/* Function to set button style for mouse option setting */
+function setButtonStyle(_element, _mode) {
+	
+	if (_mode) {
+		_element.innerHTML = "Enable";
+		_element.style.backgroundColor = "#74ff5b";
+	} else {
+		_element.innerHTML = "Disable";
+		_element.style.backgroundColor = "#ff6060";
+	}
+}
   </script>
 </body>
 </html>

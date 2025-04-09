@@ -20,39 +20,384 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Start point : </span>
+<span id="start" style="font-weight: normal">Click on the screen to enter the point</span>
+<br>
+<span>End point : </span>
+<span id="end" style="font-weight: normal">Click on the screen to enter the point</span>
+<br>
+<canvas id="chart" width="0" height="0"></canvas>
+<input type="button" id="buttonDownloadToJSON" style="display:none;width:300px;" value="Download JSON" onclick="downloadToJSON();">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+PATH_SLICE_DISTANCE: 10.0, // Cross-section analysis segment length
+chart: null, // Result chart
+mouseState : {
+
+  down : false,
+  clickPosition : {x : -1, y : -1},
+
+  isSetStartPoint : false,
+  startPosition : null,
+
+  isDraged : function(_x, _y) {
+    if (!this.down) {
+      return false;
+    }
+    return (Math.abs(this.clickPosition.x-_x) > 3) && (Math.abs(this.clickPosition.y-_y) > 3);
+  }
+}
+};
+
+var Module = {
+
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Load Chart.js library
+  var chartScript = document.createElement("script");
+  chartScript.src = "https://cdn.jsdelivr.net/npm/chart.js";
+  document.body.appendChild(chartScript);
+
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(127.42783066858743, 37.500795887788236, 1957.945530910976));
+  
+  // Set map event
+  initCanvasEvent();
+}
+};
+
+// Set map event
+function initCanvasEvent() {
+
+Module.canvas.onmousedown = (e) => {
+  
+  GLOBAL.mouseState.down = true;
+  GLOBAL.mouseState.clickPosition = {
+    x : e.x,
+    y : e.y
+  };
+};
+
+Module.canvas.onmouseup = (e) => {
+  
+  if (!GLOBAL.mouseState.isDraged(e.x, e.y) && e.button == 0) {
+    
+    var clickPosition = Module.getMap().ScreenToMapPointEX(new Module.JSVector2D(e.x, e.y));
+
+    if (GLOBAL.isSetStartPoint) {
+
+      // Show clicked coordinate list
+      document.getElementById("end").innerHTML = clickPosition.Longitude.toFixed(6)+", "+clickPosition.Latitude.toFixed(6)+", "+clickPosition.Altitude.toFixed(2);
+
+      // Input end point of the section 
+      setSliceEndPoint(clickPosition);
+
+      // Set section path coordinate list
+      var path = new Module.JSVec3Array();
+      path.push(GLOBAL.startPosition);
+      path.push(clickPosition);
+
+      // Display section line
+      createInputLine(path);
+
+      // Execute section analysis
+      executeSliceDEM(path);
+      
+      // Display JSON format download button
+      document.getElementById("buttonDownloadToJSON").style.display = "block";
+      
+    } else {
+
+      // Clear previous analysis data
+      clear();
+
+      // Show clicked coordinate list
+      document.getElementById("start").innerHTML = clickPosition.Longitude.toFixed(6)+", "+clickPosition.Latitude.toFixed(6)+", "+clickPosition.Altitude.toFixed(2);
+
+      // Input start point of the section
+      setSliceStartPoint(clickPosition);
+    }
+  }
+  
+  GLOBAL.mouseState.down = false;
+};
+}
+
+/* Input start point of the section */
+function setSliceStartPoint(_position) {
+
+// Show section start point POI
+
+GLOBAL.startPosition = _position;
+createPoint(_position, "Start");
+
+GLOBAL.isSetStartPoint = true;
+}
+
+/* Input end point of the section */
+function setSliceEndPoint(_position) {
+
+createPoint(_position, "End");
+
+GLOBAL.isSetStartPoint = false;
+}
+
+/* Create text point */
+function createPoint(_position, _text) {
+
+// Create layer to add point
+var layer = Module.getObjectLayerList().nameAtLayer("SLICE_POSITION_POI_LAYER");
+if (layer == null) {
+  layer = Module.getObjectLayerList().createLayer("SLICE_POSITION_POI_LAYER", Module.ELT_3DPOINT);
+}
+
+// Create point object
+var point = Module.createPoint("SLICE_POSITION_START");
+point.setPosition(_position);
+point.setText(_text);
+
+// Add point to layer
+layer.addObject(point, 0);
+}
+
+/* Create section analysis line */
+function createInputLine(_path) {
+
+// Create layer to add section line
+var layer = Module.getObjectLayerList().nameAtLayer("INPUT_LINE_LAYER");
+if (layer == null) {
+  layer = Module.getObjectLayerList().createLayer("INPUT_LINE_LAYER", Module.ELT_3DLINE);
+}
+
+// Create section line
+var line = Module.createLineString("INPUT_LINE_LAYER");
+line.createbyJson({
+  coordinates : {
+    coordinate : _path,
+    style : "JSVector3D"
+  },
+  type : 0,
+  depth : false,
+  width: 2.0
+});
+
+// Add object to layer
+layer.addObject(line, 0);
+}
+
+/* Execute section DEM analysis */
+function executeSliceDEM(_slicePath) {
+
+// Return coordinate list divided into sections at 10m intervals
+var pathPoints = Module.getMap().GetPathIntervalPositions(_slicePath, GLOBAL.PATH_SLICE_DISTANCE, false);
+
+// Return altitude (section) of each coordinate
+var crossSections = getCrossSections(pathPoints);
+
+// Display section path and points
+displayCrossSectionsOnChart(crossSections);
+
+// Display section line
+displaycrossSectionsOnMap(crossSections);
+}
+
+/* Return altitude (section) of each coordinate */
+function getCrossSections(_pathPoints) {
+
+var pointCount = _pathPoints.count();
+if (pointCount < 2) {
+  return;
+}
+
+var result = {
+  positions : [],	// Point locations
+  dem : []	// Terrain altitudes
+};
+
+var map = Module.getMap();
+
+for (var i=0; i<pointCount; i++) {
+
+  // Return latitude and longitude coordinates to calculate altitude value
+  var position = _pathPoints.get(i);
+  result.positions.push(position);
+
+  // Return DEM altitude
+  result.dem.push( map.getTerrHeight(position.Longitude, position.Latitude) );
+}
+
+return result;
+}
+
+/* Display section information chart */
+function displayCrossSectionsOnChart(_crossSections) {
+
+// Create chart labels
+var labels = [];
+for (var i=0; i<_crossSections.positions.length; i++) {
+  labels.push((i*GLOBAL.PATH_SLICE_DISTANCE).toString());
+}
+
+// Display chart
+if (GLOBAL.chart == null) {
+
+  var chartCanvas = document.getElementById('chart');
+  chartCanvas.width = 300;
+  chartCanvas.height = 300;
+
+  // Initial chart creation
+  GLOBAL.chart = new Chart(
+    chartCanvas,
+    {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label : "DEM",
+          backgroundColor: 'rgb(0, 191, 48)',
+          borderColor: 'rgb(2, 173, 45)',
+          data: _crossSections.dem,
+        }]
+      }
+    }
+  );
+
+} else {
+
+  // Update chart
+  GLOBAL.chart.data = {
+    labels: labels,
+    datasets: [{
+      label : "DEM",
+      backgroundColor: 'rgb(0, 191, 48)',
+      borderColor: 'rgb(2, 173, 45)',
+      data: _crossSections.dem,
+    }]
+  };
+  GLOBAL.chart.update();
+}
+}
+
+/* Display section locations on the map */
+function displaycrossSectionsOnMap(_crossSections) {
+
+var layerList = new Module.JSLayerList(true);
+
+// Create display coordinate list
+var positions = [];
+for (var i=0; i<_crossSections.positions.length; i++) {
+
+  positions.push([
+    _crossSections.positions[i].Longitude,
+    _crossSections.positions[i].Latitude,
+    _crossSections.dem[i]
+  ])
+}
+
+// Create line layer
+var lineLayer = layerList.nameAtLayer("CROSS_SECTION_LINE");
+if (lineLayer == null) {
+  lineLayer = layerList.createLayer("CROSS_SECTION_LINE", Module.ELT_3DLINE);
+  lineLayer.setMaxDistance(100000);
+} else {
+  lineLayer.removeAll();
+}
+
+// Create section display line
+var line = Module.createLineString("CROSS_SECTION_LINE");
+line.createbyJson({
+  coordinates : {
+    coordinate : positions,
+    style : "XYZ"
+  },
+  type : 0,
+  depth : false,
+  color : Module.COLOR_YELLOW,
+  width: 2.0
+});
+
+lineLayer.addObject(line, 0);
+}
+
+/* Clear objects */
+function clear() {
+
+var pointLayer = Module.getObjectLayerList().nameAtLayer("SLICE_POSITION_POI_LAYER");
+if (pointLayer != null) {
+  pointLayer.removeAll();
+}
+
+var inputLineLayer = Module.getObjectLayerList().nameAtLayer("INPUT_LINE_LAYER");
+if (inputLineLayer != null) {
+  inputLineLayer.removeAll();
+}
+
+var crossSectionLineLayer = Module.getObjectLayerList().nameAtLayer("CROSS_SECTION_LINE");
+if (crossSectionLineLayer != null) {
+  crossSectionLineLayer.removeAll();
+}
+}
+
+/* Download analysis result in JSON format */
+function downloadToJSON() {
+
+if (GLOBAL.chart == null) {
+  alert("No data for analysis.")
+  return;
+}
+
+var labels = GLOBAL.chart.data.labels;
+var values = GLOBAL.chart.data.datasets[0].data;
+
+if (labels.length != values.length) {
+  return;
+}
+
+var result = [];
+for (var i=0; i<labels.length; i++) {
+  result.push({
+    distance : labels[i],
+    altitude : values[i]
+  });
+}
+
+var a = document.createElement("a")
+a.href = URL.createObjectURL(
+    new Blob([JSON.stringify(result)], {type:"application/json"})
+)
+a.download = "SlicedDEM.json"
+a.click();
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

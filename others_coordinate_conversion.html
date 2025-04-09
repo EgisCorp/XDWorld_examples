@@ -20,39 +20,131 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        input[type="text"] {
+            width: 100px;
+            text-align: right;
+        }
+        input[type="button"] {
+            height: 95px;
+        }
+    </style>
+    <span>Coordinate Transformation EPSG Code</span>
+    <table>
+        <tr>
+            <td rowspan="2">
+                <select id="epsg_source_list">
+                    <option value="EPSG:3857">EPSG:3857</option>
+                    <option value="EPSG:4326" selected>EPSG:4326</option>
+                    <option value="EPSG:5186">EPSG:5186</option>
+                    <option value="EPSG:5187">EPSG:5187</option>
+                    <option value="EPSG:32651">EPSG:32651</option>
+                    <option value="EPSG:32652">EPSG:32652</option>
+                </select>
+            </td>
+            <td>
+                <span>LON</span>
+            </td>
+            <td>
+                <input type="text" id="source_x" value="127.0" />
+            </td>
+            <td rowspan="4">
+                <input type="button" value="Transform" onclick="transform();" />
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <span>LAT</span>
+            </td>
+            <td>
+                <input type="text" id="source_y" value="37.0" />
+            </td>
+        </tr>
+        <tr>
+            <td rowspan="2">
+                <select id="epsg_target_list">
+                    <option value="EPSG:3857">EPSG:3857</option>
+                    <option value="EPSG:4326">EPSG:4326</option>
+                    <option value="EPSG:5186">EPSG:5186</option>
+                    <option value="EPSG:5187">EPSG:5187</option>
+                    <option value="EPSG:32651">EPSG:32651</option>
+                    <option value="EPSG:32652">EPSG:32652</option>
+                </select>
+            </td>
+            <td>
+                <span>LON</span>
+            </td>
+            <td>
+                <input type="text" id="transform_x" value="0.0" disabled="disabled" />
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <span>LAT</span>
+            </td>
+            <td>
+                <input type="text" id="transform_y" value="0.0" disabled="disabled" />
+            </td>
+        </tr>
+    </table>
+    
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        // Call engine initialization API (essential)
         Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
+            container: document.getElementById("map"),
+            terrain: {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
             },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
         });
-      }
+    },
+};
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Download map screen */
+function transform() {
+    let epsg_source = document.getElementById("epsg_source_list");
+    let epsg_target = document.getElementById("epsg_target_list");
+
+    let position_source_x = document.getElementById("source_x");
+    let position_source_y = document.getElementById("source_y");
+
+    let position_target_x = document.getElementById("transform_x");
+    let position_target_y = document.getElementById("transform_y");
+
+    let proj_target = new Module.JSProj(epsg_target.value);
+
+    parameter = {
+        source: epsg_source.value,
+        coordinates: new Module.JSVector2D(position_source_x.value * 1, position_source_y.value * 1),
     };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+    result = proj_target.transform(parameter);
+    position_target_x.value = result.return[0].Longitude;
+    position_target_y.value = result.return[0].Latitude;
+}
+
   </script>
 </body>
 </html>

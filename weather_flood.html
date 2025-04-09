@@ -20,39 +20,176 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <div id="height">Flood Surface Height: 11m</div>
+<br>
+<span>Water Surface Display</span>
+<input type="button" value="On" onClick="visibleWaterPlane(true);"/>
+<input type="button" value="Off" onClick="visibleWaterPlane(false);"/>
+<br>
+<span>Adjust Flood Height</span>
+<input type="button" id="altitude_plus" value="+" onClick="SetFloodHeight(0.1);"/>
+<input type="button" id="altitude_minus" value="-" onClick="SetFloodHeight(-0.1);"/>
+<br>
+<span>Water Flow Speed</span>
+<input type="button" value="+" onClick="SetWaterSpeed(1);"/>
+<input type="button" value="-" onClick="SetWaterSpeed(-1);"/>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Layer : null,
+	floodHeight : 11.0,
+	floodSpeed : 1.0,
+	isIncreaseAltitude : false
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		initEvent(Module.canvas);	
+
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+		
+		Module.getViewCamera().setLocation(new Module.JSVector3D(126.94149848437655, 37.52036042774084, 773.185110152699));
+		
+		Module.getFlood().active(true);
+		Module.getFlood().setHeight(11);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function initEvent(_canvas) {
+	
+	button = document.getElementById("altitude_plus");
+	button.onmousedown = function() {
+		GLOBAL.isIncreaseAltitude = true;
+		setTimeout(function() {
+			setFloodHeight(0.1);
+		}, 100);
+	};
+	button.onmouseout = button.onmouseup = function() {
+		GLOBAL.isIncreaseAltitude = false;
+	};
+	
+	button = document.getElementById("altitude_minus");
+	button.onmousedown = function() {
+		GLOBAL.isIncreaseAltitude = true;
+		setTimeout(function() {
+			setFloodHeight(-0.1);
+		}, 100);
+	};
+	button.onmouseout = button.onmouseup = function() {
+		GLOBAL.isIncreaseAltitude = false;
+	};
+};
+
+function setFloodHeight(_addHeight) {
+	
+	var pFlood = Module.getFlood();
+		
+	GLOBAL.floodHeight += _addHeight;
+	pFlood.setHeight(GLOBAL.floodHeight);
+		
+	setHeightViewer(GLOBAL.floodHeight);
+	
+	if (GLOBAL.isIncreaseAltitude) {
+		setTimeout(function() {
+			setFloodHeight(_addHeight);
+		}, 100);
+	}
+}
+
+function setFloodMinorHeight(_addHeight) {
+	
+	var pFlood = Module.getFlood();
+		
+	GLOBAL.floodHeight += _addHeight;
+	pFlood.setHeight(GLOBAL.floodHeight);
+		
+	setHeightViewer(GLOBAL.floodHeight);
+	
+	if (GLOBAL.isIncreaseAltitude_minor) {
+		setTimeout(function() {
+			setFloodHeight(_addHeight);
+		}, 100);
+	}
+}
+
+function visibleWaterPlane(_bAcitve)
+{
+	var pFlood = Module.getFlood();
+	pFlood.visibleWaterPlane(_bAcitve);
+}
+
+function SetFloodColor(_iAlpha, _iRed, _iGreen, _iBlue)
+{
+	var pFlood = Module.getFlood();
+	var color = new Module.JSColor(_iAlpha, _iRed, _iGreen, _iBlue);
+	pFlood.setColor(color);
+}
+
+function SetFloodHeight(_dHeight)
+{
+	var pFlood = Module.getFlood();
+	
+	GLOBAL.floodHeight+=_dHeight;
+	pFlood.setHeight(GLOBAL.floodHeight);
+	
+	setHeightViewer(GLOBAL.floodHeight);
+}
+
+function setFloodVisibleAltitude(_dAltitude)
+{
+	var pFlood = Module.getFlood();
+	pFlood.setVisibleAltitude(_dAltitude);
+}
+
+function SetWaterSpeed(_iSpeed)
+{
+	var pFlood = Module.getFlood();
+	GLOBAL.floodSpeed+=_iSpeed;
+	if(GLOBAL.floodSpeed<1) GLOBAL.floodSpeed = 1;
+	else if(GLOBAL.floodSpeed>20) GLOBAL.floodSpeed = 20;
+	pFlood.setWaterSpeed(GLOBAL.floodSpeed);
+}
+
+function setHeightViewer(val){
+	document.getElementById('height').innerHTML = 'Floodwater surface elevation : '+val.toFixed(2)+'m';
+}
   </script>
 </body>
 </html>

@@ -20,39 +20,170 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <table>
+        <tr>
+          <td>Descent Speed</td>
+          <td>
+            <input type="range" id="SD_Speed" min="1" max="10" value="5" class="slider" onchange="changeRainEffectOption(0, this.value)" disabled>
+          </td>
+          <td>
+            <input type="text" id="TX_Speed" style="width:30px;" value="5" disabled>
+          </td>
+        </tr>
+        <tr>
+          <td>Effect Intensity</td>
+          <td>
+            <input type="range" id="SD_Strength" min="1" max="10" value="5" class="slider" onchange="changeRainEffectOption(1, this.value)" disabled>
+          </td>
+          <td>
+            <input type="text" id="TX_Strength" style="width:30px;" value="5" disabled>
+          </td>
+        </tr>
+        <tr>
+          <td>Rain Effect Image Path</td>
+          <td colspan="2">
+            <select id="SE_ImageURL" onchange="changeRainEffectOption(2, this.value);" disabled>
+              <option>./data/rain0.png</option>
+              <option>./data/rain1.png</option>
+              <option>./data/rain2.png</option>
+            </select>
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Map : null,
+	EffectOption : {
+		Speed : 5,
+		Strength : 5
+	}
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera position
+		Module.getViewCamera().look(
+			new Module.JSVector3D(129.144022, 35.145603, 2243.5),
+			new Module.JSVector3D(129.116745, 35.212204, 43.3)
+		);
+		
+		// Add building layer
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+		
+		// Set global variable
+		GLOBAL.Map = Module.getMap();
+		
+		setUseRainEffect(true);
+		
+		changeRainEffectOption(2, "./data/rain0.png");
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set rain effect */
+function setUseRainEffect(_bUse) {
+	
+	if (GLOBAL.Map == null) {
+		return;
+	}
+	
+	// Set rain effect option (weather effect type 1)
+	if (_bUse) {
+		
+		// Effect On
+		GLOBAL.Map.startWeather(1, GLOBAL.EffectOption.Speed, GLOBAL.EffectOption.Strength);	
+	} else {
+		
+		// Effect Off
+		GLOBAL.Map.stopWeather();	
+	}
+	
+	// Set related elements disabled
+	var bDisabled = !_bUse;
+	document.getElementById("SD_Speed").disabled = bDisabled;
+	document.getElementById("TX_Speed").disabled = bDisabled;
+	document.getElementById("SD_Strength").disabled = bDisabled;
+	document.getElementById("TX_Strength").disabled = bDisabled;
+	document.getElementById("SE_ImageURL").disabled = bDisabled;
+}
+
+/* Change rain effect options */
+function changeRainEffectOption(_type, _value) {
+	
+	var value;
+	
+	if (_type == 0) {
+		
+		value = parseInt(_value);
+		
+		// Save option value
+		GLOBAL.EffectOption.Speed = value;
+		document.getElementById("TX_Speed").value = value;
+		
+		// Set rain descent speed option
+		GLOBAL.Map.startWeather(1, GLOBAL.EffectOption.Strength, value);	
+	
+	} else if (_type == 1) {
+		
+		value = parseInt(_value);
+		
+		// Save option value
+		GLOBAL.EffectOption.Strength = value;
+		document.getElementById("TX_Strength").value = value;
+		
+		// Set rain effect intensity option
+		GLOBAL.Map.startWeather(1, value, GLOBAL.EffectOption.Speed);
+	
+	} else {
+		
+		if (_value.length == 0) {
+			return;
+		}
+		
+		// Set effect image
+		GLOBAL.Map.setRainImageURL(_value);
+		
+		// Restart effect for the settings to take effect
+		GLOBAL.Map.startWeather(1, GLOBAL.EffectOption.Speed, GLOBAL.EffectOption.Strength);	
+	}
+}
   </script>
 </body>
 </html>

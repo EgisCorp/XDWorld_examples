@@ -20,39 +20,208 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Move Speed</span>
+<input type="range" id="RG_MoveSpeed" style="width:80px;" min="0" max="50.0" step="0.1" value="3.0" onChange="setTyphoonSpeed(this.value);">
+<input type="text" id="TX_MoveSpeed" style="width:30px;" value="3.0" readonly>
+<input type="button" class="moveTyphoon" value="Play" onClick="moveTyphoon();"/>
+<input type="button" class="moveTyphoon" value="Stop" onClick="stopTyphoon();"/>
+<br>
+<span>Danger Radius Display</span>
+<br>
+<input type="radio" name="damageRangeDisplay" onclick="setDamageRangeDisplay(false);">Hide
+<br>
+<input type="radio" name="damageRangeDisplay" onclick="setDamageRangeDisplay(true, false);" checked>Show (Flat)
+<br>
+<input type="radio" name="damageRangeDisplay" onclick="setDamageRangeDisplay(true, true);">Show (RTT)
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera
+  var camera = Module.getViewCamera();
+  camera.moveLonLatAlt(126.78511928352249, 34.99010203775276, 2000.0, true);
+  camera.setTilt(30.0);
+  
+  // Create layer for save JSTyphoon
+  let layerList = new Module.JSLayerList(true);
+  let Typhoonlayer = layerList.createLayer("LAYER_TYPHOON", Module.ELT_TYPHOON);
+  Typhoonlayer.setMaxDistance(100000.0);                                        // Set layer visibility distance
+
+  // Create typhoon
+  let typhoon = Module.createTyphoon("Typhoon");                         // Create object instance
+  
+  let json = {
+    id: "Typhoon",                                                   // Create object ID
+    size: 800,                                                        // Typhoon size (diameter)
+    height: 1000,                                                    // Typhoon height
+    position: new Module.JSVector3D(126.7852637, 35.0183227, 30.0),   // Typhoon position
+    damage: {                                                        // Danger zone representation Tag {
+      size: 500,                                                       // Visualization size (radius)          [Default 500]
+      altitude: 10,                                                    // Visualization altitude relative to plane  [Default 10]
+      color: new Module.JSColor(200, 0, 0, 255),                        // Visualization color ARGB (0~255 range)    [Default ARGB(200, 255, 0, 0)]
+      unionterrain: false,                                             // Visualization terrain union           [Default false]
+    },                                                               // }
+    complete: complete,                                               // Callback after movement completion
+  };
+  let result = typhoon.createbyJson(json);                             // Returns success if successful, returns failure error if failed
+  console.log(result);
+  
+  typhoon.setTextureURL("./data/typhoon.png");
+  
+  Typhoonlayer.addObject(typhoon, 0);                                   // Add object layer
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Typhoon movement completion event */
+function complete(...args) {
+// Handling with variable parameters, args[0] data returns the object ID
+alert(args[0]);
+}
+
+/* Set Typhoon movement speed */
+function setTyphoonSpeed(_typhoonSpeed) {
+
+// Retrieve layer
+let layerList = new Module.JSLayerList(true);
+let typhoonLayer = layerList.nameAtLayer("LAYER_TYPHOON");
+
+if (typhoonLayer == null) {
+  console.log("setTyphoonSpeed: typhoonLayer is NULL");
+  return;
+}
+
+// Retrieve object
+let typhoon = typhoonLayer.keyAtObject("Typhoon");
+if (typhoon == null) {
+  console.log("setTyphoonSpeed: typhoon is NULL");
+  return;
+}
+
+// Set movement speed	
+typhoon.setSpeed(parseFloat(_typhoonSpeed));
+// Set output text
+document.getElementById("TX_MoveSpeed").value = _typhoonSpeed;
+}
+
+/* Start Typhoon movement */
+function moveTyphoon() {
+
+// Retrieve layer
+let layerList = new Module.JSLayerList(true);
+let typhoonLayer = layerList.nameAtLayer("LAYER_TYPHOON");
+
+if (typhoonLayer == null) {
+  console.log("moveTyphoon: typhoonLayer is NULL");
+  return;
+}
+// Retrieve object
+let typhoon = typhoonLayer.keyAtObject("Typhoon");
+if (typhoon == null) {
+  console.log("moveTyphoon: typhoon is NULL");
+  return;
+}
+
+// Initialize Typhoon movement path
+var movePositions = new Module.Collection();
+movePositions.add(new Module.JSVector3D(126.77599416643791, 35.02714918251881, 34.293371013365686));
+movePositions.add(new Module.JSVector3D(126.78374897355015, 35.03318059967435, 35.54886215366423));
+movePositions.add(new Module.JSVector3D(126.79212321528658, 35.03203801070689, 25.686076117679477));
+movePositions.add(new Module.JSVector3D(126.79408620811664, 35.019259090964134, 29.999966450035572));
+movePositions.add(new Module.JSVector3D(126.78978362530727, 35.011527249861985, 24.815993944182992));
+movePositions.add(new Module.JSVector3D(126.78368468586561, 35.01021238186576, 20.000664656050503));
+movePositions.add(new Module.JSVector3D(126.77870111323816, 35.01425854796805, 24.670204857364297));
+movePositions.add(new Module.JSVector3D(126.78069601667127, 35.01980946856661, 32.60766044445336));
+movePositions.add(new Module.JSVector3D(126.78833340243551, 35.01784449416104, 27.051398639567196));
+movePositions.add(new Module.JSVector3D(126.78535203397563, 35.013606511710016, 24.723939249292016));
+
+// Set movement positions
+typhoon.moveList(movePositions);
+// Start movement
+typhoon.moveStart();
+}
+
+/* Stop Typhoon movement */
+function stopTyphoon() {
+// Retrieve layer
+let layerList = new Module.JSLayerList(true);
+let typhoonLayer = layerList.nameAtLayer("LAYER_TYPHOON");
+
+if (typhoonLayer == null) {
+  console.log("stopTyphoon: typhoonLayer is NULL");
+  return;
+}
+// Retrieve object
+let typhoon = typhoonLayer.keyAtObject("Typhoon");
+if (typhoon == null) {
+  console.log("stopTyphoon: typhoon is NULL");
+  return;
+}
+// End movement
+typhoon.moveEnd();
+}
+
+/* Display Typhoon danger area */
+function setDamageRangeDisplay(_isDisplay, _isRTT) {
+
+let layerList = new Module.JSLayerList(true);
+let typhoonLayer = layerList.nameAtLayer("LAYER_TYPHOON");
+
+if (typhoonLayer == null) {
+  console.log("setDamageRangeDisplay: typhoonLayer is NULL");
+  return;
+}
+let typhoon = typhoonLayer.keyAtObject("Typhoon");
+if (typhoon == null) {
+  console.log("setDamageRangeDisplay: typhoon is NULL");
+  return;
+}
+
+// Set danger area display
+if (_isDisplay) {
+  typhoon.setVisibleDamageRange(true);
+
+  // Set danger area display type
+  if (_isRTT) {
+    typhoon.setUnionTerrain(true);
+  } else {
+    typhoon.setUnionTerrain(false);
+  }
+
+} else {
+  typhoon.setVisibleDamageRange(false);
+}
+}
+
   </script>
 </body>
 </html>

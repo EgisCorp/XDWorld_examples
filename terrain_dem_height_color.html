@@ -20,39 +20,314 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        input[type="button"] {
+          width: 100%;
+        }
+        input[type="text"] {
+          width: 50px;
+        }
+      </style>
+      <table>
+        <tr>
+          <td><span>Elevation Range</span></td>
+          <td>
+            <span>min</span>
+            <input type="text" id="min" value="0.0" onchange="setTerrainColor();">
+            <span> ~ max</span>
+            <input type="text" id="max" value="320.0" onchange="setTerrainColor();">
+          </td>
+        </tr>
+        <tr>
+          <td><span>Color Theme</span></td>
+          <td>
+            <form onchange="setTerrainColor();">
+              <input type="radio" name="theme" id="standard" checked> Standard
+              <input type="radio" name="theme" id="warm"> Warm
+              <input type="radio" name="theme" id="sea"> Sea
+              <input type="radio" name="theme" id="plant"> Plant
+              <input type="radio" name="theme" id="sky"> Sky
+            </form>
+          </td>
+        </tr>
+        <tr>
+          <td><span>Opacity</span></td>
+          <td>
+            <input type="range" id="opacity" min="0.0" max="1.0" step="0.1" value="1.0" onchange="setOpacity(this.value);">
+            <span id="opacityText">1.0</span>
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	color_theme : {}
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+	    // Set camera position
+	    Module.getViewCamera().setLocation(new Module.JSVector3D(129.128265, 35.171834, 10000.0));
+		
+		// Initialize color list
+		initColorList();
+		
+		// Terrain color rendering mode and shading settings
+		var map = Module.getMap();
+		map.setTerrainEffect(1);
+		map.setLighting(true);
+		setTerrainColor();
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Initialize the color list for each theme */
+function initColorList() {
+		
+	GLOBAL.color_theme.standard = [
+		new Module.JSColor(255,8,0,255),
+		new Module.JSColor(255,0,22,255),
+		new Module.JSColor(255,0,53,255),
+		new Module.JSColor(255,0,83,255),
+		new Module.JSColor(255,0,114,255),
+		new Module.JSColor(255,0,144,255),
+		new Module.JSColor(255,0,175,255),
+		new Module.JSColor(255,0,205,255),
+		new Module.JSColor(255,0,236,255),
+		new Module.JSColor(255,0,255,244),
+		new Module.JSColor(255,0,255,214),
+		new Module.JSColor(255,0,255,183),
+		new Module.JSColor(255,0,255,153),
+		new Module.JSColor(255,0,255,122),
+		new Module.JSColor(255,0,255,92),
+		new Module.JSColor(255,0,255,61),
+		new Module.JSColor(255,0,255,31),
+		new Module.JSColor(255,0,255,0),
+		new Module.JSColor(255,30,255,0),
+		new Module.JSColor(255,60,255,0),
+		new Module.JSColor(255,91,255,0),
+		new Module.JSColor(255,121,255,0),
+		new Module.JSColor(255,152,255,0),
+		new Module.JSColor(255,182,255,0),
+		new Module.JSColor(255,213,255,0),
+		new Module.JSColor(255,243,255,0),
+		new Module.JSColor(255,255,237,0),
+		new Module.JSColor(255,255,206,0),
+		new Module.JSColor(255,255,176,0),
+		new Module.JSColor(255,255,145,0),
+		new Module.JSColor(255,255,115,0),
+		new Module.JSColor(255,255,84,0)
+	];
+
+	GLOBAL.color_theme.warm = [
+		new Module.JSColor(255,255,102,0),
+		new Module.JSColor(255,255,118,0),
+		new Module.JSColor(255,255,126,0),
+		new Module.JSColor(255,255,129,0),
+		new Module.JSColor(255,255,127,0),
+		new Module.JSColor(255,255,143,0),
+		new Module.JSColor(255,255,157,0),
+		new Module.JSColor(255,255,168,0),
+		new Module.JSColor(255,255,181,0),
+		new Module.JSColor(255,255,189,0),
+		new Module.JSColor(255,255,198,0),
+		new Module.JSColor(255,255,204,0),
+		new Module.JSColor(255,255,210,0),
+		new Module.JSColor(255,255,220,0),
+		new Module.JSColor(255,255,233,0),
+		new Module.JSColor(255,255,246,0),
+		new Module.JSColor(255,254,252,0),
+		new Module.JSColor(255,246,249,7),
+		new Module.JSColor(255,232,242,17),
+		new Module.JSColor(255,218,232,27),
+		new Module.JSColor(255,203,223,36),
+		new Module.JSColor(255,174,202,57),
+		new Module.JSColor(255,155,187,70),
+		new Module.JSColor(255,145,180,77),
+		new Module.JSColor(255,123,162,92),
+		new Module.JSColor(255,104,147,104),
+		new Module.JSColor(255,78,126,123),
+		new Module.JSColor(255,63,114,133),
+		new Module.JSColor(255,43,97,148),
+		new Module.JSColor(255,39,94,150),
+		new Module.JSColor(255,29,87,157),
+		new Module.JSColor(255,20,79,164)
+	];
+
+	GLOBAL.color_theme.sea = [
+		new Module.JSColor(255,7,64,61),
+		new Module.JSColor(255,6,74,66),
+		new Module.JSColor(255,6,85,72),
+		new Module.JSColor(255,4,101,79),
+		new Module.JSColor(255,2,123,89),
+		new Module.JSColor(255,0,143,98),
+		new Module.JSColor(255,0,156,104),
+		new Module.JSColor(255,0,174,112),
+		new Module.JSColor(255,0,180,115),
+		new Module.JSColor(255,0,193,123),
+		new Module.JSColor(255,0,205,128),
+		new Module.JSColor(255,0,216,135),
+		new Module.JSColor(255,0,225,140),
+		new Module.JSColor(255,0,234,145),
+		new Module.JSColor(255,0,239,148),
+		new Module.JSColor(255,0,247,156),
+		new Module.JSColor(255,0,251,159),
+		new Module.JSColor(255,0,254,163),
+		new Module.JSColor(255,3,254,170),
+		new Module.JSColor(255,7,254,177),
+		new Module.JSColor(255,20,255,194),
+		new Module.JSColor(255,22,255,198),
+		new Module.JSColor(255,31,253,208),
+		new Module.JSColor(255,38,247,217),
+		new Module.JSColor(255,43,243,222),
+		new Module.JSColor(255,49,239,228),
+		new Module.JSColor(255,52,236,232),
+		new Module.JSColor(255,56,232,236),
+		new Module.JSColor(255,67,223,247),
+		new Module.JSColor(255,67,223,248),
+		new Module.JSColor(255,68,222,248),
+		new Module.JSColor(255,73,218,255)
+	];
+
+	GLOBAL.color_theme.plant = [
+		new Module.JSColor(255,0,193,190),
+		new Module.JSColor(255,0,184,166),
+		new Module.JSColor(255,0,178,149),
+		new Module.JSColor(255,0,168,120),
+		new Module.JSColor(255,0,162,106),
+		new Module.JSColor(255,0,156,94),
+		new Module.JSColor(255,0,152,85),
+		new Module.JSColor(255,0,148,80),
+		new Module.JSColor(255,1,144,75),
+		new Module.JSColor(255,3,139,70),
+		new Module.JSColor(255,7,134,68),
+		new Module.JSColor(255,16,124,68),
+		new Module.JSColor(255,28,112,75),
+		new Module.JSColor(255,36,104,81),
+		new Module.JSColor(255,44,98,87),
+		new Module.JSColor(255,55,88,96),
+		new Module.JSColor(255,64,82,102),
+		new Module.JSColor(255,73,74,110),
+		new Module.JSColor(255,85,65,119),
+		new Module.JSColor(255,99,54,127),
+		new Module.JSColor(255,116,43,131),
+		new Module.JSColor(255,125,37,129),
+		new Module.JSColor(255,128,34,127),
+		new Module.JSColor(255,137,29,119),
+		new Module.JSColor(255,145,26,112),
+		new Module.JSColor(255,149,25,106),
+		new Module.JSColor(255,156,22,95),
+		new Module.JSColor(255,165,19,78),
+		new Module.JSColor(255,169,18,71),
+		new Module.JSColor(255,170,17,70),
+		new Module.JSColor(255,179,15,50),
+		new Module.JSColor(255,186,13,37)
+	];
+
+	GLOBAL.color_theme.sky = [
+		new Module.JSColor(255,73,218,255),
+		new Module.JSColor(255,68,222,248),
+		new Module.JSColor(255,67,223,248),
+		new Module.JSColor(255,67,223,247),
+		new Module.JSColor(255,56,232,236),
+		new Module.JSColor(255,52,236,232),
+		new Module.JSColor(255,49,239,228),
+		new Module.JSColor(255,43,243,222),
+		new Module.JSColor(255,38,247,217),
+		new Module.JSColor(255,31,253,208),
+		new Module.JSColor(255,22,255,198),
+		new Module.JSColor(255,20,255,194),
+		new Module.JSColor(255,7,254,177),
+		new Module.JSColor(255,3,254,170),
+		new Module.JSColor(255,0,254,163),
+		new Module.JSColor(255,0,251,159),
+		new Module.JSColor(255,0,247,156),
+		new Module.JSColor(255,0,239,148),
+		new Module.JSColor(255,0,234,145),
+		new Module.JSColor(255,0,225,140),
+		new Module.JSColor(255,0,216,135),
+		new Module.JSColor(255,0,205,128),
+		new Module.JSColor(255,0,193,123),
+		new Module.JSColor(255,0,180,115),
+		new Module.JSColor(255,0,174,112),
+		new Module.JSColor(255,0,156,104),
+		new Module.JSColor(255,0,143,98),
+		new Module.JSColor(255,2,123,89),
+		new Module.JSColor(255,4,101,79),
+		new Module.JSColor(255,6,85,72),
+		new Module.JSColor(255,6,74,66),
+		new Module.JSColor(255,7,64,61)
+	];
+}
+
+/* Set Opacity */
+function setOpacity(_opacity) {
+	
+	document.getElementById("opacityText").innerHTML = _opacity;
+	
+	var opacity = parseFloat(_opacity).toFixed(1);
+	
+	for(var name in GLOBAL.color_theme){
+		
+		for (var i=0; i<GLOBAL.color_theme[name].length; i++) {
+			GLOBAL.color_theme[name][i].a = opacity * 255.0;
+		}
+	}
+	
+	setTerrainColor();
+}
+
+/* Set terrain color */
+function setTerrainColor() {
+	
+	var min = parseFloat(document.getElementById("min").value);
+	var max = parseFloat(document.getElementById("max").value);
+	
+	if (max < min) {
+		var temp = min;
+		min = max;
+		max = temp;
+		document.getElementById("min").value = min;
+		document.getElementById("max").value = max;
+	}
+	
+	Module.getTerrain().setTerrainColor({
+		altitudemin : min,
+		altitudemax : max,
+		colorlist : GLOBAL.color_theme[document.querySelector('input[name="theme"]:checked').id]
+	});
+	
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

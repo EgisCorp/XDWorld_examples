@@ -20,39 +20,632 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
+
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
       },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Set camera position
+  Module.getViewCamera().look(
+    new Module.JSVector3D(127.05204171193377, 37.481801488225955, 573.1121662491933),
+    new Module.JSVector3D(127.05501989659481, 37.48654158510448, 193.99964902177453)
+  );
+
+  // Create graph
+  createTerrainGraph({
+      
+    graphAltitude : 150,	// Altitude of the graph bottom face
+    scale : {
+      width : 2.0,	// Depth and width scale of the graph
+      height : 3.0,	// Height scale of the graph
+    },
+    gaugeUnit : 5.0,	// Graph scale unit
+    terrainGridInterval : 5.0, 	// Terrain grid interval (in meters)
+    terrainRequestLevel : 13, 	// Server DEM request level
+    
+    // Analysis area longitude and latitude coordinates
+    planArea : [
+      {longitude : 127.05503533460195, latitude : 37.48702239979161},
+      {longitude : 127.05559232207914, latitude : 37.487351615276005},
+      {longitude : 127.05571304904228, latitude : 37.487369608442556},
+      {longitude : 127.05588766719838, latitude : 37.48748556999631},
+      {longitude : 127.05609971050193, latitude : 37.487078247317065},
+      {longitude : 127.05530428802474, latitude : 37.48664425917456}
+    ],
+    
+    // Plane colors and heights
+    planHeights : [
+      {height : 9.0, color : Module.COLOR_YELLOW},
+      {height : 11.0, color : Module.COLOR_RED}
+    ]
+  });
+}
+};
+
+function createTerrainGraph(_options) {
+
+clearLayers();
+
+// Calculate longitude/latitude min/max rect containing the polygon area
+var graphRect = getRect(_options.planArea);
+
+// Generate grid coordinates
+var gridGeometry = getGridGeometry(graphRect, _options.terrainGridInterval);
+
+// Request terrain altitude for grid coordinates
+Module.getTerrain().getServerAltitude({
+  level : _options.terrainRequestLevel,
+  positions : gridGeometry.vertex
+}, function (_terrainGridVertex) {
+  
+  // Graph center
+  var center = {
+    latitude : (graphRect.min.latitude + graphRect.max.latitude) / 2,
+    longitude : (graphRect.min.longitude + graphRect.max.longitude) / 2
+  };
+
+  // Create terrain polygon
+  var terrainAltitudeRange = getAltitudeRange(_terrainGridVertex);
+  var scaledAltitudeRange = {
+    min : terrainAltitudeRange.min * _options.scale.height,
+    max : terrainAltitudeRange.max * _options.scale.height
+  };
+  var scaledTerrainGridVertex = getScaledPoints(center, _terrainGridVertex, _options.scale);
+  createTerrainPolygon(_options.graphAltitude, scaledTerrainGridVertex, gridGeometry.index, scaledAltitudeRange);
+
+  // Create plane polygon
+  var scaledGraphRect = getScaledArea(center, graphRect, _options.scale);
+  var scaledplanArea = getScaledPoints(center, _options.planArea, _options.scale);
+  createPolygon(scaledplanArea, _options.planHeights, _options.scale.height, _options.graphAltitude, scaledGraphRect);
+  
+  // Draw plane polygon area on the ground
+  createRttPolygon(_options.planArea, graphRect);
+
+  // Create gauge
+  var gaugeRange = getGaugeRange(terrainAltitudeRange, _options.planHeights);
+  createGraphGauge(gaugeRange, scaledGraphRect, _options.graphAltitude, _options.scale.height, _options.gaugeUnit);
+
+  // Create scaling line for graph height
+  createScaledGraphLine(scaledGraphRect, _options.graphAltitude, graphRect, terrainAltitudeRange.min);
+});
+}
+
+/* Calculate longitude/latitude min/max rect containing the entire area */
+function getRect(_area) {
+
+var rect = null;
+
+for (var i=0; i<_area.length; i++) {
+
+  var point = _area[i];
+
+  if (rect == null) {
+    rect = {
+      min : {
+        longitude : point.longitude,
+        latitude : point.latitude
+      },
+      max : {
+        longitude : point.longitude,
+        latitude : point.latitude
       }
     };
+  } else {
+    rect.min.longitude = Math.min(rect.min.longitude, point.longitude);
+    rect.min.latitude = Math.min(rect.min.latitude, point.latitude);
+    rect.max.longitude = Math.max(rect.max.longitude, point.longitude);
+    rect.max.latitude = Math.max(rect.max.latitude, point.latitude);
+  }
+}
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+return rect;
+}
+
+/* Generate grid coordinates */
+function getGridGeometry(_area, _interval) {
+
+// Calculate vertex list dividing the Rect of the analysis area into equal intervals
+var gridIntervals = Module.getMath().GetIntervalPositionInRect(
+  new Module.JSVector2D(_area.min.longitude, _area.min.latitude),	// Lower left corner coordinate of the analysis area
+  new Module.JSVector2D(_area.max.longitude, _area.max.latitude),	// Upper right corner coordinate of the analysis area
+  _interval,	// Horizontal interval
+  _interval	// Vertical interval
+);
+
+// Calculate terrain grid vertex and index
+var positions = gridIntervals.position;
+var gridWidth = gridIntervals.positionCountWidth;
+var gridHeight = gridIntervals.positionCountHeight;
+
+// Calculate vertex and index of grid cells
+var vertex = [];
+var index = [];
+
+for (var i=0; i<gridHeight-1; i++) {
+
+  for (var j=0; j<gridWidth-1; j++) {
+
+    // Calculate vertices of grid cells
+    var leftTopIndex = (gridWidth*i) + j;
+    var rightTopIndex = leftTopIndex + 1;
+    var rightBottomIndex = leftTopIndex + gridWidth + 1;
+    var leftBottomIndex = leftTopIndex + gridWidth;
+
+    var indexStart = vertex.length;
+    vertex = vertex.concat([
+      positions.get(leftTopIndex),
+      positions.get(rightTopIndex),
+      positions.get(rightBottomIndex),
+      positions.get(leftBottomIndex)
+    ]);
+
+    // Calculate indices of grid cells
+    index = index.concat([indexStart, indexStart+2, indexStart+1, indexStart, indexStart+3, indexStart+2]);
+  }
+}
+
+return {
+  vertex : vertex,
+  index : index,
+};
+}
+
+/* Calculate altitude range */
+function getAltitudeRange(_altitude) {
+
+var min = _altitude[0].altitude;
+var max = _altitude[0].altitude;
+
+for (var i=0; i<_altitude.length; i++) {
+  if (min > _altitude[i].altitude) {
+    min = _altitude[i].altitude;
+  }
+  if (max < _altitude[i].altitude) {
+    max = _altitude[i].altitude;
+  }
+}
+
+return {
+  min : min,
+  max : max
+};
+}
+
+/* Return scaled area around the center point */
+function getScaledArea(_center, _area, _scale) {
+
+var scaledAreaPoints = getScaledPoints(_center, [_area.min, _area.max], _scale);
+
+return {
+  min : scaledAreaPoints[0],
+  max : scaledAreaPoints[1]
+};
+}
+
+/* Return scaled coordinates around the center point */
+function getScaledPoints(_center, _points, _scale) {
+
+return _points.map(point => {
+
+  const dist = haversineDistance(_center.latitude, _center.longitude, point.latitude, point.longitude);
+  const brng = calculateBearing(_center.latitude, _center.longitude, point.latitude, point.longitude);
+  const scaledDist = dist * _scale.width;
+
+  // Calculate new location
+  const newLocation = calculateDestination(_center.latitude, _center.longitude, brng, scaledDist);
+
+  // If altitude information is available
+  if (typeof point.altitude == "number") {
+    point.altitude *= _scale.height;
+  }
+
+  // Return the new location along with other properties of the original point object
+  return {
+    ...point, // Spread all properties of the original point object
+    latitude: newLocation.latitude, // Update latitude with new information
+    longitude: newLocation.longitude // Update longitude with new information
+  };
+});
+}
+
+/* Calculate distance between two points */
+function haversineDistance(lat1, lon1, lat2, lon2) {
+
+const R = 6371; // Radius of the earth in km
+const radLat1 = lat1 * Math.PI / 180; // Convert latitude to radians
+const radLat2 = lat2 * Math.PI / 180; // Convert latitude to radians
+const deltaLat = (lat2 - lat1) * Math.PI / 180; // Difference in latitude
+const deltaLon = (lon2 - lon1) * Math.PI / 180; // Difference in longitude
+
+const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+    Math.cos(radLat1) * Math.cos(radLat2) * 
+    Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+const distance = R * c; // Distance in km
+return distance;
+}
+
+/* Calculate bearing between two points */
+function calculateBearing(lat1, lon1, lat2, lon2) {
+
+const radLat1 = lat1 * Math.PI / 180;
+const radLat2 = lat2 * Math.PI / 180;
+const deltaLon = (lon2 - lon1) * Math.PI / 180;
+
+const y = Math.sin(deltaLon) * Math.cos(radLat2);
+const x = Math.cos(radLat1) * Math.sin(radLat2) -
+    Math.sin(radLat1) * Math.cos(radLat2) * Math.cos(deltaLon);
+const brng = Math.atan2(y, x) * 180 / Math.PI;
+
+return (brng + 360) % 360; // Normalize bearing between 0 and 360 degrees
+}
+
+/* Calculate coordinates of a point at a specified bearing and distance from a given point */
+function calculateDestination(lat1, lon1, brng, dist) {
+
+const R = 6371; // Radius of the earth in km
+const radLat1 = lat1 * Math.PI / 180; // Convert to radians
+const radLon1 = lon1 * Math.PI / 180;
+const radBrng = brng * Math.PI / 180;
+
+const lat2 = Math.asin(Math.sin(radLat1) * Math.cos(dist / R) +
+          Math.cos(radLat1) * Math.sin(dist / R) * Math.cos(radBrng));
+const lon2 = radLon1 + Math.atan2(Math.sin(radBrng) * Math.sin(dist / R) * Math.cos(radLat1),
+                Math.cos(dist / R) - Math.sin(radLat1) * Math.sin(lat2));
+
+return {
+  latitude: lat2 * 180 / Math.PI,
+  longitude: lon2 * 180 / Math.PI
+};
+}
+
+/* Create terrain polygon */
+function createTerrainPolygon(_graphAltitude, _vertex, _index, _altitudeRange) {
+
+// Calculate terrain polygon vertices and colors
+var vertex = [];
+var color = [];
+var terrain_color_high = Module.COLOR_GREENYELLOW;
+var terrain_color_low = Module.COLOR_DARKGREEN;
+
+for (var i=0; i<_vertex.length; i++) {
+  vertex.push(new Module.JSVector3D(_vertex[i].longitude, _vertex[i].latitude, _vertex[i].altitude+_graphAltitude));
+  color.push(getColorByAltitude(_vertex[i].altitude, _altitudeRange.min, _altitudeRange.max, terrain_color_high, terrain_color_low));
+}
+
+// Create terrain polygon
+var terrainGrid = Module.createColorPolygon("TERRAIN_GRID");
+terrainGrid.set({
+  vertex : vertex,
+  color : color,
+  index : _index
+});
+
+terrainGrid.SetCullMode(0);
+
+// Create a layer and add the polygon
+var layer = getLayer("TERRAIN_GRAPH_POLYGON", Module.ELT_POLYHEDRON, 999999999.0);
+layer.addObject(terrainGrid, 0);
+}
+
+/* Return color based on altitude */
+function getColorByAltitude(_altitude, _min, _max, _colorHigh, _colorLow) {
+
+var ratio = (_altitude - _min) / (_max - _min);
+var color = new Module.JSColor(
+  255,
+  _colorHigh.r * ratio + _colorLow.r * (1.0 - ratio),
+  _colorHigh.g * ratio + _colorLow.g * (1.0 - ratio),
+  _colorHigh.b * ratio + _colorLow.b * (1.0 - ratio)
+);
+
+return color;
+}
+
+/* Create polygon */
+function createPolygon(_area, _planHeights, _heightScale, _graphAltitude, _scaledGraphRect) {
+
+// Create layer
+var polygonLayer = getLayer("TERRAIN_GRAPH_POLYGON", Module.ELT_POLYHEDRON, 999999999.0);
+var textLayer = getLayer("TERRAIN_GRAPH_POINT", Module.ELT_3DPOINT, 999999999.0);
+var gaugeLineLayer = getLayer("TERRAIN_GRAPH_LINE", Module.ELT_3DLINE, 999999999.0);
+
+// Create polygon
+for (var i=0; i<_planHeights.length; i++) {
+
+  var polygon = Module.createPolygon("PLAN_"+i);
+
+  var height = _planHeights[i].height;
+  var color = _planHeights[i].color;
+  color.a = 150;
+  
+  // Generate polygon coordinates
+  var altitude = (height*_heightScale) + _graphAltitude;
+  var geometry = new Module.Collection();
+  for (var j=0; j<_area.length; j++) {
+    geometry.add(new Module.JSVector3D(_area[j].longitude, _area[j].latitude, altitude));
+  }		
+  
+  // Create polygon and add to layer
+  polygon.setCoordinates(geometry);
+
+  var style = new Module.JSPolygonStyle();
+  style.setFill(true);
+  style.setFillColor(color);
+  style.setOutLine(true);
+  style.setOutLineColor(color);
+  polygon.setStyle(style);
+
+  polygonLayer.addObject(polygon, 0);
+
+  // Generate text for polygon height gauge
+  var leftTop = [_scaledGraphRect.min.longitude, _scaledGraphRect.max.latitude, altitude];
+  var leftTopText = createText("TEXT_LEFT_TOP"+i, leftTop, height.toFixed(1)+"m", 20.0, color);
+  textLayer.addObject(leftTopText, 0);
+
+  var rightBottom = [_scaledGraphRect.max.longitude, _scaledGraphRect.min.latitude, altitude];
+  var rightBottomText = createText("TEXT_RIGHT_BOTTOM"+i, rightBottom, height.toFixed(1)+"m", 20.0, color);
+  textLayer.addObject(rightBottomText, 0);
+
+  // Generate lines for polygon height gauge
+  var rightTop = [_scaledGraphRect.max.longitude, _scaledGraphRect.max.latitude, altitude];
+  var topLine = createLine("GAUGE_LINE_TOP"+i, [leftTop, rightTop], color, 1.2, true);
+  gaugeLineLayer.addObject(topLine, 0);
+
+  var rightLine = createLine("GAUGE_LINE_RIGHT"+i, [rightTop, rightBottom], color, 1.2, true);
+  gaugeLineLayer.addObject(rightLine, 0);
+}
+}
+
+/* Create RTT polygon for area representation */
+function createRttPolygon(_area, _rect) {
+
+var layer = getLayer("TERRAIN_GRAPH_POLYGON_RTT", Module.ELT_PLANE, 999999999.0);
+
+// Create polygon
+var area = Module.createPolygon("TERRAIN_GRAPH_RTT_AREA");
+var vertices = new Module.Collection();
+
+for (var i=0; i<_area.length; i++) {
+  vertices.add(new Module.JSVector3D(_area[i].longitude, _area[i].latitude, 0.0));
+}
+
+area.setCoordinates(vertices);
+
+var style = new Module.JSPolygonStyle();
+style.setFill(true);
+style.setFillColor(Module.COLOR_GRAY);
+area.setStyle(style);
+
+layer.addObject(area, 0);
+
+// Create rectangle
+var rect = Module.createPolygon("TERRAIN_GRAPH_RTT_RECT");
+var rectVertices = new Module.Collection();
+
+rectVertices.add(new Module.JSVector3D(_rect.min.longitude, _rect.min.latitude, 0.0));
+rectVertices.add(new Module.JSVector3D(_rect.max.longitude, _rect.min.latitude, 0.0));
+rectVertices.add(new Module.JSVector3D(_rect.max.longitude, _rect.max.latitude, 0.0));
+rectVertices.add(new Module.JSVector3D(_rect.min.longitude, _rect.max.latitude, 0.0));
+rectVertices.add(new Module.JSVector3D(_rect.min.longitude, _rect.min.latitude, 0.0));
+
+rect.setCoordinates(rectVertices);
+
+var rectStyle = new Module.JSPolygonStyle();
+rectStyle.setFill(true);
+style.setFillColor(Module.COLOR_WHITE);
+rectStyle.setOutLine(true);
+rectStyle.setOutLineColor(Module.COLOR_GRAY);
+rectStyle.setOutLineWidth(2.0);
+rect.setStyle(rectStyle);
+
+layer.addObject(rect, 0);
+}
+
+/* Calculate gauge range */
+function getGaugeRange(_terrainAltitudeRange, _planHeights) {
+
+var range = _terrainAltitudeRange;
+
+for (var i=0; i<_planHeights.length; i++) {
+  range.min = Math.min(range.min, _planHeights[i].height);
+  range.max = Math.max(range.max, _planHeights[i].height);
+}
+
+return range;
+}
+
+/* Create graph gauge */
+function createGraphGauge(_range, _graphRect, _graphAltitude, _scale, _unit) {
+
+// Convert _range to units of _unit
+_range.min = Math.floor(_range.min / _unit) * _unit;
+_range.max = Math.ceil(_range.max / _unit) * _unit;
+
+var gaugeCount = Math.ceil(Math.abs(_range.max-_range.min) / _unit);
+
+var lineLayer = getLayer("TERRAIN_GRAPH_LINE", Module.ELT_3DLINE, 999999999.0);
+var pointLayer = getLayer("TERRAIN_GRAPH_POINT", Module.ELT_3DPOINT, 999999999.0);
+
+for (var i=0; i<=gaugeCount; i++) {
+
+  var width = 1.0;
+
+  // Adjust line thickness for every fifth gauge line
+  var gaugeValue = _range.min+(i*_unit);
+  if (gaugeValue % parseInt(_unit*5) == 0) {
+    width = 4.0;
+  }
+
+  // Generate line start and end coordinates
+  var lineAltitude = _graphAltitude+(_scale*(_range.min+i*_unit));
+
+  var leftTop = [_graphRect.min.longitude, _graphRect.max.latitude, lineAltitude];
+  var rightTop = [_graphRect.max.longitude, _graphRect.max.latitude, lineAltitude];
+  var rightBottom = [_graphRect.max.longitude, _graphRect.min.latitude, lineAltitude];
+  
+  // Create lines
+  var lineTop = createLine("GAUGE_LINE_TOP"+i, [leftTop, rightTop], Module.COLOR_WHITE, width);
+  lineLayer.addObject(lineTop, 0);
+
+  var lineRight = createLine("GAUGE_LINE_RIGHT"+i, [rightTop, rightBottom], Module.COLOR_WHITE, width);
+  lineLayer.addObject(lineRight, 0);
+
+  // Create text for gauge values
+  var unitTextFrom = createText("GAUGE_TOP_FROM"+i, leftTop, gaugeValue+"m", 15, Module.COLOR_WHITE);
+  pointLayer.addObject(unitTextFrom, 0);
+
+  var unitTextTo = createText("GAUGE_BOTTOM_TO"+i, rightBottom, gaugeValue+"m", 15, Module.COLOR_WHITE);
+  pointLayer.addObject(unitTextTo, 0);
+}
+}
+
+/* Create lines connecting the graph base and the terrain */
+function createScaledGraphLine(_scaledGraphRect, _graphAltitude, _graphRect, _terrainAltitudeMin) {
+
+// Return the layer
+var lineLayer = getLayer("TERRAIN_GRAPH_LINE", Module.ELT_POLYHEDRON, 999999999.0);
+
+// Display the graph base
+var scaledGraphRectPositions = [
+  [_scaledGraphRect.min.longitude, _scaledGraphRect.min.latitude, _graphAltitude],
+  [_scaledGraphRect.max.longitude, _scaledGraphRect.min.latitude, _graphAltitude],
+  [_scaledGraphRect.max.longitude, _scaledGraphRect.max.latitude, _graphAltitude],
+  [_scaledGraphRect.min.longitude, _scaledGraphRect.max.latitude, _graphAltitude],
+  [_scaledGraphRect.min.longitude, _scaledGraphRect.min.latitude, _graphAltitude]
+];
+
+var scaledGraphRectLine = createLine("AREA_RECT_LINE", scaledGraphRectPositions, Module.COLOR_WHITE, 2.0);
+lineLayer.addObject(scaledGraphRectLine, 0);
+
+// Connect the graph area with the terrain
+var leftTopUp = [_scaledGraphRect.min.longitude, _scaledGraphRect.max.latitude, _graphAltitude];
+var leftTopDown = [_graphRect.min.longitude, _graphRect.max.latitude, _terrainAltitudeMin];
+var leftTopLine = createLine("SCALED_LINE_LEFT_BOTTOM", [leftTopUp, leftTopDown], Module.COLOR_GRAY, 2.0, true);
+lineLayer.addObject(leftTopLine, 0);
+
+var rightTopUp = [_scaledGraphRect.max.longitude, _scaledGraphRect.max.latitude, _graphAltitude];
+var rightTopDown = [_graphRect.max.longitude, _graphRect.max.latitude, _terrainAltitudeMin];
+var rightTopLine = createLine("SCALED_LINE_RIGHT_BOTTOM", [rightTopUp, rightTopDown], Module.COLOR_GRAY, 2.0, true);
+lineLayer.addObject(rightTopLine, 0);
+
+var rightBottomUp = [_scaledGraphRect.max.longitude, _scaledGraphRect.min.latitude, _graphAltitude];
+var rightBottomDown = [_graphRect.max.longitude, _graphRect.min.latitude, _terrainAltitudeMin];
+var rightBottomLine = createLine("SCALED_LINE_RIGHT_BOTTOM", [rightBottomUp, rightBottomDown], Module.COLOR_GRAY, 2.0, true);
+lineLayer.addObject(rightBottomLine, 0);
+
+var leftBottomUp = [_scaledGraphRect.min.longitude, _scaledGraphRect.min.latitude, _graphAltitude];
+var leftBottomDown = [_graphRect.min.longitude, _graphRect.min.latitude, _terrainAltitudeMin];
+var leftBottomLine = createLine("SCALED_LINE_LEFT_BOTTOM", [leftBottomUp, leftBottomDown], Module.COLOR_GRAY, 2.0, true);
+lineLayer.addObject(leftBottomLine, 0);
+}
+
+/* Create a layer */
+function getLayer(_name, _type, _maxDistance) {
+
+var layerList = Module.getObjectLayerList();
+var layer = layerList.nameAtLayer(_name);
+if (layer == null) {
+  
+  layer = layerList.createObjectLayer({
+    name : _name,
+    type : _type,
+    maxDistance : _maxDistance
+  });
+
+}
+
+return layer;
+}
+
+/* Create a line */
+function createLine(_id, _positions, _color, _width, _isDash=false) {
+
+var line = Module.createLineString(_id);
+
+var options = {
+  coordinates : {
+    coordinate : _positions,
+    style: "XYZ"
+  },
+  color : _color,
+  width : _width
+};
+if (_isDash) {
+  options.type = 4;
+  options.dash = 5.0;
+}
+
+line.createbyJson(options);
+
+return line;
+}
+
+/* Create graph gauge text */
+function createText(_id, _position, _text, _size, _color) {
+
+var text = Module.createPoint(_id);
+text.setPosition(new Module.JSVector3D(_position[0], _position[1], _position[2]));
+text.setText(_text);
+text.setTextMargin(0, 8);
+text.setFontStyle('맑은 고딕', _size, 600, _color, Module.COLOR_BLACK);
+
+return text;
+}
+
+/* Clear all layer objects */
+function clearLayers() {
+
+var polygonLayer = getLayer("TERRAIN_GRAPH_POLYGON", Module.ELT_POLYHEDRON, 999999999.0);
+if (polygonLayer != null) {
+  polygonLayer.removeAll();
+}
+
+var lineLayer = getLayer("TERRAIN_GRAPH_LINE", Module.ELT_3DLINE, 999999999.0);
+if (lineLayer != null) {
+  lineLayer.removeAll();
+}
+
+var pointLayer = getLayer("TERRAIN_GRAPH_POINT", Module.ELT_3DPOINT, 999999999.0);
+if (pointLayer != null) {
+  pointLayer.removeAll();
+}
+
+var rttPolygonLayer = getLayer("TERRAIN_GRAPH_POLYGON_RTT", Module.ELT_PLANE, 999999999.0);
+if (rttPolygonLayer != null) {
+  rttPolygonLayer.removeAll();
+}
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

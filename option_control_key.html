@@ -20,39 +20,132 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>[KeyBoard Options]</span>
+<table>
+	<tr>
+		<td colspan="2">
+			<span>Keyboard Useable</span>
+		</td>
+		<td><button class="controlbutton" id="BT_Key" onClick="setMouseOption('key');">Enable</button></td>
+	</tr>
+	<tr>
+		<td><span>- Panning</span></td>
+		<td>(Arrow keys)</td>
+		<td><button class="controlbutton" id="BT_Pan" onClick="setMouseOption('pan');">Enable</button></td>
+	</tr>
+	<tr>
+		<td><span>- Rotation</span></td>
+		<td>(Q/E)</td>
+		<td><button class="controlbutton" id="BT_Rot" onClick="setMouseOption('rot');">Enable</button></td>
+	</tr>
+	<tr>
+		<td><span>- Zoom</span></td>
+		<td>(Home/End)</td>
+		<td><button class="controlbutton" id="BT_Zoom" onClick="setMouseOption('zoom');">Enable</button></td>
+	</tr>
+</table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    /* Global value list */
+var GLOBAL = {
+	Control : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Return JSControl object
+		GLOBAL.Control = Module.getControl();
+		
+		// Set button style
+		setButtonStyle(document.getElementById("BT_Key"), GLOBAL.Control.getKeyControlEnable());
+		setButtonStyle(document.getElementById("BT_Pan"), GLOBAL.Control.getKeyPanMode());
+		setButtonStyle(document.getElementById("BT_Rot"), GLOBAL.Control.getKeyRotMode());
+		setButtonStyle(document.getElementById("BT_Zoom"), GLOBAL.Control.getKeyZoomMode());
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set mouse options */
+function setMouseOption(_type) {
+    var param;
+    switch (_type) {
+        // Set keyboard overall operation
+        case 'key':
+            param = !GLOBAL.Control.getKeyControlEnable();
+            GLOBAL.Control.setKeyControlEnable(param);
+            setButtonStyle(document.getElementById("BT_Key"), param);
+
+            document.getElementById("BT_Pan").disabled = !param;
+            document.getElementById("BT_Rot").disabled = !param;
+            document.getElementById("BT_Zoom").disabled = !param;
+
+            break;
+
+        // Set keyboard pan operation
+        case 'pan':
+            param = !GLOBAL.Control.getKeyPanMode();
+            GLOBAL.Control.setKeyPanMode(param);
+            setButtonStyle(document.getElementById("BT_Pan"), param);
+            break;
+
+        // Set keyboard rotation operation
+        case 'rot':
+            param = !GLOBAL.Control.getKeyRotMode();
+            GLOBAL.Control.setKeyRotMode(param);
+            setButtonStyle(document.getElementById("BT_Rot"), param);
+            break;
+
+        // Set keyboard zoom operation
+        case 'zoom':
+            param = !GLOBAL.Control.getKeyZoomMode();
+            GLOBAL.Control.setKeyZoomMode(param);
+            setButtonStyle(document.getElementById("BT_Zoom"), param);
+            break;
+
+        default:
+            break;
+    }
+}
+
+/* Set button style for keyboard option setting */
+function setButtonStyle(_element, _mode) {
+    if (_mode) {
+        _element.innerHTML = "Enable";
+        _element.style.backgroundColor = "#74ff5b";
+    } else {
+        _element.innerHTML = "Disable";
+        _element.style.backgroundColor = "#ff6060";
+    }
+}
   </script>
 </body>
 </html>

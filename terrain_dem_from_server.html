@@ -20,39 +20,196 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <div style="width: 245px;">
+        <span>Terrain level : </span>
+        <input type="range" id="terrainLevel" min="1" max="13" value="13" step="1" onchange="setTerrainLevelText(this.value);"></ranger>
+        <span id="terrainLevelText">13</span><br>
+        <button style="width:100%;" onclick="createRandomPoints(GLOBAL.randomPointArea.min, GLOBAL.randomPointArea.max, 50);">Create Random Terrain Merge Points</button><br>
+    </div>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	randomPointArea : {
+		min : [129.0224034184771, 35.16393658371659],
+		max : [129.19477608625758, 35.40079044329961]
+	}
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+	
+		// set camera position
+		Module.getViewCamera().look(
+			new Module.JSVector3D(129.1113655414427, 34.94212445762849, 16697.175709933974),
+			new Module.JSVector3D(129.11120548876394, 35.23151054941282, 146.41723655629903)
+		);
+
+		markupRandomPointArea(GLOBAL.randomPointArea.min,GLOBAL.randomPointArea.max);
+
+		createRandomPoints(GLOBAL.randomPointArea.min, GLOBAL.randomPointArea.max, 50);
+	}
+};
+
+function markupRandomPointArea(_min, _max) {
+
+	// create polygon
+	var polygon = Module.createPolygon("pointsArea");
+
+	// set coordinates
+	var area = new Module.JSVec3Array();
+	area.push(new Module.JSVector3D(_min[0], _min[1], 0.0));
+	area.push(new Module.JSVector3D(_max[0], _min[1], 0.0));
+	area.push(new Module.JSVector3D(_max[0], _max[1], 0.0));
+	area.push(new Module.JSVector3D(_min[0], _max[1], 0.0));
+
+	var part = new Module.Collection();
+	part.add(area.count());
+	
+	polygon.setPartCoordinates(area, part);
+	polygon.setUnionMode(true);
+
+	// set style
+	var style = new Module.JSPolygonStyle();
+	style.setFill(true);
+	style.setFillColor(new Module.JSColor(100, 255, 255, 0));
+	polygon.setStyle(style);
+
+	// add to layer
+	var layer = getPolygonLayer("RandomPointAreaLayer");
+	layer.addObject(polygon, 0);
+}
+
+function createRandomPoints(_min, _max, _count) {
+
+	// create random points
+	var positions = [];
+	for (var i=0; i<_count; i++) {
+		
+		positions.push(
+			new Module.JSVector2D(
+				_min[0] + Math.random()*(_max[0] - _min[0]),
+				_min[1] + Math.random()*(_max[1] - _min[1])
+			)
+		);
+	}
+
+	// add to layer
+	Module.getTerrain().getServerAltitude({
+
+		level : parseInt(document.getElementById("terrainLevel").value),	// DEM level
+		positions : positions	// position list(2D vector)
+
+	}, function (_result) {
+
+		// create point layer
+		var layer = getPointLayer("RandomPointLayer");
+		layer.removeAll();	// remove previous points
+
+		// create point dot image
+		var pointDotImage = getPointDotIcon(5, 'red');
+
+		for (var i=0; i<_result.length; i++) {
+
+			if (_result[i].altitude == null) {
+				continue;
+			}
+			
+			var point = Module.createPoint("point_"+i);
+			point.setPosition(new Module.JSVector3D(_result[i].longitude, _result[i].latitude, _result[i].altitude));
+			point.setIcon(pointDotImage);
+			point.setText(_result[i].altitude.toFixed(2) + "m");
+
+			layer.addObject(point, 0);
+		}
+	});
+}
+
+function getPointDotIcon(_size, _fillColor) {
+
+	// draw point dot image
+	var canvas = document.createElement('canvas');
+	var context = canvas.getContext('2d');
+
+	canvas.width = _size;
+	canvas.height = _size;
+	
+	context.fillStyle = _fillColor;
+	context.beginPath();
+	context.arc(_size / 2, _size / 2, _size / 2, 0, Math.PI * 2, true);
+	context.fill();
+
+	var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+
+	// insert icon to symbol
+	Module.getSymbol().insertIcon(
+		"PointDotIcon",
+		context.getImageData(0, 0, canvas.width, canvas.height).data,
+		canvas.width, canvas.height
+	);
+
+	return Module.getSymbol().getIcon("PointDotIcon");
+}
+
+function setTerrainLevelText(_level) {
+	document.getElementById("terrainLevelText").innerText = _level;
+}
+
+function getPolygonLayer(_name) {
+
+	var layer = Module.getObjectLayerList().nameAtLayer(_name);
+	if (layer == null) {
+		layer = Module.getObjectLayerList().createObjectLayer({
+			name : _name,
+			type : Module.ELT_PLANE,
+			maxDistance : 1000000.0
+		});
+	}
+
+	return layer;
+}
+
+function getPointLayer(_name) {
+
+	var layer = Module.getObjectLayerList().nameAtLayer(_name);
+	if (layer == null) {
+		layer = Module.getObjectLayerList().createObjectLayer({
+			name : _name,
+			type : Module.ELT_3DPOINT,
+			maxDistance : 1000000.0
+		});
+	}
+
+	return layer;
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

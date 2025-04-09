@@ -20,39 +20,66 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="Normal" onClick="setBKColor(0);">
+<input type="button" value="Black" onClick="setBKColor(1);">
+<input type="button" value="White" onClick="setBKColor(2);">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        // Call engine initialization API (essential)
         Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
+            container: document.getElementById("map"),
+            terrain: {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
             },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
         });
-      }
-    };
+    },
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+// Change world background color
+function setBKColor( _mode )
+{
+	let option = Module.getOption();
+	
+	if(_mode == 0) {
+		option.atmosphereRender = true;
+		Module.XDESetPlanetTransparecny(1.0);	
+	}else {
+		option.atmosphereRender = false;
+		Module.XDESetPlanetTransparecny(0.2);
+	}
+
+	let color = Module.createColor();
+	if(_mode < 2) {
+		color.setARGB(255, 0, 0,0);
+		option.backgroundColor = color;
+	}else if(_mode == 2) {
+		color.setARGB(255, 255, 255, 255);
+		option.backgroundColor = color;
+	}
+}
+
   </script>
 </body>
 </html>
