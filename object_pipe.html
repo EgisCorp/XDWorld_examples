@@ -20,39 +20,115 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <form>
+        <input type="radio" name="MouseMode" onClick="Module.XDSetMouseState(Module.MML_MOVE_GRAB);" checked>Move map
+        <input type="radio" name="MouseMode" onClick="Module.XDSetMouseState(Module.MML_INPUT_LINE);">Input points
+      </form>
+      <input type="button" value="Create Pipe" onClick="createPipe();"><br/>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Layer : null,
+	Pipe : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		var layerList = new Module.JSLayerList(true);
+		GLOBAL.Layer = layerList.createLayer("TestInputMultiCubeLayer", 0);
+		GLOBAL.Layer.setEditable(true);
+		
+		Module.getViewCamera().moveLonLatAlt(127.0277027, 37.4914226, 500, true);
+		Module.getViewCamera().setTilt(30.0);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create pipe object */
+function createPipe()
+{
+	// Store pipe vertex data
+	var inputPoints = Module.getMap().getInputPointList(),
+		dMoveAltitude = 30.0
+		;
+	
+	for (var i=0, len=inputPoints.count; i<len; i+=1) {
+		var vPosition = inputPoints.item(i);
+		vPosition.Altitude = dMoveAltitude;
+	}
+	
+	var startColor = new Module.JSColor(200, 255, 0, 0),		// Start color of the pipe
+		endColor = new Module.JSColor(200, 255, 255, 0),		// End color of the pipe
+		segment = 10,											// Pipe cross-section segments
+		radius = 5												// Pipe cross-section radius
+		;
+
+	// Create the pipe 
+	var object = Module.createPipe("PipeObject");
+	object.create(inputPoints, startColor, endColor, segment, radius, radius/2.0);		 
+
+	// Add the pipe object to the layer
+	GLOBAL.Layer.addObject(object, 0);
+	
+	// Set flow animation for the pipe
+	setFlowAnimation(object);
+	
+	// Set simplified output distance
+	object.setSimplifyRange(object.getExtent()*2.0);
+	
+	// Clear input points
+	Module.getMap().clearInputPoint();
+	
+	Module.XDRenderData();
+	GLOBAL.Pipe = object;
+}
+
+/* Set flow animation */
+function setFlowAnimation(_pipe)
+{
+	var flowStartColor = new Module.JSColor(255, 0, 0, 0),		// Start color of flow arrows 
+		flowEndColor = new Module.JSColor(255, 255, 255, 255),	// End color of flow arrows
+		nWaitFrameCount = 10,		// Flow update frame interval
+		dFlowInterval = 10.0,		// Arrow interval
+		nFlowSegment = 5			// Number of flow arrow segments
+		;
+	
+	// Set flow animation for the pipe
+	_pipe.setFlow(flowStartColor, flowEndColor, nFlowSegment, dFlowInterval);
+	_pipe.setFlowWaitFrame(nWaitFrameCount);
+	_pipe.setFlowDisplay(true);
+	
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

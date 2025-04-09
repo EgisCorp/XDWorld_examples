@@ -20,39 +20,88 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Coverage Distance</span>
+<input type="radio" name="coverageDistance" onClick="SetCoverageDistance(2);"> 2m
+<input type="radio" name="coverageDistance" onClick="SetCoverageDistance(5);" checked>5m
+<input type="radio" name="coverageDistance" onClick="SetCoverageDistance(10);">10m
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+    antenna : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera position
+	    Module.getViewCamera().setLocation(new Module.JSVector3D(127.09635705786349, 37.21605523859431, 100.0));
+
+	    // Create Antenna Coverage Range Representation Object
+	    create();
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create Antenna Coverage Range Representation Object */
+function create() {
+    // Create layer
+    var layerList = new Module.JSLayerList(true);
+    var layer = layerList.createLayer("ANTENNA", Module.ELT_POLYHEDRON);
+    layer.setMaxDistance(6000000.0);
+
+    var antenna = Module.CreateAntenna("ANTENNA");
+    var result = antenna.CreateCoverageCone(
+        new Module.JSVector3D(127.09635705786349, 37.21605523859431, 47.59708832763135),
+        9.0,    // Height
+        5.0,    // Coverage Radius
+        20.0,   // Tilt
+        20.0,   // Vertical FOV
+        72      // Circular Segments
+    );
+
+    // Add object
+    layer.addObject(antenna, 0);
+
+    GLOBAL.antenna = antenna;
+}
+
+/* Reset the Coverage Range of the Antenna */
+function SetCoverageDistance(_distance) {
+    if (GLOBAL.antenna == null) {
+        return;
+    }
+
+    // Reset coverage distance
+    GLOBAL.antenna.SetCoverageDistance(_distance);
+}
   </script>
 </body>
 </html>

@@ -20,39 +20,107 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="Install Billboard (Fixed Position)" onclick="createBoard()" />
+<input type="button" value="Edit Billboard" onclick="editBoard()" />
+<input type="button" value="Reset" onclick="clearBoard()">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+    m_videoElement : null,          // Video element
+    m_layer : null,                 // Building billboard object layer
+    m_ledboard : null               // Building billboard object
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Create building layer
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+
+		// Initialize camera position
+		Module.getViewCamera().moveLookAt(new Module.JSVector3D(127.06205102069177, 37.50848251498306, 51.0700191501528), 10, 46.99967886409463, 10);
+		
+		var layerList = new Module.JSLayerList(true);
+		GLOBAL.m_layer = layerList.createLayer("videoLayer", Module.ELT_PLANE);	
+	    GLOBAL.m_layer.setEditable(true);
+		GLOBAL.m_layer.setMaxDistance(2000000.0);
+	}
+};
+
+// Create Building billboard (fixed position)
+function createBoard() {
+    if (GLOBAL.m_ledboard == null) 
+        GLOBAL.m_ledboard = Module.createFigure("fig");
+    else 
+        return;
+    
+    Module.getViewCamera().moveLookAt(new Module.JSVector3D(127.06205102069177, 37.50848251498306, 51.0700191501528), 10, 46.99967886409463, 10);
+    
+    GLOBAL.m_layer.setMaxDistance(300.0);
+    
+    // Building billboard settings
+    let json = {
+        url: "./data/video_texture.mp4",
+		streaming: false,			// true: For streaming video, false: For video file
+		xaxis: true,				// horizontal inversion
+		yaxis: false				// vertical inversion
+    };    
+    GLOBAL.m_ledboard.setledBoard(json);
+    
+    GLOBAL.m_ledboard.createFigure(new Module.JSVector3D(127.06345168660626, 37.50959776545035, 38.82171383034438), new Module.JSVector3D(30, 15, 1), new Module.JSColor(255, 255, 255, 255), 4);                
+    GLOBAL.m_ledboard.setAngle(202.5680694580078);
+    GLOBAL.m_layer.addObject(GLOBAL.m_ledboard, 0);    // Insert Building billboard object into 3D plane object layer
+}
+
+// Edit Building billboard
+function editBoard()
+{
+    Module.XDSetMouseState(Module.MML_SELECT_POINT);
+    Module.getMap().setSelectObject(GLOBAL.m_ledboard);
+}
+
+function clearBoard()
+{
+    GLOBAL.m_layer.removeAll();
+	GLOBAL.m_ledboard = null;
+    Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

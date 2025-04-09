@@ -20,39 +20,276 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Set camera
+  Module.getViewCamera().look(
+    new Module.JSVector3D(129.13508543807126, 35.17442187226352, 1047.0857628397644),
+    new Module.JSVector3D(129.11805071470258, 35.17508415578559, 2.6338158026337624)
+  );
+
+  // Visualize data
+  var visualize_data = {
+
+    // Cylinder Legend Colors
+    legend_colors: [
+      Module.COLOR_RED,
+      Module.COLOR_ORANGE,
+      Module.COLOR_YELLOW,
+      Module.COLOR_LAWNGREEN,
+      Module.COLOR_DODGERBLUE
+    ],
+
+    // Base altitude
+    base_altitude: 0.0,
+
+    // Cylinder Radius
+    radius: 30.0,
+
+    // Cylinder Data
+    values: [
+      {
+        longitude: 129.122587,
+        latitude: 35.172421,
+        heights: [44, 121, 56, 74, 98]
+      },
+      {
+        longitude: 129.121548,
+        latitude: 35.173807,
+        heights: [38, 121, 51, 58, 103]
+      },
+      {
+        longitude: 129.120034,
+        latitude: 35.175207,
+        heights: [57, 108, 48, 75, 129]
+      },
+      {
+        longitude: 129.119239,
+        latitude: 35.176306,
+        heights: [41, 125, 63, 65, 126]
+      },
+      {
+        longitude: 129.118979,
+        latitude: 35.178080,
+        heights: [52, 96, 78, 89, 104]
+      }
+    ]
+  };
+
+  // Performs actual visualization based on visualization data
+  loadGhostSymbolModel("./data/cylinder.3ds", function (_modelID) {
+  
+    // Visualize Cylinder Objects
+    createStackCylinders(_modelID, visualize_data);
+  
+    // Visualize Lines Between Cylinders
+    createStackCylinderLinks(visualize_data);
+  
+    // Visualize Cylinder Height Texts
+    createStackCylinderHeightTexts(visualize_data);
+  });
+}
+};
+
+/* Load cylinder model */
+function loadGhostSymbolModel(_url, _callback) {
+
+Module.getGhostSymbolMap().insert({
+
+  id : "cylinder",
+  url : _url,
+  callback : function(e) {
+    _callback(e.id);
+  }
+});
+}
+
+/* Visualize data by using cylinder model */
+function createStackCylinders(_modelID, _visualize_data) {
+
+// Create layer
+var layer = Module.getObjectLayerList().createObjectLayer({
+  name : "cylinder_layer",
+  type : Module.ELT_GHOST_3DSYMBOL
+});
+
+// Visualization data (color by legend, starting altitude, cylinder radius, cylinder data)
+var legend_colors = _visualize_data.legend_colors;
+var base_altitude = _visualize_data.base_altitude;
+var cylinder_radius = _visualize_data.radius;
+var values = _visualize_data.values;
+
+// Calculating half the height of the model for specifying the model basepoint
+var modelHalfHeight = Module.getGhostSymbolMap().getGhostSymbolSize(_modelID).height * 0.5;
+
+// Create cylinder based on height
+for (var i=0; i<values.length; i++) {
+  
+  var value = values[i];
+
+  // Cylinder position
+  var longitude = value.longitude;
+  var latitude = value.latitude;
+  var altitude = base_altitude;
+
+  // Create cylinders by height
+  var heights = values[i].heights;
+
+  for (var j=0; j<heights.length; j++) {
+
+    // Create cylinder
+    var cylinder = Module.createGhostSymbol("cylinder_" + i + "_" + j);
+
+    cylinder.setBasePoint(0, -modelHalfHeight, 0);
+    cylinder.setGhostSymbol(_modelID);
+    cylinder.setPosition(new Module.JSVector3D(longitude, latitude, altitude));
+
+    // Set height
+    var height = heights[j];
+    cylinder.setScale(new Module.JSSize3D(cylinder_radius, height, cylinder_radius));
+    altitude += height;
+
+    // Set color
+    cylinder.color = legend_colors[j];
+
+    // Add to layer
+    layer.addObject(cylinder, 0);
+  }
+}
+}
+
+/* Visualization of lines between cylinders */
+function createStackCylinderLinks(_visualize_data) {
+
+if (_visualize_data.values.length < 2) {
+  return;
+}
+
+// Create layer
+var layer = Module.getObjectLayerList().createObjectLayer({
+  name : "cylinder_link_layer",
+  type : Module.ELT_3DLINE,
+  selectable : false
+});
+
+// Visualization data (color by legend, starting altitude, height data)
+var line_positions = new Array(_visualize_data.values.length);
+for (var i=0; i<line_positions.length; i++) {
+  line_positions[i] = [];
+}
+
+var legend_colors = _visualize_data.legend_colors;
+var base_altitude = _visualize_data.base_altitude;
+var values = _visualize_data.values;
+
+// Generating lines based on height values
+for (var i=0; i<values.length; i++) {
+
+  var value = values[i];
+  var longitude = value.longitude;
+  var latitude = value.latitude;
+  var altitude = base_altitude;
+
+  // Create lines by height
+  var heights = values[i].heights;
+
+  for (var j=0; j<heights.length; j++) {
+
+    altitude += heights[j];
+    line_positions[j].push([longitude, latitude, altitude]);
+  }
+}
+
+for (var i=0; i<line_positions.length; i++) {
+
+  var line = Module.createLineString("cylinder_link_"+i);
+  line.createbyJson({
+    coordinates : {
+      coordinate : line_positions[i],
+      style : "XYZ"
+    },
+    color : legend_colors[i],
+    width : 2.0
+  });
+
+  layer.addObject(line, 0);
+}
+}
+
+/* Display text for legend-specific values */
+function createStackCylinderHeightTexts(_visualize_data) {
+
+// Create layer
+var layer = Module.getObjectLayerList().createObjectLayer({
+  name : "cylinder_height_text_layer",
+  type : Module.ELT_3DPOINT,
+  selectable : false
+});
+
+// Visualization data (color by legend, starting altitude, height data)
+var legend_colors = _visualize_data.legend_colors;
+var base_altitude = _visualize_data.base_altitude;
+var values = _visualize_data.values;
+
+// Generating text based on height values
+for (var i=0; i<values.length; i++) {
+
+  var value = values[i];
+  var longitude = value.longitude;
+  var latitude = value.latitude;
+  var altitude = base_altitude;
+
+  // Generate text by height
+  var heights = values[i].heights;
+
+  for (var j=0; j<heights.length; j++) {
+
+    var height = heights[j];
+    
+    // Generating height text by legend
+    var heightText = Module.createPoint("cylinder_height_text_"+i+"_"+j);
+    heightText.setText(heights[j].toString());
+    heightText.setPosition(new Module.JSVector3D(longitude, latitude, altitude + (height*0.5)));
+    heightText.setFontStyle("굴림", 15, 500, legend_colors[j], Module.COLOR_BLACK);
+    heightText.setTextMargin(0, 20);
+    layer.addObject(heightText, 0);
+
+    altitude += height;
+  }
+}
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

@@ -20,39 +20,212 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <select onchange="setPositionText(this.value);">
+        <option value="busan">Busan</option>
+        <option value="london">London</option>
+        <option value="washington">Washington</option>
+    </select>
+    <table>
+        <tr>
+            <td>
+                <span>Longitude</span>
+            </td>
+            <td style="width: 50px;">
+                <label type="text" id="longitude">129.127</label>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <span>Latitude</span>
+            </td>
+            <td style="width: 50px;">
+                <label type="text" id="latitude">35.17</label>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <span>Altitude</span>
+            </td>
+            <td style="width: 50px;">
+                <label type="text" id="altitude">200.0</label>
+            </td>
+        </tr>
+        <tr colspan="2">
+            <td style="width: 100px;">
+                <input type="button" value="Create" onclick="moveAndSetGhostSymbol();">
+            </td>
+        </tr>
+    </table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Camera : null,
+	layerList : null,
+	position : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+// Get latitude, longitude, and altitude for each location
+function setPositionText(_positionType) {
+
+	switch (_positionType) {
+		case 'busan' :
+			document.getElementById("longitude").innerText = "129.127";
+			document.getElementById("latitude").innerText = "35.17";
+			break;
+		case 'london' :
+			document.getElementById("longitude").innerText = "0.0";
+			document.getElementById("latitude").innerText = "51.5";
+			break;
+		case 'washington' :
+			document.getElementById("longitude").innerText = "-74.27";
+			document.getElementById("latitude").innerText = "40.92";
+			break;
+	}
+
+	setPosition();
+	Module.XDRenderData();
+}
+
+// Move camera position
+function setPosition() {
+	
+	if (GLOBAL.Camera == null) {
+		return;
+	}
+	
+	// Get latitude, longitude
+	var longitude = parseFloat(document.getElementById("longitude").innerHTML);
+	var latitude = parseFloat(document.getElementById("latitude").innerHTML);
+	
+	if (isNaN(longitude) || isNaN(latitude)) {
+		return;
+	}
+	
+	GLOBAL.position = [longitude, latitude, 2500];
+	GLOBAL.Camera.setLocation(new Module.JSVector3D(longitude, latitude, 2500.0));
+	GLOBAL.Camera.setDirect(0.0);
+	GLOBAL.Camera.setTilt(90.0);
+}
+
+// Move position and create ghost symbol
+function moveAndSetGhostSymbol() {
+	GLOBAL.layerList.delLayerAtName("GHOST_SYMBOL_LAYER");
+	let layer = GLOBAL.layerList.createLayer("GHOST_SYMBOL_LAYER", Module.ELT_GHOST_3DSYMBOL);
+	layer.setMaxDistance(100000.0);
+
+	let modelKey = "GHOST_SYMBOL_POLYGON";
+	let polygon = Module.createPolygon(modelKey);
+
+	{
+		var vertex = new Module.JSVec3Array();
+
+		vertex.push(new Module.JSVector3D(129.126, 35.170, 100.0));
+		vertex.push(new Module.JSVector3D(129.126, 35.1711, 100.0));
+		vertex.push(new Module.JSVector3D(129.1273, 35.1711, 100.0));
+		vertex.push(new Module.JSVector3D(129.1273, 35.170, 100.0));
+
+		var part = new Module.Collection();
+		part.add(4);
+
+		var uv = new Module.JSVec2Array();
+		uv.push(new Module.JSVector2D(0.0, 1.0));
+		uv.push(new Module.JSVector2D(0.0, 0.0));
+		uv.push(new Module.JSVector2D(1.0, 0.0));
+		uv.push(new Module.JSVector2D(1.0, 1.0));
+
+		var polygonStyle = new Module.JSPolygonStyle();
+
+		polygon.setStyle(polygonStyle);
+		polygon.setPartCoordinates(vertex, part);
+		polygon.setHeightUV(uv, 120.0);
+	}
+
+	let _position = [GLOBAL.position[0], GLOBAL.position[1], 200.0];
+	createGhostSymbols(_position, modelKey, polygon, layer);
+}
+
+// Create ghost symbols
+function createGhostSymbols(_position, modelKey, polygon, layer) {
+	console.log(modelKey);
+	let res = Module.getGhostSymbolMap().insert({
+		id: modelKey,
+		polygon: polygon,
+		callback: function(e) {
+			// Set polygon textures
+			let texture_url = ["./data/cube_up.png", "./data/cube_down.png", "./data/cube_side.png"];
+			for(let index = 0 ;index < e.faceCount; ++index) {
+				Module.getGhostSymbolMap().setModelTexture({
+					id: e.id,
+					face_index: index,
+					url : texture_url[index], 
+					callback: function(e) {
+						console.log(e.id);
+					}
+				});
+			}
+
+			var newModel = Module.createGhostSymbol("object_sample");
+
+			newModel.setGhostSymbol(e.id);
+			newModel.setBasePoint(0, 0, 0);
+			newModel.setScale(new Module.JSSize3D(1.0, 1.0, 1.0));
+			newModel.setRotation(0.0, 0.0, .0);
+			newModel.setPosition(new Module.JSVector3D(_position[0], _position[1], _position[2]));
+
+			layer.addObject(newModel, 0);
+		}
+	});
+}
+
+/**
+ * Initialization function to be executed after loading the engine (Module.postRun)
+ */
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+    },
+    postRun: function () {
+
+        // Call engine Initializing API(required)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+        // Initialize camera
+        GLOBAL.Camera = Module.getViewCamera();
+        GLOBAL.Camera.setPermitUnderGround(true);
+    
+        GLOBAL.position = [129.127, 35.17, 2500.0];
+        GLOBAL.Camera.setLocation(new Module.JSVector3D(GLOBAL.position[0], GLOBAL.position[1], GLOBAL.position[2]));
+        GLOBAL.Camera.setDirect(0.0);
+        GLOBAL.Camera.setTilt(90.0);
+    
+        GLOBAL.layerList = new Module.JSLayerList(true);
+        moveAndSetGhostSymbol();
+        Module.XDESetPlanetTransparecny(0.9);
+    },
+};
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

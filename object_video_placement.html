@@ -20,39 +20,715 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        #DV_Main {
+          position:fixed;
+          z-index:9;
+          height:50;
+          top:0;
+          left:0;
+          background-color:#FFFFFF;
+        }
+        body {
+          background-color: #eee;
+          color: #000;
+          font: 12px sans-serif;
+          margin: 20px;
+        }
+        .container {
+          position: relative;
+        }
+        ul.tabs{
+          margin: 0px;
+          padding: 0px;
+          list-style: none;
+        }
+        ul.tabs li{
+          background: none;
+          color: #222;
+          display: inline-block;
+          padding: 10px 15px;
+          cursor: pointer;
+        }
+        ul.tabs li.current{
+          background: #ededed;
+          color: #222;
+        }
+        .tab-content{
+          display: none;
+          background: #ededed;
+          padding: 15px;
+        }
+        .tab-content.current{
+          display: inherit;
+        }
+      </style>
+      
+      <div id="DV_Main" onmouseover="Module.XDIsMouseOverDiv(true);" onmouseout="Module.XDIsMouseOverDiv(false);">
+        <div class="container">
+          <ul class="tabs">
+            <li class="tab-link current" data-tab="tab-1">CCTV Placement (Local File)</li>
+            <li class="tab-link" data-tab="tab-2">CCTV Placement (Streaming)</li>
+          </ul>
+          
+          <div id="tab-1" class="tab-content current" onClick="GLOBAL.isHLS = false;">
+            <table>
+              <tr>
+                <td>
+                  <span>URL</span>
+                </td>
+                <td>
+                  <input type="text" id="localurl" value="./data/centum_cctv.mp4">
+                </td>
+                <td>
+                  <input type="button" value="apply" onclick="GLOBAL.url = this.value">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Tilt (Up/Down)</span>
+                </td>
+                <td>
+                  <input type="text" id="tilt" value="10.0" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(1, 5.0)">
+                  <input type="button" value="-" onclick="editObject(1, -5.0)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Pan (Left/Right)</span>
+                </td>
+                <td>
+                  <input type="text" id="pan" value="350.0" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(2, 5.0)">
+                  <input type="button" value="-" onclick="editObject(2, -5.0)">
+                </td>
+              </tr>	
+              <tr>
+                <td>
+                  <span>Bank (Screen Tilt)</span>
+                </td>
+                <td>
+                  <input type="text" id="bank" value="1.0" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(3, 1.0)">
+                  <input type="button" value="-" onclick="editObject(3, -1.0)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Visibility Distance</span>
+                </td>
+                <td>
+                  <input type="text" id="fardistance" value="150.0" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(4, 5.0)">
+                  <input type="button" value="-" onclick="editObject(4, -5.0)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Field of View (width)</span>
+                </td>
+                <td>
+                  <input type="text" id="fovWidth" value="89" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(5, 0.01)">
+                  <input type="button" value="-" onclick="editObject(5, -0.01)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Field of View (height)</span>
+                </td>
+                <td>
+                  <input type="text" id="fovHeight" value="89" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(6, 0.01)">
+                  <input type="button" value="-" onclick="editObject(6, -0.01)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Zoom</span>
+                </td>
+                <td>
+                  <input type="text" id="zoomDelta" value="1.0" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(7, 0.1)">
+                  <input type="button" value="-" onclick="editObject(7, -0.1)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Longitude</span>
+                </td>
+                <td>
+                  <input type="text" id="lon" value="" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(8, 0.00001)">
+                  <input type="button" value="-" onclick="editObject(8, -0.00001)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Latitude</span>
+                </td>
+                <td>
+                  <input type="text" id="lat" value="" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(9, 0.00001)">
+                  <input type="button" value="-" onclick="editObject(9, -0.00001)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Altitude</span>
+                </td>
+                <td>
+                  <input type="text" id="alt" value="" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(10, 0.1)">
+                  <input type="button" value="-" onclick="editObject(10, -0.1)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Transparency</span>
+                </td>
+                <td>
+                  <input name="slider" id="alpha_slider" type="range" min="0" max="255" value="255" step="10" onchange = "editObject(11, this.value)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Horizontal Flip</span>
+                </td>
+                <td>
+                  <input type="button" value="on" onclick="editObject(12, true)">
+                  <input type="button" value="off" onclick="editObject(12, false)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Vertical Flip</span>
+                </td>
+                <td>
+                  <input type="button" value="on" onclick="editObject(13, true)">
+                  <input type="button" value="off" onclick="editObject(13, false)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Building Mapping</span>
+                </td>		
+                <td>
+                  <input type="button" value="on" onclick="GLOBAL.videoObj.objectMapping = true;">
+                  <input type="button" value="off" onclick="GLOBAL.videoObj.objectMapping = false;">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>background Mapping</span>
+                </td>		
+                <td>
+                  <input type="button" value="on" onclick="GLOBAL.videoObj.background = true;">
+                  <input type="button" value="off" onclick="GLOBAL.videoObj.background = false;">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>View Frustrum</span>
+                </td>		
+                <td>
+                  <input type="button" value="on" onclick="GLOBAL.videoObj.frustum = true;">
+                  <input type="button" value="off" onclick="GLOBAL.videoObj.frustum = false;">
+                </td>
+              </tr>
+              <tr colspan="2">
+                <td>
+                  <input type="button" value="CCTV Mouse Placement" onclick="Module.XDSetMouseState(Module.MML_RETURN_ANALYSISPOS);">
+                </td>
+                <td>
+                  <input type="button" value="Reset" onclick="clearCCTV();">
+                </td>
+              </tr>
+            </table>
+          </div>
+          <div id="tab-2" class="tab-content" onClick="GLOBAL.isHLS = true;">
+          <table>
+              <tr>
+                <td>
+                  <span>URL</span>
+                </td>
+                <td>
+                  <input type="text" id="networkurl" value="https://topiscctv1.eseoul.go.kr/sd1/ch69.stream/chunklist_w88632062.m3u8">
+                </td>
+                <td>
+                  <input type="button" value="apply" onclick="GLOBAL.url = this.value">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Tilt (Up/Down)</span>
+                </td>
+                <td>
+                  <input type="text" id="tilt2" value="10.0" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(1, 5.0)">
+                  <input type="button" value="-" onclick="editObject(1, -5.0)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Pan (Left/Right)</span>
+                </td>
+                <td>
+                  <input type="text" id="pan2" value="350.0" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(2, 5.0)">
+                  <input type="button" value="-" onclick="editObject(2, -5.0)">
+                </td>
+              </tr>	
+              <tr>
+                <td>
+                  <span>Bank (Screen Tilt)</span>
+                </td>
+                <td>
+                  <input type="text" id="bank2" value="1.0" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(3, 1.0)">
+                  <input type="button" value="-" onclick="editObject(3, -1.0)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Visibility Distance</span>
+                </td>
+                <td>
+                  <input type="text" id="fardistance2" value="150.0" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(4, 5.0)">
+                  <input type="button" value="-" onclick="editObject(4, -5.0)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Field of View (width)</span>
+                </td>
+                <td>
+                  <input type="text" id="fovWidth2" value="89" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(5, 0.01)">
+                  <input type="button" value="-" onclick="editObject(5, -0.01)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Field of View (height)</span>
+                </td>
+                <td>
+                  <input type="text" id="fovHeight2" value="89" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(6, 0.01)">
+                  <input type="button" value="-" onclick="editObject(6, -0.01)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Zoom</span>
+                </td>
+                <td>
+                  <input type="text" id="zoomDelta2" value="1.0" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(7, 0.1)">
+                  <input type="button" value="-" onclick="editObject(7, -0.1)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Longitude</span>
+                </td>
+                <td>
+                  <input type="text" id="lon2" value="" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(8, 0.00001)">
+                  <input type="button" value="-" onclick="editObject(8, -0.00001)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Latitude</span>
+                </td>
+                <td>
+                  <input type="text" id="lat2" value="" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(9, 0.00001)">
+                  <input type="button" value="-" onclick="editObject(9, -0.00001)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Altitude</span>
+                </td>
+                <td>
+                  <input type="text" id="alt2" value="" disabled="disabled">
+                </td>
+                <td>
+                  <input type="button" value="+" onclick="editObject(10, 0.1)">
+                  <input type="button" value="-" onclick="editObject(10, -0.1)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Transparency</span>
+                </td>
+                <td>
+                  <input name="slider" id="alpha_slider" type="range" min="0" max="255" value="255" step="10" onchange = "editObject(11, this.value)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Horizontal Flip</span>
+                </td>
+                <td>
+                  <input type="button" value="on" onclick="editObject(12, true)">
+                  <input type="button" value="off" onclick="editObject(12, false)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Vertical Flip</span>
+                </td>
+                <td>
+                  <input type="button" value="on" onclick="editObject(13, true)">
+                  <input type="button" value="off" onclick="editObject(13, false)">
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span>Building Mapping</span>
+                </td>		
+                <td>
+                  <input type="button" value="on" onclick="GLOBAL.videoObj.objectMapping = true;">
+                  <input type="button" value="off" onclick="GLOBAL.videoObj.objectMapping = false;">
+                </td>
+              </tr>
+              <tr colspan="2">
+                <td>
+                  <input type="button" value="CCTV Mouse Placement" onclick="Module.XDSetMouseState(Module.MML_RETURN_ANALYSISPOS);">
+                </td>
+                <td>
+                  <input type="button" value="Reset" onclick="clearCCTV();">
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
+    var GLOBAL = {
+	url : "",
+	tilt : 25.4,
+	pan : 350,
+	far : 150.0,
+	bank : 1.0,
+	fovWidth : 89,
+	fovHeight : 89,
+	zoomDelta : 1.0,
+	alpha : 255,
+	position : null,
+	xAxis : false,
+	yAxis : true,
+    videoobj : null,
+	poiobj : null,
+	videoTimer : null,
+    layer : null,
+	poilayer : null,
+	isHLS : false
+};
+
+// Set video placement
+function setVideoPlacement(e) {
+    // Set URL based on HLS or local mode
+    if (GLOBAL.isHLS) GLOBAL.url = document.getElementById("networkurl").value;
+    else GLOBAL.url = document.getElementById("localurl").value;
+
+	// Remove input point and POI
+    Module.XDClearInputPoint();
+    GLOBAL.poilayer.removeAll();
+	
+	GLOBAL.position = new Module.JSVector3D(e.lon, e.lat, e.alt + 30); // Create above the terrain by 30m
+	createPOI(e.lon, e.lat, e.alt);
+	 
+    if (GLOBAL.videoObj == null) {
+        GLOBAL.videoObj = Module.createVideoObject("videoobj");
+		
+		let json = {
+			url: GLOBAL.url,
+			position: GLOBAL.position,
+			pan: GLOBAL.pan,
+			tilt: GLOBAL.tilt,
+			bank: GLOBAL.bank,
+			zoom: GLOBAL.zoomDelta,
+			fov: {
+				width: GLOBAL.fovWidth,
+				height: GLOBAL.fovHeight
+			},
+			xaxis: GLOBAL.xAxis,
+			yaxis: GLOBAL.yAxis,
+			far: GLOBAL.far
+		};
+
+		var result = GLOBAL.videoObj.createVideo(json);
+	
+		GLOBAL.layer.addObject(GLOBAL.videoObj, 0);
+    } else {
+        GLOBAL.videoObj.position = GLOBAL.position;
+    }   
+
+    if (GLOBAL.isHLS) {
+		GLOBAL.videoObj.videoStreaming = true;
+        document.getElementById("lon2").value = GLOBAL.position.Longitude;
+        document.getElementById("lat2").value = GLOBAL.position.Latitude;
+        document.getElementById("alt2").value = GLOBAL.position.Altitude;
+    } else {
+		GLOBAL.videoObj.videoStreaming = false;
+        document.getElementById("lon").value = GLOBAL.position.Longitude;
+        document.getElementById("lat").value = GLOBAL.position.Latitude;
+        document.getElementById("alt").value = GLOBAL.position.Altitude;
+    }
+}
+
+/* Create Point object */
+function createPOI(_longitude, _latitude, _altitude) {
+    // Load POI image
+    var img = new Image();
+    img.onload = function() {
+
+        // Draw image on canvas after loading
+        var canvas = document.createElement('canvas');
+        var ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        // Create image POI
+        GLOBAL.poiobj = Module.createPoint("POI_" + GLOBAL.poilayer.getObjectCount());
+        GLOBAL.poiobj.setPosition(new Module.JSVector3D(_longitude, _latitude, _altitude));
+        GLOBAL.poiobj.setImage(ctx.getImageData(0, 0, this.width, this.height).data, this.width, this.height);
+
+        // Set vertical line for POI
+        GLOBAL.poiobj.setPositionLine(30.0, new Module.JSColor(255, 0, 0));
+
+        GLOBAL.poilayer.addObject(GLOBAL.poiobj, 0);
+    };
+    img.src = "./data/cctv.png";
+}
+
+function editObject(_type, _value)
+{
+	switch(_type) {
+		case 1:	// Tilt
+			GLOBAL.tilt += _value;
+			if(GLOBAL.isHLS) document.getElementById("tilt2").value = GLOBAL.tilt;
+			else document.getElementById("tilt").value = GLOBAL.tilt;
+			GLOBAL.videoObj.tilt = GLOBAL.tilt;
+			break;
+		case 2:	// Pan
+			GLOBAL.pan += _value;
+			if(GLOBAL.isHLS) document.getElementById("pan2").value = GLOBAL.pan;
+			else document.getElementById("pan").value = GLOBAL.pan;
+			GLOBAL.videoObj.pan = GLOBAL.pan;
+			break;
+		case 3:	// Bank
+			GLOBAL.bank += _value;
+			if(GLOBAL.isHLS) document.getElementById("bank2").value = GLOBAL.bank;
+			else document.getElementById("bank").value = GLOBAL.bank;
+			GLOBAL.videoObj.bank = GLOBAL.bank;
+			break;
+		case 4:	// Visibility range
+			GLOBAL.far += _value;
+			if(GLOBAL.isHLS) document.getElementById("fardistance2").value = GLOBAL.far;
+			else document.getElementById("fardistance").value = GLOBAL.far;
+			GLOBAL.videoObj.far = GLOBAL.far;
+			break;
+		case 5:	// Fov width
+			GLOBAL.fovWidth += _value;
+			if(GLOBAL.isHLS) document.getElementById("fovWidth2").value = GLOBAL.fovWidth;
+			else document.getElementById("fovWidth").value = GLOBAL.fovWidth;
+			GLOBAL.videoObj.fovX = GLOBAL.fovWidth;
+			break;
+		case 6:	// Fov height
+			GLOBAL.fovHeight += _value;
+			if(GLOBAL.isHLS) document.getElementById("fovHeight2").value = GLOBAL.fovHeight;
+			else document.getElementById("fovHeight").value = GLOBAL.fovHeight;
+			GLOBAL.videoObj.fovY = GLOBAL.fovHeight;
+			break;
+		case 7:	// zoom
+			GLOBAL.zoomDelta += _value;			
+			if(GLOBAL.zoomDelta > 1.0) GLOBAL.zoomDelta = 1.0;
+			else if(GLOBAL.zoomDelta < 0.0) GLOBAL.zoomDelta = 0.0;			
+			if(GLOBAL.isHLS) document.getElementById("zoomDelta2").value = GLOBAL.zoomDelta;
+			else document.getElementById("zoomDelta").value = GLOBAL.zoomDelta;
+			GLOBAL.videoObj.zoom = GLOBAL.zoomDelta;
+			break;
+		case 8:	// lon
+			GLOBAL.position.Longitude += _value;
+			if(GLOBAL.isHLS) document.getElementById("lon2").value = GLOBAL.position.Longitude;
+			else document.getElementById("lon").value = GLOBAL.position.Longitude;
+			GLOBAL.videoObj.position = GLOBAL.position;
+			
+			GLOBAL.poiobj.setLongitude(GLOBAL.position.Longitude);
+			break;
+		case 9:	// lat
+			GLOBAL.position.Latitude += _value;
+			if(GLOBAL.isHLS) document.getElementById("lat2").value = GLOBAL.position.Latitude;
+			else document.getElementById("lat").value = GLOBAL.position.Latitude;
+			GLOBAL.videoObj.position = GLOBAL.position;
+			
+			GLOBAL.poiobj.setLatitude(GLOBAL.position.Latitude);
+			break;
+		case 10:	// alt
+			GLOBAL.position.Altitude += _value;
+			if(GLOBAL.isHLS) document.getElementById("alt2").value = GLOBAL.position.Altitude;
+			else document.getElementById("alt").value = GLOBAL.position.Altitude;
+			GLOBAL.videoObj.position = GLOBAL.position;
+			break;
+		case 11:	// alpha
+			GLOBAL.alpha = _value;
+			if(typeof(GLOBAL.alpha)=="string")
+				GLOBAL.alpha = Number(GLOBAL.alpha);
+	
+			if(GLOBAL.alpha < 0) GLOBAL.alpha = 0;
+			if(GLOBAL.alpha > 255) GLOBAL.alpha = 255;
+			GLOBAL.videoObj.alpha = GLOBAL.alpha;
+			break;
+		case 12:	// Horizontal flip
+			GLOBAL.xAxis = _value;
+			GLOBAL.videoObj.axisX = _value;
+			break;
+		case 13:	// Vertical flip
+			GLOBAL.yAxis = _value;
+			GLOBAL.videoObj.axisY = _value;
+			break;
+	}
+}
+
+function clearCCTV(){
+	// Clear CCTV
+	GLOBAL.videoObj.clearTexture();
+	GLOBAL.videoObj = null;
+	
+	GLOBAL.layer.removeAll();
+	
+	GLOBAL.poilayer.removeAll();
+	
+	Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+}
+
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+                url : "https://xdworld.vworld.kr",
+                name : "dem",
+                servername : "XDServer3d",
+                encoding : true
             },
             image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
+                url : "https://xdworld.vworld.kr",
+                name : "tile",
+                servername : "XDServer3d"
             }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Add building layer
+		var layer = Module.getTileLayerList().createXDServerLayer({
+			url : "https://xdworld.vworld.kr",
+			servername : "XDServer3d",
+			name : "facility_build",
+			type : 9,
+			minLevel : 0,
+			maxLevel : 15
+		});
+		
+		Module.getOption().setTextureCapacityLimit(false);
+		
+		// Set camera position
+		Module.getViewCamera().setLocation(new Module.JSVector3D(127.03371449445042, 37.521428830547556, 500));
+		
+		// Connect Javascript file to use hls
+		const script_element = document.createElement('script');
+		script_element.setAttribute('src', 'https://cdn.jsdelivr.net/npm/hls.js@latest');
+		document.querySelector('head').appendChild(script_element);
+		
+		var layerList = new Module.JSLayerList(true);
+		GLOBAL.layer = layerList.createLayer("CCTV", Module.ELT_POLYHEDRON);
+		GLOBAL.layer.setMaxDistance(1000.0);
+		GLOBAL.layer.setEditable(true);
+		
+		// Create layer to add POI object
+		GLOBAL.poilayer = layerList.createLayer("POI_Layer", Module.ELT_3DPOINT);
+		GLOBAL.poilayer.setMaxDistance(50000.0);
+		
+		
+		// Event returning mouse click point coordinates
+		Module.canvas.addEventListener("Fire_EventAnalysisPos", function(e) {
+			setVideoPlacement(e);
+		});
+	}
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+$(document).ready(function(){  
+	$('ul.tabs li').click(function(){
+		var tab_id = $(this).attr('data-tab');
+		$('ul.tabs li').removeClass('current');
+		$('.tab-content').removeClass('current');
+		$(this).addClass('current');
+		$("#"+tab_id).addClass('current');
+	})
+})
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+
   </script>
 </body>
 </html>

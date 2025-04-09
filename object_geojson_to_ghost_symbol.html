@@ -20,39 +20,313 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="View" onClick="controlView();" />
+<input type="button" value="Delete" onClick="controlDelete();" />
+
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    /**
+ * Global variable management
+ * @param (object) .json Parse Container
+ * @param (JSLayer) Manage Object
+ * @param (String) GhostSymbol Key
+ */
+let GLOBAL = {
+    parseGeoJson: null,
+    layer: null,
+    ghostSymbolKey: null,
+};
+/**
+ * Initialize GLOBAL variable
+ */
+function clearGlobal() {
+    GLOBAL.parseGeoJson = null;
+    GLOBAL.ghostSymbolKey = null;
+    if (GLOBAL.layer != null) {
+        let layerList = new Module.JSLayerList(true);
+        layerList.delLayerAtName(GLOBAL.layer.getName());
+    }
+    GLOBAL.layer = null;
+}
+/**
+ * UI view button click event
+ */
+function controlView() {
+    clearGlobal();
+    // Create layer
+    let layerList = new Module.JSLayerList(true);
+    GLOBAL.layer = layerList.createLayer("GHOST_SYMBOL_LAYER", Module.ELT_GHOST_3DSYMBOL);
+    GLOBAL.ghostSymbolKey = "GHOST_TREE";
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+    if (!Module.getGhostSymbolMap().isExistID(GLOBAL.ghostSymbolKey)) {
+        // Load the GeoJson file after the ghost symbol loading is complete
+        Module.getGhostSymbolMap().insert({
+            id: GLOBAL.ghostSymbolKey,
+            url: "./data/ghost_object.3ds",
+            callback: function (e) {
+                // Set model Texture
+                Module.getGhostSymbolMap().setModelTexture({
+                    id: e.id,
+                    face_index: 0,
+                    url: "./data/ghost_object.jpg",
+                    callback: function (e) {
+                        // GeoJson parse
+                        GeoJsonParser.load("./data/GeoJson_Point.json", LoadComplete, loadFileError);
+                    },
+                });
+            },
+        });
+    } else {
+        // GeoJson parse
+        GeoJsonParser.load("./data/GeoJson_Point.json", LoadComplete, loadFileError);
+    }
+}
+/**
+ * UI delete button click event
+ */
+function controlDelete() {
+    clearGlobal();
+}
+/**
+ * Event when loading GeoJson file
+ */
+function loadFileError() {
+    console.log("file failed to load");
+}
+/**
+ * Event when loading GeoJson file success
+ */
+function LoadComplete(_data) {
+    GLOBAL.parseGeoJson = _data;
+    if (GLOBAL.parseGeoJson != null) {
+        setCameraPosition();
+        parserData();
+    }
+}
+// Move the camera based on the entire area of GeoJson
+function setCameraPosition() {
+    let vec_min_position, vec_max_position;
+    let position_lon, position_lat;
+    let transform = Module.getProjection();
+
+    vec_min_position = new Module.JSVector2D(GLOBAL.parseGeoJson.minX, GLOBAL.parseGeoJson.minY);
+    vec_max_position = new Module.JSVector2D(GLOBAL.parseGeoJson.maxX, GLOBAL.parseGeoJson.maxY);
+    // Convert EPSG:5179 to EPSG:4326
+    vec_min_position = transform.convertProjection(26, vec_min_position, 13);
+    vec_max_position = transform.convertProjection(26, vec_max_position, 13);
+
+    position_lon = (vec_max_position.x + vec_min_position.x) * 0.5;
+    position_lat = (vec_max_position.y + vec_min_position.y) * 0.5;
+    
+	var camera = Module.getViewCamera();
+	camera.setLocation(new Module.JSVector3D(position_lon, position_lat, 1000));
+	camera.setTilt(90.0);
+}
+// Analyze GeoJson data to create Ghost Symbol objects and collect information
+function parserData() {
+    let x, y, z, str_object_key, vec_position, vec_lonlat_position;
+    let transform = Module.getProjection();
+    if (GLOBAL.parseGeoJson.shapeType == 1) {
+        for (let i = 0; i < GLOBAL.parseGeoJson.shapes.length; ++i) {
+            x = GLOBAL.parseGeoJson.shapes[i].content.x;
+            y = GLOBAL.parseGeoJson.shapes[i].content.y;
+            z = 30;
+            vec_position = new Module.JSVector2D(x, y);
+            // EPSG:5179 convert number: 26(in engine)
+            // EPSG:4326 convert number: 13(in engine)
+            // Convert EPSG:5179 to EPSG:4326
+            vec_lonlat_position = transform.convertProjection(26, vec_position, 13);
+            // Set the object key based on the record properties information
+            str_object_key = GLOBAL.parseGeoJson.properties[i]["OBJECTID"];
+            addGhostSymbol(str_object_key, vec_lonlat_position, z);
+        }
+    } else {
+        console.log("Shape Type Not polygon");
+    }
+}
+/*
+ * Create and register Ghost Symbol
+ * @param (String) column "OBJECTID" record properties information (Object Key setting)
+ * @param (JSVector2D) visualization longitude and latitude
+ * @param (Number) visualization altitude
+*/
+function addGhostSymbol(_str_object_key, _lonlat_position, _altitude) {
+    let object = Module.createGhostSymbol("" + _str_object_key);
+    object.setGhostSymbol(GLOBAL.ghostSymbolKey);
+    object.setScale(new Module.JSSize3D(2.0, 2.0, 2.0));
+    object.setPosition(new Module.JSVector3D(_lonlat_position.x, _lonlat_position.y, _altitude));
+    GLOBAL.layer.addObject(object, 0);
+}
+/*********************************************************
+ * GeoJson parser
+ *********************************************************/
+GeoJsonParser = function () {};
+GeoJsonParser.load = function (_path, _callback, _onerror) {
+    let xhr = new XMLHttpRequest();
+    xhr.open("GET", _path);
+    xhr.responseType = "json";
+    xhr.onload = function () {
+        let parse = new GeoJsonParser().parse(xhr.response, _path);
+        _callback(parse);
+    };
+    xhr.onerror = _onerror;
+    xhr.send(null);
+};
+GeoJsonParser.prototype.parse = function (_response, _path) {
+    let is_first;
+    let count, min_x, min_y, max_x, max_y;
+    let json = {};
+
+    json.fileName = _path;
+    json.shapes = [];
+    json.properties = [];
+
+    is_first = true;
+    count = 0;
+    min_x = max_x = 0;
+    min_y = max_y = 0;
+
+    for (let item of _response.features) {
+        let shape = {};
+        shape.count = count++;
+
+        if (item.geometry.type == "Point") {
+            json.shapeType = 1;
+            shape.content = {
+                x: item.geometry.coordinates[0],
+                y: item.geometry.coordinates[1],
+            };
+            if (is_first) {
+                min_x = max_x = shape.content.x;
+                min_y = max_y = shape.content.y;
+                is_first = false;
+            } else {
+                if (min_x > shape.content.x) min_x = shape.content.x;
+                if (max_x < shape.content.x) max_x = shape.content.x;
+                if (min_y > shape.content.y) min_y = shape.content.y;
+                if (max_y < shape.content.y) max_y = shape.content.y;
+            }
+        } else if (item.geometry.type == "LineString") {
+            json.shapeType = 3;
+            shape.content = [];
+            for (let element of item.geometry.coordinates) {
+                let content = {
+                    x: element[0],
+                    y: element[1],
+                };
+                if (is_first) {
+                    min_x = max_x = content.x;
+                    min_y = max_y = content.y;
+                    is_first = false;
+                } else {
+                    if (min_x > content.x) min_x = content.x;
+                    if (max_x < content.x) max_x = content.x;
+                    if (min_y > content.y) min_y = content.y;
+                    if (max_y < content.y) max_y = content.y;
+                }
+                shape.content.push(content);
+            }
+        } else if (item.geometry.type == "MultiLineString") {
+            json.shapeType = 3;
+            shape.content = [];
+            for (let element of item.geometry.coordinates) {
+                for (let attributes of element) {
+                    let content = {
+                        x: attributes[0],
+                        y: attributes[1],
+                    };
+                    if (is_first) {
+                        min_x = max_x = content.x;
+                        min_y = max_y = content.y;
+                        is_first = false;
+                    } else {
+                        if (min_x > content.x) min_x = content.x;
+                        if (max_x < content.x) max_x = content.x;
+                        if (min_y > content.y) min_y = content.y;
+                        if (max_y < content.y) max_y = content.y;
+                    }
+                    shape.content.push(content);
+                }
+            }
+        } else if (item.geometry.type == "Polygon") {
+            json.shapeType = 5;
+            shape.content = [];
+            for (let element of item.geometry.coordinates) {
+                for (let attributes of element) {
+                    let content = {
+                        x: attributes[0],
+                        y: attributes[1],
+                    };
+                    if (is_first) {
+                        min_x = max_x = content.x;
+                        min_y = max_y = content.y;
+                        is_first = false;
+                    } else {
+                        if (min_x > shape.content.x) min_x = content.x;
+                        if (max_x < shape.content.x) max_x = content.x;
+                        if (min_y > shape.content.y) min_y = content.y;
+                        if (max_y < shape.content.y) max_y = content.y;
+                    }
+                    shape.content.push(content);
+                }
+            }
+        }
+
+        json.shapes.push(shape);
+        json.properties.push(this.parseProperties(item.properties));
+    }
+    json.minX = min_x;
+    json.minY = min_y;
+    json.maxX = max_x;
+    json.maxY = max_y;
+    return json;
+};
+GeoJsonParser.prototype.parseProperties = function (_record) {
+    let propertie = {};
+    for (let item in _record) {
+        propertie[item] = _record[item];
+    }
+    return propertie;
+};
+/**
+ * Initialization function to be executed after loading the engine (Module.postRun)
+ */
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+    },
+    postRun: function () {
+
+        // 엔진 초기화 API 호출(필수)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+        // Create object
+        controlView();
+    },
+};
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

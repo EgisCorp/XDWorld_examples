@@ -20,39 +20,217 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <p> [ How to Generate Drawings ] </p>
+<p>1. Click <input type="button" value="Enter Drawing Area" onclick="setOverlapTexture()" /> and drag the mouse.</p>
+<p>2. After dragging the mouse, click <input type="button" value="Generate Drawing" onclick="createPlane()" />.</p>
+<br>
+<p> [ Image Overlay Generation Options ] </p>
+<input type="button" value="Image Overlay (With Sediment)" onclick="insertOverlapRTT(true)" />
+<input type="button" value="Image Overlay (Without Sediment)" onclick="insertOverlapRTT(false)" />
+<p> ---------------------------------------------------------------- </p>
+<input type="button" value="Edit Drawing Again" onclick="editplane()" />
+<input type="button" value="Reset" onclick="clearObject()" />
+<input type="button" value="Save" onclick="exportData()" />
+<input type="button" value="Load" onclick="importData()" />
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+              dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+    
+    Module.getViewCamera().moveLonLatAlt(127.0273188, 37.4977981, 1000, true);
+    
+  Module.XDRenderData();
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+var fig = null;         // Drawing object
+var figLayer = null;    // Layer to store drawing objects
+var figinfo = null;     // Variable for saving drawing object to server
+
+// Save image overlap texture
+function setOverlapTexture() {             
+  var imgDraw = new Image();
+  imgDraw.src = "./data/imageoverlab.jpg";
+  
+  imgDraw.onload = function(){
+      checkLayer();   // Check if the layer exists
+      
+      fig = Module.createFigure("fig");  // Create drawing object
+      
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+
+      canvas.width = imgDraw.width;
+      canvas.height = imgDraw.height;
+
+      ctx.drawImage(imgDraw, 0, 0, canvas.width, canvas.height);
+      var ImageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+      fig.setTexture(ImageData, canvas.width, canvas.height);   // Create texture for drawing object
+      
+      Module.XDSetMouseState(Module.MML_INPUT_RECT);    // Select mode for creating objects
+  }
+}
+
+// Mouse UP event (down -> drag -> up) should be used.
+function createPlane() {
+  var max = Module.getMap().getInputPointList().item(1);   // Top left
+  var min = Module.getMap().getInputPointList().item(3);   // Bottom right
+  
+  fig.createPlane(new Module.JSVector3D(max.Longitude, max.Latitude, max.Altitude), new Module.JSVector3D(min.Longitude, min.Latitude, min.Altitude));
+
+  checkLayer();   // Check if the layer exists
+  
+  figLayer.addObject(fig, 0);    // Insert 3D plane object into layer
+  
+  Module.getMap().setSelectObject(fig);  // Switch to editable state for 3D plane
+  
+  Module.XDSetMouseState(6);  // Switch to mouse selection mode
+  Module.XDClearInputPoint();    // Clear mouse input points
+  Module.XDRenderData();
+}
+
+// Insert image overlap RTT
+function insertOverlapRTT(mode) {
+  checkLayer();
+  
+  Module.XDClearInputPoint(); // Clear mouse input points
+  Module.getMap().clearSelectObj();  // Deselect
+  
+  fig.createOverlapRTT(mode); // true: with terrain displacement, false: only mapping without displacement
+
+  Module.XDRenderData();
+      
+}
+
+// Edit drawing again
+function editplane() {
+  checkLayer();
+  
+  Module.getEditTerrain().clear();	 // Clear terrain deformation
+  
+  fig.editPlane();
+
+  Module.XDRenderData();
+      
+}
+
+// Reset
+function clearObject() {
+  checkLayer();   // Check if the layer exists
+  
+  Module.getMap().clearSelectObj();   // Deselect
+  
+  Module.XDClearInputPoint(); // Clear mouse input points
+  
+  Module.getEditTerrain().clear();   // Clear terrain deformation
+  
+  fig.clearTexture(); // Delete texture (must delete texture to avoid errors)
+  
+  figLayer.removeAtObject(fig);   // Remove object from layer
+  
+  Module.XDRenderData();                  
+}
+
+// Export data
+function exportData() {
+  figinfo = fig.getInfo();    // Retrieve object information for data saving
+
+  clearObject();  // Delete object
+}
+
+// Import data
+function importData() {    
+  var imgDraw = new Image();
+  imgDraw.src = "./data/imageoverlab.jpg";    // Load the image stored on the server and create an image object
+  
+  imgDraw.onload = function(){
+      checkLayer();   // Check if the layer exists
+      
+      fig = Module.createFigure("fig");   // Create drawing object
+          
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      
+      canvas.width = imgDraw.width;
+      canvas.height = imgDraw.height;
+
+      ctx.drawImage(imgDraw, 0, 0, canvas.width, canvas.height);
+      var ImageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+      // Import object information stored on the server
+      var json = {
+          position: new Module.JSVector3D(parseFloat(figinfo.position.Longitude), parseFloat(figinfo.position.Latitude), parseFloat(figinfo.position.Altitude)),
+          size: new Module.JSVector3D(parseFloat(figinfo.size.Longitude), parseFloat(figinfo.size.Latitude), parseFloat(figinfo.size.Altitude)),
+          angle: new Module.JSVector3D(parseFloat(figinfo.angle.Longitude), parseFloat(figinfo.angle.Latitude), parseFloat(figinfo.angle.Altitude)),
+          color: new Module.JSColor(figinfo.color.a, figinfo.color.r, figinfo.color.g, figinfo.color.b),
+          imagedata: ImageData,
+          imagesize: {
+              width: canvas.width, 
+              height: canvas.height
+          },
+          complete: complete
+      };
+      
+      fig.setInfo(json);  // Create object with information stored on the server
+      
+      // Create as a 3D object
+      /*
+      fig.editPlane();
+      Module.getMap().setSelectObject(fig);    // Switch to editable state for 3D plane
+      Module.XDSetMouseState(6); // Switch to mouse selection mode
+      */
+      
+      // Create as an RTT
+      fig.createOverlapRTT(true);    // true: with terrain displacement, false: only mapping without displacement
+      
+      // Insert the created object into the layer
+      figLayer.addObject(fig, 0);
+  }
+}
+
+// Completion callback
+function complete() {
+  
+}
+
+// Check if the layer exists
+function checkLayer() {
+  if(figLayer == null) {
+      var layerList = new Module.JSLayerList(true);
+      figLayer = layerList.createLayer("figureLayer", 9);
+      figLayer.setMaxDistance(300000);
+  }           
+}
   </script>
 </body>
 </html>

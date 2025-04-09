@@ -20,39 +20,179 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <form>
+        <input type="radio" id="distanceType_0" name="LineDistance" onClick="setTreePositions(null);" checked disabled> None
+        <input type="radio" id="distanceType_1" name="LineDistance" onClick="setTreePositions(10);" disabled> 10m
+        <input type="radio" id="distanceType_2" name="LineDistance" onClick="setTreePositions(20);" disabled> 20m
+        <input type="radio" id="distanceType_3" name="LineDistance" onClick="setTreePositions(30);" disabled> 30m
+      </form>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	treePositionPath : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        // Call engine initialization API(essential)
+        Module.initialize({
+            container: document.getElementById("map"),
+            terrain: {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+            },
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
+        });
+
+        // Initial position setup
+        Module.getViewCamera().look(
+            new Module.JSVector3D(
+                126.93831646026437,
+                37.517164463389214,
+                629.4693173738196
+            ),
+            new Module.JSVector3D(
+                126.93866761878483,
+                37.52295801173619,
+                10.460245016030967
+            )
+        );
+
+        // Load tree model
+        loadTreeModel(function (e) {
+            // Set texture for the tree model
+            Module.getGhostSymbolMap().setModelTexture({
+                id: e.id,
+                face_index: 0,
+                url: "./data/ghost_bluewontree01.jpg",
+                callback: function (e) {
+                    console.log(e.id);
+                },
+            });
+
+            // Create ghost symbol layer for tree objects
+            ghostSymbolLayer = Module.getObjectLayerList().createLayer(
+                "TREE_GHOSTSYMBOL_LAYER",
+                Module.ELT_GHOST_3DSYMBOL
+            );
+
+            // Enable distance setting radio buttons
+            for (var i = 0; i < 4; i++) {
+                document.getElementById("distanceType_" + i).disabled = false;
+            }
+
+            // Set tree position path
+            var positionPath = new Module.JSVec3Array();
+            positionPath.push(
+                new Module.JSVector3D(
+                    126.9355171680658,
+                    37.524807006737824,
+                    15.527599324472249
+                )
+            );
+            positionPath.push(
+                new Module.JSVector3D(
+                    126.94074209950179,
+                    37.52079225396156,
+                    15.687193037942052
+                )
+            );
+            GLOBAL.treePositionPath = positionPath;
+
+            // Display tree position line
+            markupTreePositionLine(positionPath);
+        });
+    },
+};
+
+/* Load tree model */
+function loadTreeModel(_callback) {
+		
+	Module.getGhostSymbolMap().insert({
+		id : "TREE",
+		url : "./data/ghost_bluewontree01.3ds",
+		callback : _callback
+	});
+}
+
+/* Mark up tree position */
+function markupTreePositionLine(_path) {
+		
+	// line Create object
+	var line = Module.createLineString("0");
+    line.createbyJson({
+        coordinates : {
+            coordinate : _path,
+            style : "JSVector3D"
+        },
+        type: 0,
+        union: true,
+        color : Module.COLOR_YELLOW,
+        width: 3.0
+    });
+	    
+    // Add object to layer
+    var layer = Module.getObjectLayerList().createLayer("MARKUP_TREE_POSITION_PATH_LAYER", Module.ELT_3DLINE);
+    layer.addObject(line, 0);
+}
+
+/* Set tree positions */
+function setTreePositions(_interval) {
+	
+	// Check if the tree position path is set
+	if (GLOBAL.treePositionPath == null) {
+		return;
+	}
+	
+	// Get the layer to store objects
+	var ghostSymbolLayer = Module.getObjectLayerList().nameAtLayer("TREE_GHOSTSYMBOL_LAYER");
+	if (ghostSymbolLayer == null) {
+		return;
+	}
+	
+	// Clear the layer
+	ghostSymbolLayer.removeAll();
+	
+	// Return a list of tree locations
+	if (Number.isInteger(_interval)) {
+		
+		// Get tree positions along the path
+		var treePositions = Module.getMap().GetPathIntervalPositions(GLOBAL.treePositionPath, _interval, true);
+		
+		// Return model height (Use for setting the object's base point)
+		var modelHeight = Module.getGhostSymbolMap().getGhostSymbolSize("TREE");
+		
+		// Create and place trees
+		for (var i=0; i<treePositions.count(); i++) {
+		
+			var ghostSymbol = Module.createGhostSymbol("TREE_"+ghostSymbolLayer.getObjectCount());
+	        ghostSymbol.setPosition(treePositions.get(i));
+	        ghostSymbol.setGhostSymbol("TREE");
+	        ghostSymbol.setBasePoint(0, -modelHeight.height*0.5, 0);
+	        ghostSymbol.setDirection(Math.random()*360.0);
+	        
+	        ghostSymbolLayer.addObject(ghostSymbol, 0);
+		}
+	}
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

@@ -20,39 +20,139 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        // Call engine initialization API(essential)
         Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
+            container: document.getElementById("map"),
+            terrain: {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
             },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
         });
-      }
+
+        // Set camera position
+        var camera = Module.getViewCamera();
+        camera.look(
+            new Module.JSVector3D(
+                127.94038324210979,
+                36.337090004544194,
+                331.4668434392661
+            ), // camera position
+            new Module.JSVector3D(
+                127.94109735876435,
+                36.33641154489788,
+                305.9393086005002
+            )
+        );
+        camera.setLimitTilt(-88.0);
+
+        // Load tree ghost symbol layer
+        for (var i = 1; i <= 5; i++) {
+            // Load 3DS model data
+            Module.getGhostSymbolMap().addGhostSymbolBy3DS(
+                "ghost_bluewontree0" + i,
+                "./data",
+                "ghost_bluewontree0" + i
+            );
+        }
+        Module.canvas.addEventListener(
+            "Fire_GhostSymbolRegistComplete",
+            function (e) {
+                // Adapt 3DS model texture
+                Module.getGhostSymbolMap().setGhostSymbolTexture(
+                    e.strGhostSymbolKey,
+                    "./data",
+                    e.strGhostSymbolKey + ".jpg"
+                );
+
+                // Set Layer LOD
+                var layerList = new Module.JSLayerList(false);
+                var layer = layerList.nameAtLayer(e.strGhostSymbolKey);
+                layer.setLODRatio(1.5);
+                layer.setGhostSymbolTilePosition({
+                    align: "middle",
+                    basepoint: [0.0, 2.0, 0.0],
+                });
+            }
+        );
+
+        createBallPath();
+    },
+};
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Display golf ball trajectory line */
+
+function createBallPath() {
+    var start = new Module.JSVector3D(
+        127.94080035885989,
+        36.336424549396064,
+        306.52637346833944
+    );
+    var end = new Module.JSVector3D(
+        127.9419239501012,
+        36.33615414434727,
+        300.5711971661076
+    );
+
+    let parameters = {
+        start: start,
+        end: end,
+        detail: 100, // Number of interpolation points on the curve (higher values make the curve closer to the actual path)
+        height: start.Altitude + 20.0, // Maximum height of the curve (elevation in meters)
+        percent: 70, // Position of the highest point on the curve between the start and end points
     };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+    let curve = Module.getMath().convertBeZierLine(parameters);
+    let curvecount = curve.return.count();
+
+    var vertices = [];
+    for (var j = 0; j < curvecount; j++) {
+        var pos = curve.return.get(j);
+        vertices.push([pos.Longitude, pos.Latitude, pos.Altitude]);
+    }
+    var line = Module.createLineString("WIND_PATH");
+
+    let error = line.createbyJson({
+        coordinates: {
+            coordinate: vertices, // Array of vertices
+            style: "XYZ",
+        },
+        color: new Module.JSColor(255, 0, 0), // ARGB
+        width: 1.2, 		// Line width
+        animation: true,	// animation
+        speed: 0.05, 		// Speed setting
+        skip: 4,
+    });
+
+    // Add object to layer
+    let layerList = new Module.JSLayerList(true);
+    let layer = layerList.createLayer("WIND_PATH_LAYER", Module.ELT_3DLINE);
+    layer.setMaxDistance(10000000);
+    layer.addObject(line, 0);
+}
+
   </script>
 </body>
 </html>

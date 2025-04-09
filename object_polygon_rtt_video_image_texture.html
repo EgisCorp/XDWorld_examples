@@ -20,39 +20,113 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <video id="polygonTextureVideo" style="width:320px;height:240px;" width="3480" height="1260" onplay="startPolygonVideoImageUpdate(this);" onpause="stopPolygonVideoImageUpdate()" loop controls>
+        <source src="./data/video_texture.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	textureUpdateInterval : null,
+	videoDrawCanvasContext : null,
+	polygon : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera position
+		Module.getViewCamera().look(new Module.JSVector3D(129.1192492626454, 35.16080868338614, 187.4345712205395), new Module.JSVector3D(129.12136493889665, 35.16297293950482, 28.072974869981408));
+
+		createPolygon();
+
+		// Create layer and save the polygon
+		var layer = Module.getObjectLayerList().createObjectLayer({
+			name: "VIDEO_TEXTURE_POLYGON_LAYER", 
+			type: Module.ELT_PLANE
+		});
+		layer.addObject(GLOBAL.polygon, 0);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create polygon */
+function createPolygon() {
+
+	// Define polygon vertices
+	var vertices = new Module.JSVec3Array();
+	vertices.push(new Module.JSVector3D(129.12150863635145, 35.16324817753132, 50.0));
+	vertices.push(new Module.JSVector3D(129.12175905587077, 35.1624928886168, 50.0));
+	vertices.push(new Module.JSVector3D(129.12107812934508, 35.16232524762418, 50.0));
+	vertices.push(new Module.JSVector3D(129.12089531077763, 35.1631254230464, 50.0));
+
+	// Set UV texture coordinates for the polygon
+	var uv = new Module.JSVec2Array();
+	uv.push(new Module.JSVector2D(0.0, 0.0));
+	uv.push(new Module.JSVector2D(1.0, 0.0));
+	uv.push(new Module.JSVector2D(1.0, 1.0));
+	uv.push(new Module.JSVector2D(0.0, 1.0));
+
+	// Define the part for the polygon coordinates
+	var part = new Module.Collection();
+	part.add(vertices.count());
+
+	// Create polygon object
+	GLOBAL.polygon = Module.createPolygon("IMAGE_MASHUP_POLYGON");
+	GLOBAL.polygon.setPartCoordinatesUV(vertices, part, uv, true);
+
+	var style = new Module.JSPolygonStyle();
+	style.setOutLine(true);
+	style.setOutLineColor(new Module.JSColor(0, 0, 0, 0));
+	GLOBAL.polygon.setStyle(style);
+
+	let json = {
+		url : "./data/video_texture.mp4",
+		streaming : false,
+		xaxis : false,
+		yaxis : false
+	}				
+	GLOBAL.polygon.createVideo(json);
+	GLOBAL.polygon.isplayer = false;
+}
+
+/* Start updating video texture image */
+function startPolygonVideoImageUpdate() {	
+	GLOBAL.polygon.isplayer = true;
+}
+
+/* Stop updating video texture image */
+function stopPolygonVideoImageUpdate() {
+	GLOBAL.polygon.isplayer = false;
+}
   </script>
 </body>
 </html>

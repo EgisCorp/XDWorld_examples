@@ -20,39 +20,109 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  Module.getViewCamera().setLocation(new Module.JSVector3D(128.67553169939575, 35.216639213997055, 1000));
+
+  // Create polygon with height and hole
+  var polygon = createPolygon([
+    [
+      // Outside Circle
+      new Module.JSVector3D(128.6749865838419, 35.21747871165077, 15.0),
+      new Module.JSVector3D(128.6766521087808, 35.216556208884654, 15.0),
+      new Module.JSVector3D(128.67549083083478, 35.215182532505146, 15.0),
+      new Module.JSVector3D(128.6737961604245, 35.21600773598272, 15.0)
+    ],[
+      // Outside Circle
+      new Module.JSVector3D(128.6756600333795, 35.21810272321554, 15.0),
+      new Module.JSVector3D(128.6764357385949, 35.2176922913252, 15.0),
+      new Module.JSVector3D(128.6759841480401, 35.217163064978486, 15.0),
+      new Module.JSVector3D(128.6752041107077, 35.21761154258113, 15.0)
+    ],[
+      // Inside Circle (Hole)
+      new Module.JSVector3D(128.67637014208512, 35.216512657516205, 15.0),
+      new Module.JSVector3D(128.67503898255234, 35.21721356932182, 15.0),
+      new Module.JSVector3D(128.67595374673675, 35.21604963055377, 15.0)
+
+
+    ],[
+      // Inside Circle (Hole)
+      new Module.JSVector3D(128.674922737982, 35.21704140144862, 15.0),
+      new Module.JSVector3D(128.67421703877486, 35.21608823069637, 15.0),
+      new Module.JSVector3D(128.67541218591535, 35.21542334638133, 15.0),
+      new Module.JSVector3D(128.67585609528544, 35.215953400014094, 15.0)
+    ]
+  ]);
+
+  // Create layer to store polygonobjects
+  var layerList = new Module.JSLayerList(true);
+  var layer = layerList.createLayer("POLYGON_LAYER", Module.ELT_POLYHEDRON);
+  layer.addObject(polygon, 0);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create polygon object */
+function createPolygon(_vertex) {
+
+var polygon = Module.createPolygon("POLYGON");
+
+// Set polygon shape
+var vertex = new Module.JSVec3Array();
+var part = new Module.Collection();
+
+for (var i = 0; i < _vertex.length; i++) {
+
+  for (var j = 0; j < _vertex[i].length; j++) {
+    vertex.push(_vertex[i][j]);
+  }
+
+  part.add(_vertex[i].length);
+}
+polygon.setPartCoordinates(vertex, part);
+
+// Set as a polyhedron polygon with height
+polygon.setHeight(80.0);
+
+// Set polygon color
+var polygonStyle = new Module.JSPolygonStyle();
+polygonStyle.setFill(true);
+polygonStyle.setFillColor(new Module.JSColor(150, 150, 150));
+polygon.setStyle(polygonStyle);
+
+return polygon;
+}
   </script>
 </body>
 </html>

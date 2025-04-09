@@ -20,39 +20,138 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <label>Select animation: </label>
+<select onchange="GLOBAL.animation = this.value; setAnimation(this.value);">
+	<option value="-1">none</option>
+	<option value="0">sample0</option>
+	<option value="1">sample1</option>
+	<option value="2">sample2</option>
+	<option value="3">sample3</option>
+	<option value="4">sample4</option>
+	<option value="5">sample5</option>
+	<option value="6">sample6</option>
+	<option value="7">sample7</option>
+	<option value="8">sample8</option>
+</select>
+<button id="pauseBtn" style="width: 32px;" type="button" onclick="pause();">▶</button>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    let GLOBAL = {
+	animation: -1,
+	pause: false
+}
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+				},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+		let facilityLayer = Module.getTileLayerList().createXDServerLayer({
+            url: "https://xdworld.vworld.kr",
+            servername: "XDServer3d",
+            name: "facility_build",
+            type: 9,
+            minLevel: 0,
+            maxLevel: 15,
+        });
+
+        facilityLayer.setLODRatio(10.0);
+
+		let target = new Module.JSVector3D(
+			127.94080035885989,
+			36.336424549396064,
+			306.52637346833944
+		)
+
+		loadGLTF("./data/gltf_animation.glb", target);
+
+        // Initialize camera
+        let camera = Module.getViewCamera();
+		camera.setPermitUnderGround(true);
+        camera.look(
+            new Module.JSVector3D(
+                127.94095,
+                36.33628, 
+                320.0
+            ),
+            target
+        );
+	}
+};
+
+function loadGLTF(_strURL, _position)
+{
+	var layerList = new Module.JSLayerList(true);
+	var layer = layerList.createLayer("glTF_Test", Module.ELT_POLYHEDRON);
+	
+	var url = _strURL;
+	
+	var polygon = Module.createGLTF("GLTF_Object");
+	polygon.loadFile({
+		url : url,
+		type : "glb",
+		position : _position,
+		rotate : -90,
+		rebuild : true,
+	});
+	layer.addObject(polygon, 0);
+}
+
+function setAnimation(_nID)
+{
+	document.getElementById("pauseBtn").textContent = (GLOBAL.animation == -1) ? "▶" : "⏸";
+
+	var layerList = new Module.JSLayerList(true);
+	var layer = layerList.nameAtLayer("glTF_Test");
+	if(layer==null) return;
+	
+	var pObject = layer.keyAtObject("GLTF_Object");
+	if(pObject==null) return;
+	if(pObject.getType()!="JSGLTF") return;
+	
+	pObject.setAnimationByID(_nID);
+}
+
+function pause() {
+	if (GLOBAL.animation == -1) return;
+	
+	if (GLOBAL.pause) {
+		setAnimation(GLOBAL.animation);
+		GLOBAL.pause = false;
+	} else {
+		setAnimation(-1);
+		GLOBAL.pause = true;
+	}
+	document.getElementById("pauseBtn").textContent = (GLOBAL.pause) ? "▶" : "⏸";
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

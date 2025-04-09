@@ -20,39 +20,124 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Graph : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera
+		var camera = Module.getViewCamera();
+		camera.setLocation(new Module.JSVector3D(126.78693528538836, 34.9923429887883, 1500.0));
+		camera.setTilt(20.0);
+		
+		camera.setPermitUnderGround(true);
+		camera.setLimitTilt(-88.0);
+		camera.setLimitAltitude(-1000.0);
+		
+		// Create graph object type layer
+		var layerList = new Module.JSLayerList(true);
+		var layer = layerList.createLayer("LAYER_GRAPH", Module.ELT_GRAPH);
+		
+		// Load graph data
+		$.getJSON("./data/surfaceData.json", function(respond) {
+			
+			// Create graph
+			var graph = createGraph(respond);
+			layer.addObject(graph, 0);
+			
+			layer.setMaxDistance(1000000.0);
+		});
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create graph */
+function createGraph(_respond) {
+	
+	// Create graph object
+	var graph = Module.createSurfaceGraph("Graph");
+	
+	// Add graph legends and colors
+	graph.insertLegend(50.0, new Module.JSColor(255, 0, 0));
+	graph.insertLegend(55.0, new Module.JSColor(255, 107, 33));
+	graph.insertLegend(60.0, new Module.JSColor(255, 216, 0));
+	graph.insertLegend(65.0, new Module.JSColor(255, 255, 0));
+	graph.insertLegend(70.0, new Module.JSColor(142, 251, 0));
+	graph.insertLegend(75.0, new Module.JSColor(38, 224, 0));
+	graph.insertLegend(80.0, new Module.JSColor(34, 190, 0));
+	graph.insertLegend(85.0, new Module.JSColor(0, 205, 245));
+	graph.insertLegend(90.0, new Module.JSColor(0, 153, 246));
+	graph.insertLegend(95.0, new Module.JSColor(0, 53, 239));
+	graph.insertLegend(100.0, new Module.JSColor(117, 0, 159));
+			
+	// Set X, Y coordinates
+	var i,
+		len = _respond.x.length
+		;
+	for (i=0; i<len; i++) {
+		graph.insertAxisPoint(0, _respond.x[i]);
+	}
+	
+	len = _respond.y.length;
+	for (i=0; i<len; i++) {
+		graph.insertAxisPoint(1, _respond.y[i]);
+	}
+	
+	// Input data
+	var dataSet = 0;
+	len = _respond.data.length;
+	for (i=0; i<len; i++) {
+		dataSet = _respond.data[i];
+		graph.setData(_respond.x[dataSet.xIndex], _respond.y[dataSet.yIndex], dataSet.value);
+	}
+	
+	// Setting the maximum and minimum value range
+	graph.setValueRange(0.0, 100.0, 10.0);
+
+	// Setting the unit display text
+	graph.setUnitText("('F)");
+
+	// Setting the speed of surface elevation animation
+	graph.setAnimationSpeed(0.3);
+	
+	// Create graph
+	graph.create(new Module.JSVector3D(126.78693528538836, 35.01813429887883, 100.0),
+				 new Module.JSSize3D(800.0, 800.0, 800.0));
+				 
+	return graph;
+}
   </script>
 </body>
 </html>

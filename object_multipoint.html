@@ -20,39 +20,198 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Symbol: null,       // Image (JSIcon) management object
+	Layer: null,        // Layer for storing Multi-Point objects
+	SubPointIndex: 0   // Index for displaying Sub POI Text
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Retrieve Symbol object
+		GLOBAL.Symbol = Module.getSymbol();
+
+		// Move camera to initial position
+		Module.getViewCamera().setLocation(new Module.JSVector3D(127.031854, 37.515256, 800.0));
+		
+		// Create Multi-Point storage layer
+		var layerList = new Module.JSLayerList(true);
+		GLOBAL.Layer = layerList.createLayer("NEW_MULTIPOI_LAYER", Module.ELT_MULTILPE);
+		
+		// Create Multi-Points
+		createMultiPoint("MULTI_POINT_0", new Module.JSVector3D(127.03289257949515, 37.51493910913355, 300.0));
+		createMultiPoint("MULTI_POINT_1", new Module.JSVector3D(127.03123837113178, 37.51421755043519, 300.0));
+		createMultiPoint("MULTI_POINT_2", new Module.JSVector3D(127.03118788304704, 37.515714907723364, 300.0));
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Multi-Point Create object */
+function createMultiPoint(_objectKey, _position) {
+	
+	// Create Multi-Point object
+	var multiPoint = Module.createMultiPoint(_objectKey);
+	
+	// Create Main, Sub POI
+	createMainPoint(multiPoint, _position);
+	createSubPoints(multiPoint);
+	
+	// Create bottom bar 
+	multiPoint.setBar(new Module.JSColor(239, 239, 239), 100.0, 3.0);
+	
+	// Add to layer
+	GLOBAL.Layer.addObject(multiPoint, 0);
+}
+
+/* Create Multi-Point Main POI */
+function createMainPoint(_multiPoint, _position) {
+	
+	// Load the icon to be applied as the Main POI image from the symbol
+	var mainIcon = GLOBAL.Symbol.getIcon("MAIN_ICON");
+	
+	if (mainIcon == null) {
+		
+		// If not yet created, create it
+		if (!createMainPointIcon("MAIN_ICON")) {
+			return;
+		}
+		
+		// Load the icon from the symbol after creation
+		mainIcon = GLOBAL.Symbol.getIcon("MAIN_ICON");
+		if (mainIcon == null) {
+			return;
+		}
+	}
+	
+	_multiPoint.setMainPoint("MainPoint", _position, mainIcon);
+	
+	// ** (If you want to use the same POI image, you can use the same JSIcon without registering the same image every time)
+}
+
+/* Draw the image for the Multi-Point Main POI */
+function createMainPointIcon(_iconName) {
+	
+	// Draw the icon image on the canvas
+	var canvas = document.createElement('canvas');
+	canvas.width = 40;
+	canvas.height = 40;
+		
+	var ctx = canvas.getContext('2d');
+	
+	// Set drawing colors
+	ctx.strokeStyle = "rgb(255, 255, 255)";
+	ctx.fillStyle = "rgb(239, 239, 239)";
+	
+	// Draw background square shape
+	ctx.lineJoin = "round";
+	ctx.lineWidth = 10;
+	ctx.strokeRect(5, 5, 30, 30);
+	ctx.fillRect(5, 5, 30, 30);
+	
+	// Input text
+	ctx.font = "13px bold Arial";
+	ctx.fillStyle = "rgb(0, 0, 0)";
+	ctx.textAlign = "center"; 
+	ctx.fillText("MAIN", 20, 25);
+	
+	// Generate image data
+	var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+		
+	// Add a new icon to the Symbol
+	return GLOBAL.Symbol.insertIcon(_iconName, imageData, canvas.width, canvas.height);
+}
+
+/* Create Multi-Point Sub POIs */
+function createSubPoints(_multiPoint) {
+	
+	// Create 10 sub POIs for each Multi-Point
+	for (var i=0; i<10; i++) {
+		
+		// Register the image to be used as the Sub POI icon in JSSymbol
+		if (!createSubPointIcon("SUB_ICON_"+GLOBAL.SubPointIndex)) {
+			continue;
+		}
+		
+		// Get the JSIcon to be used as the Sub POI image
+		var icon = GLOBAL.Symbol.getIcon("SUB_ICON_"+GLOBAL.SubPointIndex);
+		
+		// Insert Sub POI
+		_multiPoint.insertSubPoint("SubPoint"+i, icon);
+		
+		GLOBAL.SubPointIndex++;
+	}
+}
+
+/* Draw the image for the Multi-Point Sub POIs */
+function createSubPointIcon(_iconName) {
+
+	// Draw the icon image on the canvas
+	var canvas = document.createElement('canvas');
+	canvas.width = 40;
+	canvas.height = 40;
+	
+	var ctx = canvas.getContext('2d');
+	
+	// Set drawing colors
+	if (GLOBAL.SubPointIndex % 2) {
+		ctx.strokeStyle = "rgb(255, 140, 140)";
+		ctx.fillStyle = "rgb(249, 109, 109)";
+	} else {
+		ctx.strokeStyle = "rgb(255, 255, 0)";
+		ctx.fillStyle = "rgb(255, 233, 0)";
+	}
+	
+	// Draw background square shape
+	ctx.lineJoin = "round";
+	ctx.lineWidth = 10;
+	ctx.strokeRect(5, 5, 30, 30);
+	ctx.fillRect(5, 5, 30, 30);
+	
+	// Input text
+	ctx.font = "13px Arial";
+	ctx.fillStyle = "rgb(0, 0, 0)";
+	ctx.textAlign = "center"; 
+	ctx.fillText("SUB", 20, 20);
+	ctx.fillText(GLOBAL.SubPointIndex.toString(), 20, 32);
+	
+	// Generate image data
+	var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+		
+	// Add a new icon to the Symbol
+	return GLOBAL.Symbol.insertIcon(_iconName, imageData, canvas.width, canvas.height);
+}
   </script>
 </body>
 </html>

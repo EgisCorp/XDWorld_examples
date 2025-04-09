@@ -20,39 +20,186 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <label style="width: 80px">progress</label>
+<div style="width: 200px;">
+	<input id="orbit-progress" style="border-radius: 5px; width: 100%; height:20px;"
+		type="range" min="0" max="1440" step="1" value="0" oninput="movePOI()"/>
+</div>
+
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    let GLOBAL = {
+	SATELLITE0 : null,
+	SATELLITE1 : null,
+	SATELLITE2 : null,
+	ALTITUDE : 500000,
+}
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+        for (let i = 0; i < 3; ++i) {
+			createPOI(i);
+		}
+		drawOrbitLine();
+
+        // Initialize camera
+        let camera = Module.getViewCamera();
+		camera.setLocation(new Module.JSVector3D(129.127, 35.17, 20000000.0));
+        camera.setDirect(0.0);
+	}
+};
+
+function movePOI() {
+	let slider = document.getElementById("orbit-progress");
+	let value = slider.value;
+	let progress = value / 1440;
+
+	{
+		GLOBAL.SATELLITE0.setPosition(new Module.JSVector3D(progress * 360 + 180, 0, GLOBAL.ALTITUDE));	
+	}
+	{
+		let lon = 360 - progress * 360 + 90;
+		let lat = Math.sin(-progress * Math.PI * 2) * 45;
+	
+		GLOBAL.SATELLITE1.setPosition(new Module.JSVector3D(lon, lat, GLOBAL.ALTITUDE));	
+	}
+	{
+		let lon = 360 - progress * 360 + 180;
+		let lat = Math.sin(progress * Math.PI * 2) * 45;
+	
+		GLOBAL.SATELLITE2.setPosition(new Module.JSVector3D(lon, lat, GLOBAL.ALTITUDE));
+	}
+	Module.XDRenderData();
+}
+
+function createPOI(_idx) {
+	let layerList = new Module.JSLayerList(true);
+	var layer = layerList.createLayer("POI_SATELLITE" + _idx, Module.ELT_3DPOINT);
+	
+	// Image POI
+	var img = new Image();
+	img.onload = function() {
+
+		// Draw image on canvas after loading
+		var canvas = document.createElement('canvas');
+		var ctx = canvas.getContext('2d');
+		canvas.width = this.width;
+		canvas.height = this.height;
+		ctx.drawImage(img, 0, 0);
+		
+		// Create image POI
+		var poi_with_image = Module.createPoint("POI_WITH_IMAGE");
+		GLOBAL.POI = poi_with_image;
+
+
+		let lon = 0; let lat = 0;
+		if (_idx == 1) { lon = 90; lat = 0; }
+		else { lon = 180; lat = 0; }
+
+		poi_with_image.setPosition(new Module.JSVector3D(lon, lat, GLOBAL.ALTITUDE));
+
+		poi_with_image.setImage(ctx.getImageData(0, 0, this.width, this.height).data, this.width, this.height);
+		this.layer.addObject(poi_with_image, 0);
+
+		if (_idx == 0) GLOBAL.SATELLITE0 = poi_with_image;
+		if (_idx == 1) GLOBAL.SATELLITE1 = poi_with_image;
+		if (_idx == 2) GLOBAL.SATELLITE2 = poi_with_image;
+    };
+    img.layer = layer;
+    img.src = "./data/satellite" + _idx + ".png";
+
+	layer.setMaxDistance(1000000000.0);
+	layer.ignoreAltitude = true;
+}
+
+function drawOrbitLine() {
+	let layerList = new Module.JSLayerList(true);
+    let layer = layerList.createLayer(
+        "ORBIT_LAYER",
+        Module.ELT_3DLINE
+    );
+
+	let color = [
+		new Module.JSColor(180, 255, 0, 0),
+		new Module.JSColor(180, 255, 170, 0),
+		new Module.JSColor(180, 0, 0, 255),
+	]
+
+	for (let i = 0; i < 3; ++i) {
+		let path = [];
+		if (i == 0) {
+			for (let j = 0; j <= 1440; j++) {
+				path.push([j * 0.25, 0, GLOBAL.ALTITUDE]);
+			}
+		} else if (i == 1) {
+			for (let j = 0; j <= 1440; j++) {
+				let progress = j / 1440;
+
+				let lon = 360 - progress * 360 + 90;
+				let lat = Math.sin(-progress * Math.PI * 2) * 45;
+
+				path.push([lon, lat, GLOBAL.ALTITUDE]);
+			}
+		} else {
+			for (let j = 0; j <= 1440; j++) {
+				let progress = j / 1440;
+
+				let lon = 360 - progress * 360 + 180;
+				let lat = Math.sin(progress * Math.PI * 2) * 45;
+
+				path.push([lon, lat, GLOBAL.ALTITUDE]);
+			}
+		}
+		
+		let coordinates = {
+			coordinate: path,
+			style: "XYZ",
+		};
+	
+		let line = Module.createLineString("ORBIT_LINE" + i);
+		line.createbyJson({
+			coordinates: coordinates,
+			type: 0,
+			union: false,
+			depth: true,
+			color: color[i],
+			width: 3,
+		});
+		layer.addObject(line, 0);
+	}
+	layer.setMaxDistance(1000000000.0);
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

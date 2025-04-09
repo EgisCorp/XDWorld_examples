@@ -20,39 +20,104 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Initial position setup
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.92877515233845, 37.53131594358383, 570));
+
+  // Create grid
+  createGrid(new Module.JSVector2D(126.926420, 37.532259), 5.0);
+  createGrid(new Module.JSVector2D(126.927323, 37.532259), 10.0);
+  createGrid(new Module.JSVector2D(126.928853, 37.532259), 20.0);
+}
+};
+
+/* Create grid */
+function createGrid(_startPosition, _interval) {
+
+// Return layer to store objects
+var layerList = Module.getObjectLayerList();
+var gridLayer = layerList.nameAtLayer("TEST_GRID_COLOR_LAYER");
+if (gridLayer == null) {
+  gridLayer = layerList.createObjectLayer({
+    name : "TEST_GRID_COLOR_LAYER",
+    type : Module.ELT_POLYHEDRON,
+    minDistance : 0.0,
+    maxDistance : 100000.0
+  });
+}
+
+if (_interval == null) {
+  return;
+}
+
+var cellRowCount = 10;
+var cellColCount = 10;
+
+// Create grid object based on the interval value
+var colorGrid = Module.createColorGrid("TEST_GRID_"+_interval+"M");
+colorGrid.SetGridPositionByCellOptions(
+  _startPosition,	// Starting position of the grid (top right) in latitude and longitude coordinates
+  20.0,			// Elevation of the grid (meters)
+  _interval,		// Cell width
+  _interval,		// Cell height
+  cellRowCount,	// Number of cells horizontally
+  cellColCount	// Number of cells vertically
+);
+
+// Set random colors for cells
+var colorList = [
+  Module.COLOR_RED,
+  Module.COLOR_GREEN,
+  Module.COLOR_BLUE,
+  Module.COLOR_WHITE,
+  Module.COLOR_YELLOW,
+];
+
+for (var i=0; i <cellRowCount; i++){
+  for (var j=0; j <cellColCount; j++){
+    colorGrid.SetGridCellColor(j, i, colorList[parseInt(Math.random()*colorList.length)]);
+  }
+}
+
+// Create the grid object
+colorGrid.Create();
+
+// Add the grid object to the layer
+gridLayer.addObject(colorGrid, 0);
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

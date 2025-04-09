@@ -20,39 +20,124 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        input[type="button"] {
+          width: 200px;
+        }
+    </style>
+    <span>Moust Mode</span>
+    <input type="radio" name="mouseState" value="move" onclick="setMouseState('move');" checked>Move map
+    <input type="radio" name="mouseState" value="line" onclick="setMouseState('line');">Input lines
+    <br>
+    <input type="button" value="Create Buffer Polygon" onclick="createBufferPolygon();">
+    <br>
+    <input type="button" value="Clear Input Points" onclick="clearInputPoint();">
+    
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+              dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera position
+    Module.getViewCamera().setLocation(new Module.JSVector3D(127.30520803956162, 36.640111257948014, 1034.5840510716662));
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set Mouse State */
+function setMouseState(_type) {
+  if (_type == 'move') {
+      Module.XDSetMouseState(Module.MML_MOVE_GRAB);    // Move map
+  } else if (_type == 'line') {
+      Module.XDSetMouseState(Module.MML_INPUT_LINE);    // Input line
+  }
+}
+
+function createBufferPolygon() {
+
+  // Retrieve layer to store the polygon
+  var layerList = new Module.JSLayerList(true);
+  var layer = layerList.nameAtLayer("BUFFER_POLYGON_LAYER");
+  if (layer == null) {
+      layer = layerList.createLayer("BUFFER_POLYGON_LAYER", Module.ELT_PLANE);
+  } else {
+      layer.removeAll();
+  } 
+  
+  // Retrieve input point list (Returned as 3D coordinates composed of longitude, latitude, and altitude)
+  var map = Module.getMap();
+  var line = map.getInputPoints();
+  
+  var line2D = new Module.JSVec2Array();
+  for (var i=0; i<line.count(); i++) {
+      line2D.push(new Module.JSVector2D(line.get(i).Longitude, line.get(i).Latitude));
+  }
+  
+  // Retrieve buffer polygon coordinates with a distance of 100m from the line
+  var polygonLine = map.getLineBuffer(line2D, 100);
+  
+  // Convert to 3D coordinates for polygon creation
+  var polygonLine3D = new Module.JSVec3Array();
+  for (var i=0; i<polygonLine.count(); i++) {
+      polygonLine3D.push(new Module.JSVector3D(polygonLine.get(i).x, polygonLine.get(i).y, 100.0));
+  }
+  
+  // Create polygon
+  var polygon = Module.createPolygon("BUFFER_POLYGON");
+  
+  // Set polygon color
+  var polygonStyle = new Module.JSPolygonStyle();
+  polygonStyle.setFill(true);
+  polygonStyle.setFillColor(new Module.JSColor(100, 255, 255, 0));
+  polygonStyle.setOutLine(true);
+  polygonStyle.setOutLineWidth(1.0);
+  polygonStyle.setOutLineColor(new Module.JSColor(100, 255, 0, 0));
+  polygon.setStyle(polygonStyle);
+
+  // Set polygon shape
+  var part = new Module.Collection();
+  part.add(polygonLine3D.count());
+  polygon.setPartCoordinates(polygonLine3D, part);
+  
+  // Add to layer
+  layer.addObject(polygon, 0);
+  
+  // Clear input points
+  clearInputPoint();
+}
+
+/* Clear Input Points */
+function clearInputPoint() {
+  Module.getMap().clearInputPoint();
+}
   </script>
 </body>
 </html>

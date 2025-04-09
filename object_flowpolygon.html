@@ -20,39 +20,163 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="radio" name="image_type" onclick="setFlowImageType(0);" checked=""> Image
+<input type="radio" name="image_type" onclick="setFlowImageType(1);"> Direction map
+<input type="radio" name="image_type" onclick="setFlowImageType(2);"> Color
+<input type="radio" name="image_type" onclick="setFlowImageType(3);"> Terrain Texture
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	flow_polygon_layer : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+		// Set camera
+		var camera = Module.getViewCamera();
+		camera.setLocation(new Module.JSVector3D(127.32335499948407, 35.275069596468654, 1629.4701303420588));
+		
+		// Load effect texture
+		loadImage("./data/water_image.jpg", "WATER_IMAGE", function(_polygonImageTexture) {
+			loadImage("./data/water_noise.jpg", "WATER_NOISE", function(_flowNoiseTexture) {
+				
+				// Load polygon feature data
+				$.getJSON("./data/water_flow_polygons.json", function(_data){
+
+					// Create layer
+					var layerList = new Module.JSLayerList(true);
+					var layer = layerList.createLayer("FLOW_POLYGON_LAYER", Module.ELT_POLYHEDRON);
+					layer.setMaxDistance(9999999.9);
+
+					GLOBAL.flow_polygon_layer = layer;
+
+					// Create water flow effect polygon and add to layer
+					for (var i=0; i<_data.features.length; i++) {
+						
+						var flowPolygon = createFlowPolygons(_data.features[i], _flowNoiseTexture, _polygonImageTexture);
+						if (flowPolygon != null) {
+							layer.addObject(flowPolygon, 0);
+						}
+					}
+					
+				});
+			});
+		});
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create flow effect polygons */
+function createFlowPolygons(_feature, _flowNoiseTexture, _polygonImageTexture) {
+
+    // Create polygon object
+    var polygon = Module.createFlowPolygon("FLOW_POLYGON_" + _feature.id);
+    polygon.flow_speed = 0.6;
+    polygon.color = new Module.JSColor(99, 144, 176);
+
+    // Set polygon coordinates
+    var geometry = new Module.JSVec3Array();
+    for (var i = 0; i < _feature.geometry.length; i++) {
+        geometry.push(new Module.JSVector3D(_feature.geometry[i][0], _feature.geometry[i][1], 80.0));
+    }
+
+    // Set water flow paths
+    var flowPathList = [];
+
+    for (var i = 0; i < _feature.flowpath.length; i++) {
+
+        var flowpath = new Module.JSVec2Array();
+
+        for (var j = 0; j < _feature.flowpath[i].length; j++) {
+            flowpath.push(new Module.JSVector2D(_feature.flowpath[i][j][0], _feature.flowpath[i][j][1]));
+        }
+
+        flowPathList.push(flowpath)
+    }
+
+    // Set polygon properties
+    var result = polygon.create({
+        vertex: geometry,                       // Polygon shape
+        flowpath: flowPathList,                 // Flow direction
+        normaltexture: _flowNoiseTexture,       // River flow noise texture
+        imagetexture: _polygonImageTexture,     // River surface image texture
+    });
+
+    if (result.result !== "succeed") {
+        return null;
+    }
+
+    return polygon;
+}
+
+/* Image Request Completed and Applied */
+function loadImage(_url, _iconName, _callback) {
+
+    var img = new Image();
+    
+    img.src = _url;
+    img.onload = function(){
+        
+        var canvas = document.createElement('canvas');
+        canvas.width = this.width;
+        canvas.height = this.height;
+        
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(this, 0, 0);
+
+        var symbol = Module.getSymbol();
+        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        if (symbol.insertIcon(_iconName, imageData, canvas.width, canvas.height)) {            
+            _callback(symbol.getIcon(_iconName));
+        }
+    }
+}
+
+/* Set polygon rendering type */
+function setFlowImageType(_type) {
+
+    if (GLOBAL.flow_polygon_layer !== null) {
+
+        var objectCount = GLOBAL.flow_polygon_layer.getObjectCount();
+
+        for (var i = 0; i < objectCount; i++) {
+
+            var object = GLOBAL.flow_polygon_layer.indexAtObject(i);
+            if (object !== null) {
+                object.image_type = _type;
+            }
+        }
+    }
+}
   </script>
 </body>
 </html>

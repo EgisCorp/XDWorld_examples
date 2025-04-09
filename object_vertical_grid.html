@@ -20,39 +20,118 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="createVerticalPlane" onclick="createVerticalPlane();"></br>
+<input type="button" value="changeColor" onclick="changeColor();"></br>
+<input type="button" value="clear" onclick="clearLayer();">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Layer : null,
+	LayerList : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set facility layer
+        Module.getTileLayerList().createXDServerLayer({
+            url: "https://xdworld.vworld.kr",
+            servername: "XDServer3d",
+            name: "facility_build",
+            type: 9,
+            minLevel: 0,
+            maxLevel: 15,
+        });
+		
+		GLOBAL.LayerList = new Module.JSLayerList(true);
+		GLOBAL.Layer = GLOBAL.LayerList.createLayer("gridLayer", 0);		
+		GLOBAL.Layer.view_underground = true;
+		
+		Module.getViewCamera().setLimitTilt(-30.0);
+		Module.XDESetPlanetTransparecny(0.5);
+		
+		Module.getViewCamera().moveLonLatAlt(126.94079164394758, 37.51751992474435, 300, true);
+		Module.getViewCamera().setTilt(50.0);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/*	
+*	(0,0)	(1,0)	(2,0)	...
+*	(0,1)	(1,1)	(2,1)	...
+*	(0,2)	(1,2)	(2,2)	...
+*	  .		  .		  .
+*	  .		  .		  .
+*	  .		  .		  .
+*/
+function createVerticalPlane() {
+	var polygon = Module.createPolygon("POLYGON");
+	
+	// layername, left top, right top, row count, col count
+	let result = polygon.createVerticalGrid("gridLayer", new Module.JSVector3D(126.9401164394758, 37.51961992474435, -15), new Module.JSVector3D(126.94055061877121, 37.51988977711996, 43), 5, 10);
+	
+	console.log(result);
+}
+
+function changeColor()
+{	
+	let obj = GLOBAL.Layer.keyAtObject("1,1");
+	var polygonStyle = new Module.JSPolygonStyle();
+	polygonStyle.setFill(true);
+	polygonStyle.setFillColor(new Module.JSColor(180, 0, 0, 255));
+	obj.setStyle(polygonStyle);	
+	
+	obj = GLOBAL.Layer.keyAtObject("4,1");
+	polygonStyle = new Module.JSPolygonStyle();
+	polygonStyle.setFill(true);
+	polygonStyle.setFillColor(new Module.JSColor(180, 0, 0, 255));
+	obj.setStyle(polygonStyle);	
+	
+	obj = GLOBAL.Layer.keyAtObject("2,2");
+	polygonStyle = new Module.JSPolygonStyle();
+	polygonStyle.setFill(true);
+	polygonStyle.setFillColor(new Module.JSColor(180, 255, 0, 0));
+	obj.setStyle(polygonStyle);	
+	
+	obj = GLOBAL.Layer.keyAtObject("3,2");
+	polygonStyle = new Module.JSPolygonStyle();
+	polygonStyle.setFill(true);
+	polygonStyle.setFillColor(new Module.JSColor(180, 255, 0, 0));
+	obj.setStyle(polygonStyle);	
+}
+
+function clearLayer()
+{		
+	GLOBAL.Layer.removeAll();
+}
   </script>
 </body>
 </html>

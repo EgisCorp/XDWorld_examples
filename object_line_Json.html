@@ -20,39 +20,174 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.001, 36.9995, 500.0));
+
+  // Create layer to add polygon
+  var layerList = new Module.JSLayerList(true);
+  layerList.createLayer("Line_Option", Module.ELT_3DLINE);
+
+  createLine("LINE_1", [[126.0, 37.0, 20], [126.002, 37.0, 20]], 1);
+  createLine("LINE_2", [[126.0, 36.9998, -5], [126.002, 36.9998, -5]], 2);
+  createLine("LINE_3", [[126.0, 36.9996, 0], [126.002, 36.9996, 1]], 3);
+  createLine("LINE_4", [[126.0, 36.9994, 20], [126.002, 36.9994, 20]], 4);
+  createLine("LINE_5", [[126.0, 36.9992, 20], [126.002, 36.9992, 20]], 5);
+  createLine("LINE_6", [[126.0, 36.9990, 20], [126.002, 36.9990, 20]], 6);
+  createLine("LINE_7", [[126.0, 36.9988, 20], [126.002, 36.9988, 20]], 7);
+  createLine("LINE_8", [[126.0, 36.9986, 20], [126.002, 36.9986, 20]], 8);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function createLine( _id, _coordinate, _type) {
+
+let coordinates = {
+  coordinate: _coordinate, // Array of vertices
+  style: "XYZ",
+  // Relationship between style and array:
+  // "XY" = [x, y],[x, y],[..]
+  // "XYZ" = [x, y, z],[x, y, z],[...]
+  // "XYZARRAY" = [x, y, z, x, y, z ...]
+  // "JSVector3D" = JSVector3D instances
+  };
+
+  let object_option = null;
+
+  if (_type == 1) object_option = createNormalLineJson(coordinates);
+  else if (_type == 2) object_option = createDashLineJson(coordinates, _type);
+  else if (_type == 3) object_option = createDashLineJson(coordinates, _type);
+  else if (_type == 4) object_option = createDashLineJson(coordinates, _type);
+  else if (_type == 5) object_option = createDashLineJson(coordinates, _type);
+  else if (_type == 6) object_option = createDashLineJson(coordinates, _type);
+  else if (_type == 7) object_option = createArrowLineJson(coordinates);
+  else if (_type == 8) object_option = createOutLineJson(coordinates);
+
+  let line = Module.createLineString(_id)
+  console.log(line.createbyJson(object_option));
+
+  let layerList = new Module.JSLayerList(true);
+  let lineLayer = layerList.nameAtLayer("Line_Option");
+  lineLayer.addObject(line, 0);
+}
+
+function createNormalLineJson(_coordinates) {
+let data = {
+  coordinates: _coordinates,
+  type: 0,										// Solid line creation
+  union: false,									// Terrain union status
+  depth: true,									// Object overlap status
+  color: new Module.JSColor(255, 255, 0, 0),		// ARGB
+  width: 1,										// Line width
+};
+return data;
+}
+
+function createArrowLineJson(_coordinates) {
+let data = {
+  coordinates: _coordinates,
+  type: 3,										// Arrow line creation
+  union: false,									// Terrain union status
+  depth: true,									// Object overlap status
+  color: new Module.JSColor(255, 255, 0, 0),		// ARGB
+  width: 5,										// Line width (if set to 1 for type 3, arrows will not be drawn)
+};
+return data;
+}
+
+function createOutLineJson(_coordinates) {
+let data = {
+  coordinates: _coordinates,
+  type: 1,										// Gradient line creation
+  union: false,									// Terrain union status
+  depth: true,									// Object overlap status
+  color: new Module.JSColor(200, 255, 0, 100),	// Fill ARGB setting
+  strokecolor: new Module.JSColor(200, 100, 0, 255),	// Stroke ARGB setting
+  strokewidth: 6.0,								// Stroke thickness setting
+  width: 10,										// Line width (if set to 1 for type 3, arrows will not be drawn)
+};
+return data;
+}
+
+function createDashLineJson(_coordinates, _type) {
+
+let union, depth,
+  r, g, b, a,
+  width, dash;
+
+union = false;	// Terrain union: No
+depth = false;	// Terrain overlap: Prohibited
+
+if (_type == 2) {
+  r = 0; g = 255; b = 0; a = 255;		// Green
+  width = 2;							// Line width
+  dash = 5;							// Dashed line: Yes
+} else if (_type == 3) {
+  depth = true;						// Terrain overlap: Yes
+  r = 0; g = 0; b = 255; a = 255;		// Blue
+  width = 3;							// Line width
+  dash = 10;							// Dashed line: Yes
+
+} else if (_type == 4) {
+  union = true;						// Terrain union: Yes
+  r = 255; g = 255; b = 0; a = 255;	// Yellow
+  width = 4;							// Line width
+  dash = 15;							// Dashed line: Yes
+} else if (_type == 5) {
+  union = true;						// Terrain union: Yes
+  r = 255; g = 0; b = 255; a = 255;	// Purple
+  width = 5;							// Line width
+  dash = 20;							// Dashed line: Yes
+} else if (_type == 6) {
+  union = true;						// Terrain union: Yes
+  r = 255; g = 255; b = 255; a = 255;	// White
+  width = 6;							// Line width
+  dash = 25;							// Dashed line: Yes		
+}
+
+let data = {
+  coordinates: _coordinates,
+  type: 4,									// Dashed line creation
+  union: union,								// Terrain union status
+  depth: depth,								// Terrain overlap: No
+  color: new Module.JSColor(a, r, g, b),		// ARGB
+  width: width,								// Line width
+  dash: dash,									// Dash interval (0)
+};
+return data;
+}
   </script>
 </body>
 </html>

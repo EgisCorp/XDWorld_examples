@@ -20,39 +20,176 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="clear" onclick="clearLineLayer()" />
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	layer : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        // Call engine initialization API(essential)
+        Module.initialize({
+            container: document.getElementById("map"),
+            terrain: {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+            },
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
+        });
+
+        // Set camera position
+		Module.getViewCamera().setLocation(new Module.JSVector3D(126.92579384153355, 37.523936180247084, 2000));
+		
+		let layerList = new Module.JSLayerList(true);
+		GLOBAL.layer = layerList.createLayer("WIND_PATH_LAYER", Module.ELT_3DLINE);
+		GLOBAL.layer.setMaxDistance(10000000);
+
+        createLine();
+    },
+};
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function clearLineLayer() {
+	GLOBAL.layer.removeAll();
+}
+
+function createLineEffect(key, vertices, type, animation, width, density, speed, fixed) {
+	var line = Module.createLineString(key);
+	let error = line.createbyJson({
+		coordinates: {
+			coordinate: vertices, // Array of vertices
+			style: "XYZ",
+		},
+		union: false,			// Terrain union status
+		depth: true,			// Object overlap status
+		width: width,			// Line width
+		type: type,				// Solid line creation
+		speed: speed,			// animation speed
+		animation: animation,	// animation
+		density: density,		// spacing between colors
+		sizefix: fixed,			// fix size
+		skip: 1.0,				// skip animation
+	});    
+	
+	GLOBAL.layer.addObject(line, 0);
+}
+
+function createLine() {
+	let parameters = {
+		start: new Module.JSVector3D(126.92678060283471, 37.53001867455227, 35),
+		end: new Module.JSVector3D(126.91848060606415, 37.524877866998764, 35),
+		detail: 10, // Number of interpolation points on the curve (higher values make the curve closer to the actual path)
+		height: 33.0, // Maximum height of the curve (elevation in meters)
+		percent: 50, // Position of the highest point on the curve between the start and end points
+	};
+	let curve = Module.getMath().convertBeZierLine(parameters);
+	let curvecount = curve.return.count();
+	var vertices = [];
+	for (var j = 0; j < curvecount; j++) {
+		var pos = curve.return.get(j);
+		vertices.push([pos.Longitude, pos.Latitude, pos.Altitude]);
+	}
+	createLineEffect("WIND_PATH_1", vertices, Module.BLING, false, 30, 0, 0.05, true);
+
+	parameters = {
+		start: new Module.JSVector3D(126.92736938591666, 37.52953476052058, 35),
+		end: new Module.JSVector3D(126.91899658387696, 37.52441084896486, 35),
+		detail: 10, // Number of interpolation points on the curve (higher values make the curve closer to the actual path)
+		height: 33.0, // Maximum height of the curve (elevation in meters)
+		percent: 50, // Position of the highest point on the curve between the start and end points
+	};
+	curve = Module.getMath().convertBeZierLine(parameters);
+	curvecount = curve.return.count();
+	vertices = [];
+	for (var j = 0; j < curvecount; j++) {
+		var pos = curve.return.get(j);
+		vertices.push([pos.Longitude, pos.Latitude, pos.Altitude]);
+	}
+	createLineEffect("WIND_PATH_2", vertices, Module.BLING, true, 30, 0, 0.05, false);
+	
+	parameters = {
+		start: new Module.JSVector3D(126.92797007867858, 37.52905777578084, 35),
+		end: new Module.JSVector3D(126.91949287302103, 37.52391175132358, 35),
+		detail: 10, // Number of interpolation points on the curve (higher values make the curve closer to the actual path)
+		height: 33.0, // Maximum height of the curve (elevation in meters)
+		percent: 50, // Position of the highest point on the curve between the start and end points
+	};
+	curve = Module.getMath().convertBeZierLine(parameters);
+	curvecount = curve.return.count();
+	vertices = [];
+	for (var j = 0; j < curvecount; j++) {
+		var pos = curve.return.get(j);
+		vertices.push([pos.Longitude, pos.Latitude, pos.Altitude]);
+	}
+	createLineEffect("WIND_PATH_3", vertices, Module.FIRE, false, 30, 0, 0.05, true);
+	
+	parameters = {
+		start: new Module.JSVector3D(126.9284906846504, 37.52859343728292, 35),
+		end: new Module.JSVector3D(126.9198733014939, 37.52342512294364, 35),
+		detail: 10, // Number of interpolation points on the curve (higher values make the curve closer to the actual path)
+		height: 33.0, // Maximum height of the curve (elevation in meters)
+		percent: 50, // Position of the highest point on the curve between the start and end points
+	};
+	curve = Module.getMath().convertBeZierLine(parameters);
+	curvecount = curve.return.count();
+	vertices = [];
+	for (var j = 0; j < curvecount; j++) {
+		var pos = curve.return.get(j);
+		vertices.push([pos.Longitude, pos.Latitude, pos.Altitude]);
+	}
+	createLineEffect("WIND_PATH_4", vertices, Module.FIRE, true, 30, 0, 0.05, false);
+	
+	parameters = {
+		start: new Module.JSVector3D(126.92907620626768, 37.528145168397316, 35),
+		end: new Module.JSVector3D(126.92045917149348, 37.52277527275271, 35),
+		detail: 10, // Number of interpolation points on the curve (higher values make the curve closer to the actual path)
+		height: 33.0, // Maximum height of the curve (elevation in meters)
+		percent: 50, // Position of the highest point on the curve between the start and end points
+	};
+	curve = Module.getMath().convertBeZierLine(parameters);
+	curvecount = curve.return.count();
+	vertices = [];
+	for (var j = 0; j < curvecount; j++) {
+		var pos = curve.return.get(j);
+		vertices.push([pos.Longitude, pos.Latitude, pos.Altitude]);
+	}
+	createLineEffect("WIND_PATH_5", vertices, Module.WARNING, false, 30, 40.0, 0.05, true);
+	
+	parameters = {
+		start: new Module.JSVector3D(126.92961906731131, 37.52769630813935, 35),
+		end: new Module.JSVector3D(126.92095957944657, 37.522217747588904, 35),
+		detail: 10, // Number of interpolation points on the curve (higher values make the curve closer to the actual path)
+		height: 33.0, // Maximum height of the curve (elevation in meters)
+		percent: 50, // Position of the highest point on the curve between the start and end points
+	};
+	curve = Module.getMath().convertBeZierLine(parameters);
+	curvecount = curve.return.count();
+	vertices = [];
+	for (var j = 0; j < curvecount; j++) {
+		var pos = curve.return.get(j);
+		vertices.push([pos.Longitude, pos.Latitude, pos.Altitude]);
+	}
+	createLineEffect("WIND_PATH_6", vertices, Module.WARNING, true, 30, 40.0, 0.05, false);
+}
   </script>
 </body>
 </html>

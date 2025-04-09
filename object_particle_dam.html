@@ -20,39 +20,238 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Set camera
+  Module.getViewCamera().look(new Module.JSVector3D(127.11398074558511, 35.53419130890008, 562.434453709051), new Module.JSVector3D(127.11071174083443, 35.540844827765596, 152.89898288622499));
+  
+  // Load dam model
+  loadGhostSymbolModel("./data/dam.3ds", function (_modelID) {
+    
+    // Create dam object
+    createDam(_modelID);
+
+    // Create particle
+    createWaterParticle();
+
+    // Create water plate
+    createWaterPlate();
+  });
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create dam object */
+function createDam(_modelID) {
+
+// Create layer
+var layer = Module.getObjectLayerList().createObjectLayer({
+  name : "DAM_LAYER",
+  type : Module.ELT_GHOST_3DSYMBOL
+});
+
+// Return model height
+var modelHalfHeight = Module.getGhostSymbolMap().getGhostSymbolSize(_modelID).height * 0.5;
+Module.getGhostSymbolMap().setModelFaceReflect(_modelID, 0, 0.5);
+
+// Create dam object
+var dam = Module.createGhostSymbol("DAM");
+dam.setBasePoint(0, -modelHalfHeight, 0);
+dam.setGhostSymbol(_modelID);
+dam.setPosition(new Module.JSVector3D(127.11108505915544, 35.540344667101714, 140));
+dam.setScale(new Module.JSSize3D(7.0, 5.5, 4.0));
+dam.setRotation(0.0, 217, 0.0);
+
+// Add to layer
+layer.addObject(dam, 0);
+}
+
+/* Create particle */
+function createWaterParticle(_positions) {
+
+// Load particle image
+var ImgWater = new Image();
+ImgWater.src = "./data/water_particle.png";
+ImgWater.onload = function(){
+  
+  // Return pixel data from particle image
+  var canvas = document.createElement('canvas');
+  canvas.width = ImgWater.width;
+  canvas.height= ImgWater.height;
+  
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(ImgWater, 0, 0);
+  
+  var ImageDataWater = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  
+  // Set particle positions and effects options
+  var particlePositions = [
+    new Module.JSVector3D(127.10976614652598, 35.540306208953744, 190.0),
+    new Module.JSVector3D(127.10982872498984, 35.540375628428734, 190.0),
+    new Module.JSVector3D(127.11022162981605, 35.54079915513544, 190.0),
+    new Module.JSVector3D(127.11026835137758, 35.54084999138223, 190.0),
+    new Module.JSVector3D(127.11070192135408, 35.541320009165794, 190.0),
+    new Module.JSVector3D(127.11076278001337, 35.54138556608414, 190.0)
+  ];
+  var particleCount = 4069;	// Number of particles
+  var particleSize = 100.0;	// Particle size
+
+  // Add particle objects
+  var map = Module.getMap();
+  for (var i=0; i<particlePositions.length; i++) {
+
+    // Add particles
+    map.addWaterFall("Particle"+i, particlePositions[i], 0,0, particleCount, particleSize, ImageDataWater, ImgWater.width, ImgWater.height);
+    
+    // Set particle direction (direction=130.0, tilt=0.0)
+    map.setWaterFallDirection("Particle"+i, 130.0, 0.0);
+
+    // Set particle rendering speed
+    map.setWaterFallSpeedRatio("Particle"+i, 6.0);
+  }
+}	
+}
+
+/* Image Request Completed and Applied */
+function loadImage(_url, _callback) {
+
+var img = new Image();
+
+img.src = _url;
+img.onload = function(){
+  
+  var canvas = document.createElement('canvas');
+  canvas.width = this.width;
+  canvas.height= this.height;
+  
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(this, 0, 0);
+
+  var symbol = Module.getSymbol();
+  var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  if (symbol.insertIcon("WATER_EFFECT_NOISE", imageData, canvas.width, canvas.height)) {			
+    _callback(symbol.getIcon("WATER_EFFECT_NOISE"));
+  }
+}
+}
+
+/* Create water plate */
+function createWaterPlate() {
+
+// Load water flow noise image
+loadImage("./data/water_noise.jpg", function(_flowNoiseTexture) {
+
+  // Set water flow direction
+  var flowPath = new Module.JSVec2Array();
+  flowPath.push(new Module.JSVector2D(127.10713818590013, 35.54259767848122));
+  flowPath.push(new Module.JSVector2D(127.11361826416207, 35.539191884050865));
+  
+  var flowPathList = [];
+  flowPathList.push(flowPath);
+
+  // Create layer
+  var layer = Module.getObjectLayerList().createObjectLayer({
+    name : "FLOW_POLYGON_LAYER",
+    type : Module.ELT_POLYHEDRON
+  });
+
+  // Create water plate before dam passage
+  var flow_before = createFlowPolygon(
+    _flowNoiseTexture, 
+    "FLOW_POLYGON_BEFORE", 
+    [
+      [127.11318974066572, 35.544022803731096, 200.0],
+      [127.10662611172438, 35.536861781746346, 200.0],
+      [127.09575739274646, 35.54099078938436, 200.0],
+      [127.10600338804439, 35.550882989631575, 200.0]
+    ],
+    flowPathList,
+    0.05
+  );
+  layer.addObject(flow_before, 0);
+
+  // Create water plate after dam passage
+  var flow_after = createFlowPolygon(
+    _flowNoiseTexture, 
+    "FLOW_POLYGON_AFTER", 
+    [
+      [127.10847871406446, 35.53868853843126, 145.0],
+      [127.11247315007228, 35.5429337672822, 145.0],
+      [127.12001768498048, 35.53785340905777, 145.0],
+      [127.11429259145191, 35.532345254077214, 145.0]
+    ],
+    flowPathList,
+    0.5
+  );
+
+  layer.addObject(flow_after, 0);
+});
+}
+
+/* Create water plate */
+function createFlowPolygon(_flowNoiseTexture, _id, _positions, _flowPath, _flow_speed) {
+
+var flow_positions = new Module.JSVec3Array();
+for (var i=0; i<_positions.length; i++) {
+  flow_positions.push(new Module.JSVector3D(_positions[i][0], _positions[i][1], _positions[i][2]));
+}
+
+var flow = Module.createFlowPolygon(_id);
+flow.flow_speed = _flow_speed;
+flow.image_type = 3;
+
+flow.create({
+  vertex : flow_positions,			// Polygon geometry
+  normaltexture : _flowNoiseTexture,	// River flow noise texture
+  flowpath : _flowPath			// River flow direction
+});
+
+return flow;
+}
+
+/* Load Ghost Symbol Model */
+function loadGhostSymbolModel(_url, _callback) {
+
+Module.getGhostSymbolMap().insert({
+
+  id : "dam",
+  url : _url,
+  callback : function(e) {
+    _callback(e.id);
+  }
+});
+}
   </script>
 </body>
 </html>

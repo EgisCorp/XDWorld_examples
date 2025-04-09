@@ -20,39 +20,503 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="View" onClick="controlView();" />
+<input type="button" value="Delete" onClick="controlDelete();" />
+
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    /**
+ * Global variable management
+ * @param (object) .shp Parse Container
+ * @param (object) .dbf Parse Container
+ * @param (JSLayer) Manage Object
+ */
+let GLOBAL = {
+    parseSHP: null,
+    parseDBF: null,
+    layer: null,
+};
+/**
+ * Initialize GLOBAL variable
+ */
+function clearGlobal() {
+    GLOBAL.parseSHP = null;
+    GLOBAL.parseDBF = null;
+    if (GLOBAL.layer != null) {
+        let layerList = new Module.JSLayerList(true);
+        layerList.delLayerAtName(GLOBAL.layer.getName());
+    }
+    GLOBAL.layer = null;
+}
+/**
+ * UI view button click event
+ */
+function controlView() {
+    clearGlobal();
+    // Create layer
+    let layerList = new Module.JSLayerList(true);
+    GLOBAL.layer = layerList.createLayer("POI_LAYER", Module.ELT_3DPOINT);
+    // shp, dbf parse
+    SHPParser.load("./data/Shape_Point.shp", LoadComplete, loadFileError);
+    DBFParser.load("./data/Shape_Point.dbf", LoadComplete, loadFileError);
+}
+/**
+ * UI delete button click event
+ */
+function controlDelete() {
+    clearGlobal();
+}
+/**
+ * Event when loading SHP or DBF file fail
+ */
+function loadFileError() {
+    console.log("file failed to load");
+}
+/**
+ * Event when loading SHP or DBF file success
+ */
+function LoadComplete(_data, _type) {
+    if (_type == true) GLOBAL.parseSHP = _data;
+    if (_type == false) GLOBAL.parseDBF = _data;
+    if (GLOBAL.parseSHP != null && GLOBAL.parseDBF != null) {
+        setCameraPosition();
+        parserData();
+    }
+}
+/**
+ * Move the camera based on the entire SHP area
+ */
+function setCameraPosition() {
+    let vec_min_position, vec_max_position;
+    let position_lon, position_lat;
+    let transform = Module.getProjection();
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+    vec_min_position = new Module.JSVector2D(GLOBAL.parseSHP.minX, GLOBAL.parseSHP.minY);
+    vec_max_position = new Module.JSVector2D(GLOBAL.parseSHP.maxX, GLOBAL.parseSHP.maxY);
+    // Convert EPSG:5179 to EPSG:4326
+    vec_min_position = transform.convertProjection(26, vec_min_position, 13);
+    vec_max_position = transform.convertProjection(26, vec_max_position, 13);
+
+    position_lon = (vec_max_position.x + vec_min_position.x) * 0.5;
+    position_lat = (vec_max_position.y + vec_min_position.y) * 0.5;
+    
+	var camera = Module.getViewCamera();
+	camera.setLocation(new Module.JSVector3D(position_lon, position_lat, 1000));
+	camera.setTilt(90.0);
+}
+/**
+ * Analyze SHP and DBF information to create POI and collect data
+ */
+function parserData() {
+    let x, y, z, str_object_key, str_text, vec_position;
+    let transform = Module.getProjection();
+    let image = createImage(16, 16);
+
+    if (GLOBAL.parseSHP.shapeType == 1) {
+        for (let i = 0; i < GLOBAL.parseSHP.records.length; ++i) {
+            x = GLOBAL.parseSHP.records[i].shape.content.x;
+            y = GLOBAL.parseSHP.records[i].shape.content.y;
+            vec_position = new Module.JSVector2D(x, y);
+            // EPSG:5179 convert number: 26(in engine)
+            // EPSG:4326 convert number: 13(in engine)
+            // Convert EPSG:5179 to EPSG:4326
+            let vec_lonlat_position = transform.convertProjection(26, vec_position, 13);
+            // Set object key based on the information in the DBF record
+            str_object_key = GLOBAL.parseDBF.records[i]["OBJECTID"];
+            // Set visualization string based on DBF record property information
+            str_text = GLOBAL.parseDBF.records[i]["NODE_ID"];
+            createPOI(str_object_key, str_text, image, vec_lonlat_position, 50);
+        }
+    } else {
+        console.log("Shape Type Not polygon");
+    }
+}
+/*
+ * Creating images for Points of Interest (POI)
+ * @param (Number) image width
+ * @param (Array) image height
+ */
+function createImage(_width, _height) {
+    // Create canvas
+    let canvas = document.createElement("canvas");
+    let ctx = canvas.getContext("2d");
+    canvas.width = ctx.width = _width;
+    canvas.height = ctx.height = _height;
+
+    ctx.beginPath();
+    ctx.arc(_width >> 1, _height >> 1, (_width >> 1) - 3, 0, 2 * Math.PI);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#000000";
+    ctx.stroke();
+    ctx.fillStyle = "#FF0000";
+    ctx.fill();
+
+    return {
+        data: ctx.getImageData(0, 0, ctx.width, ctx.height).data,
+        width: ctx.width,
+        height: ctx.height,
+    };
+}
+/*
+ * POI(create and register)
+ * @param (String) Column "OBJECTID", value of the record properties for setting the Object Key
+ * @param (String) Value of the record properties corresponding to the column "NODE_ID" (POI visualization text)
+ * @param (image) POI symbol image
+ * @param (JSVector2D) Visualization longitude latitude
+ * @param (Number) Visualization altitude
+ */
+function createPOI(_str_object_key, _str_text, _image, _lonlat_position, _altitude) {
+    let obj_poi = Module.createPoint(_str_object_key);
+    obj_poi.setPosition(new Module.JSVector3D(_lonlat_position.x, _lonlat_position.y, _altitude));
+    obj_poi.setText(_str_text);
+    obj_poi.setImage(_image.data, _image.width, _image.height);
+    GLOBAL.layer.addObject(obj_poi, 0);
+}
+/*********************************************************
+ * Shape .shp parser
+ * Public library
+ * http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf
+ *********************************************************/
+SHP = {
+    NULL: 0,
+    POINT: 1,
+    POLYLINE: 3,
+    POLYGON: 5,
+};
+SHP.getShapeName = function (id) {
+    for (name in this) {
+        if (id === this[name]) {
+            return name;
+        }
+    }
+};
+
+SHPParser = function () {};
+SHPParser.load = function (src, callback, onerror) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", src);
+    xhr.responseType = "arraybuffer";
+    xhr.onload = function () {
+        var d = new SHPParser().parse(xhr.response, src);
+        callback(d, true);
+    };
+    xhr.onerror = onerror;
+    xhr.send(null);
+};
+SHPParser.prototype.parse = function (arrayBuffer, src) {
+    var o = {};
+    var dv = new DataView(arrayBuffer);
+    var idx = 0;
+    o.fileName = src;
+    o.fileCode = dv.getInt32(idx, false);
+    if (o.fileCode != 0x0000270a) {
+        throw new Error("Unknown file code: " + o.fileCode);
+    }
+    idx += 6 * 4;
+    o.wordLength = dv.getInt32(idx, false);
+    o.byteLength = o.wordLength * 2;
+    idx += 4;
+    o.version = dv.getInt32(idx, true);
+    idx += 4;
+    o.shapeType = dv.getInt32(idx, true);
+    idx += 4;
+    o.minX = dv.getFloat64(idx, true);
+    o.minY = dv.getFloat64(idx + 8, true);
+    o.maxX = dv.getFloat64(idx + 16, true);
+    o.maxY = dv.getFloat64(idx + 24, true);
+    o.minZ = dv.getFloat64(idx + 32, true);
+    o.maxZ = dv.getFloat64(idx + 40, true);
+    o.minM = dv.getFloat64(idx + 48, true);
+    o.maxM = dv.getFloat64(idx + 56, true);
+    idx += 8 * 8;
+    o.records = [];
+    while (idx < o.byteLength) {
+        var record = {};
+        record.number = dv.getInt32(idx, false);
+        idx += 4;
+        record.length = dv.getInt32(idx, false);
+        idx += 4;
+        try {
+            record.shape = this.parseShape(dv, idx, record.length);
+        } catch (e) {
+            console.log(e, record);
+        }
+        idx += record.length * 2;
+        o.records.push(record);
+    }
+    return o;
+};
+SHPParser.prototype.parseShape = function (dv, idx, length) {
+    var i = 0,
+        c = null;
+    var shape = {};
+    shape.type = dv.getInt32(idx, true);
+    idx += 4;
+    var byteLen = length * 2;
+    switch (shape.type) {
+        case SHP.NULL: // Null
+            break;
+
+        case SHP.POINT: // Point (x,y)
+            shape.content = {
+                x: dv.getFloat64(idx, true),
+                y: dv.getFloat64(idx + 8, true),
+            };
+            break;
+        case SHP.POLYLINE: // Polyline (MBR, partCount, pointCount, parts, points)
+        case SHP.POLYGON: // Polygon (MBR, partCount, pointCount, parts, points)
+            c = shape.content = {
+                minX: dv.getFloat64(idx, true),
+                minY: dv.getFloat64(idx + 8, true),
+                maxX: dv.getFloat64(idx + 16, true),
+                maxY: dv.getFloat64(idx + 24, true),
+                parts: new Int32Array(dv.getInt32(idx + 32, true)),
+                points: new Float64Array(dv.getInt32(idx + 36, true) * 2),
+            };
+            idx += 40;
+            for (i = 0; i < c.parts.length; i++) {
+                c.parts[i] = dv.getInt32(idx, true);
+                idx += 4;
+            }
+            for (i = 0; i < c.points.length; i++) {
+                c.points[i] = dv.getFloat64(idx, true);
+                idx += 8;
+            }
+            break;
+
+        case 8: // MultiPoint (MBR, pointCount, points)
+        case 11: // PointZ (X, Y, Z, M)
+            shape.content = {
+                x: dv.getFloat64(idx, true),
+                y: dv.getFloat64(idx + 8, true),
+                z: dv.getFloat64(idx + 16, true),
+            };
+            break;
+        case 13: // PolylineZ
+            c = shape.content = {
+                minX: dv.getFloat64(idx, true),
+                minY: dv.getFloat64(idx + 8, true),
+                maxX: dv.getFloat64(idx + 16, true),
+                maxY: dv.getFloat64(idx + 24, true),
+                parts: new Int32Array(dv.getInt32(idx + 32, true)),
+                points: new Float64Array(dv.getInt32(idx + 36, true) * 2),
+                Zmin: 0,
+                Zmax: 0,
+                Zarray: new Float64Array(dv.getInt32(idx + 36, true)),
+                Mmin: 0,
+                Mmax: 0,
+                Marray: new Float64Array(dv.getInt32(idx + 36, true)),
+            };
+            idx += 40;
+            for (i = 0; i < c.parts.length; i++) {
+                c.parts[i] = dv.getInt32(idx, true);
+                idx += 4;
+            }
+            for (i = 0; i < c.points.length; i++) {
+                c.points[i] = dv.getFloat64(idx, true);
+                idx += 8;
+            }
+
+            c.Zmin = dv.getFloat64(idx, true);
+            idx += 8; // ZMin
+            c.Zmin = dv.getFloat64(idx, true);
+            idx += 8; // ZMax
+            // Zarray
+            for (i = 0; i < c.points.length; i++) {
+                c.Zarray[i] = dv.getFloat64(idx, true);
+                idx += 8;
+            }
+
+            c.Mmin = dv.getFloat64(idx, true);
+            idx += 8; // ZMin
+            c.Mmax = dv.getFloat64(idx, true);
+            idx += 8; // ZMax
+            // Zarray
+            for (i = 0; i < c.points.length; i++) {
+                c.Marray[i] = dv.getFloat64(idx, true);
+                idx += 8;
+            }
+            break;
+
+        case 15: // PolygonZ
+        case 18: // MultiPointZ
+        case 21: // PointM (X, Y, M)
+        case 23: // PolylineM
+        case 25: // PolygonM
+        case 28: // MultiPointM
+        case 31: // MultiPatch
+            throw new Error("Shape type not supported: " + shape.type + ":" + +SHP.getShapeName(shape.type));
+        default:
+            throw new Error("Unknown shape type at " + (idx - 4) + ": " + shape.type);
+    }
+    return shape;
+};
+/*********************************************************
+ * Shape .dbf parser
+ * http://www.clicketyclick.dk/databases/xbase/format/dbf.html
+ *********************************************************/
+DBF = {};
+DBFParser = function () {};
+/**
+ * Executes a binary XHR to load a .dbf file and then creates a callback to
+ * handle the result.
+ * @param {string} url URL to the .dbf file.
+ * @param {function(Object)} callback the function to be called when finished.
+ * @param {Function} onerror the function to be called in case of an error
+ *                   loading the file.
+ */
+DBFParser.load = function (url, callback, onerror) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url);
+    xhr.responseType = "arraybuffer";
+    xhr.onload = function () {
+        var d = new DBFParser().parse(xhr.response, url);
+        callback(d, false);
+    };
+    xhr.onerror = onerror;
+    xhr.send(null);
+};
+/**
+ * Parses through the .dbf file byte by byte
+ * @param {arraybuffer} arrayBuffer the ArrayBuffer created by loading the file in XHR.
+ * @return {object} o An object representing the .dbf file.
+ */
+DBFParser.prototype.parse = function (arrayBuffer, src) {
+    var o = {};
+    var dv = new DataView(arrayBuffer);
+    var idx = 0;
+    o.fileName = src;
+    o.version = dv.getInt8(idx, false);
+
+    idx += 1;
+    o.year = dv.getUint8(idx) + 1900;
+    idx += 1;
+    o.month = dv.getUint8(idx);
+    idx += 1;
+    o.day = dv.getUint8(idx);
+    idx += 1;
+
+    o.numberOfRecords = dv.getInt32(idx, true);
+    idx += 4;
+    o.bytesInHeader = dv.getInt16(idx, true);
+    idx += 2;
+    o.bytesInRecord = dv.getInt16(idx, true);
+    idx += 2;
+    //reserved bytes
+    idx += 2;
+    o.incompleteTransation = dv.getUint8(idx);
+    idx += 1;
+    o.encryptionFlag = dv.getUint8(idx);
+    idx += 1;
+    // skip free record thread for LAN only
+    idx += 4;
+    // reserved for multi-user dBASE in dBASE III+
+    idx += 8;
+    o.mdxFlag = dv.getUint8(idx);
+    idx += 1;
+    o.languageDriverId = dv.getUint8(idx);
+    idx += 1;
+    // reserved bytes
+    idx += 2;
+
+    o.fields = [];
+    while (true) {
+        var field = {};
+        var nameArray = [];
+        for (var i = 0; i < 10; i++) {
+            var letter = dv.getUint8(idx);
+            if (letter != 0) nameArray.push(String.fromCharCode(letter));
+            idx += 1;
+        }
+        field.name = nameArray.join("");
+        idx += 1;
+        field.type = String.fromCharCode(dv.getUint8(idx));
+        idx += 1;
+        // Skip field data address
+        idx += 4;
+        field.fieldLength = dv.getUint8(idx);
+        idx += 1;
+        //field.decimalCount = dv.getUint8(idx);
+        idx += 1;
+        // Skip reserved bytes multi-user dBASE.
+        idx += 2;
+        field.workAreaId = dv.getUint8(idx);
+        idx += 1;
+        // Skip reserved bytes multi-user dBASE.
+        idx += 2;
+        field.setFieldFlag = dv.getUint8(idx);
+        idx += 1;
+        // Skip reserved bytes.
+        idx += 7;
+        field.indexFieldFlag = dv.getUint8(idx);
+        idx += 1;
+        o.fields.push(field);
+        var test = dv.getUint8(idx);
+        // Checks for end of field descriptor array. Valid .dbf files will have this
+        // flag.
+        if (dv.getUint8(idx) == 0x0d) break;
+    }
+
+    idx += 1;
+    o.records = [];
+
+    for (var i = 0; i < o.numberOfRecords; i++) {
+        var record = {};
+        // Skip record deleted flag.
+        //record["recordDeleted"] = String.fromCharCode(dv.getUint8(idx));
+        idx += 1;
+        for (var j = 0; j < o.fields.length; j++) {
+            var charString = [];
+            for (var h = 0; h < o.fields[j].fieldLength; h++) {
+                charString.push(String.fromCharCode(dv.getUint8(idx)));
+                idx += 1;
+            }
+            record[o.fields[j].name] = charString.join("").trim();
+        }
+        o.records.push(record);
+    }
+
+    return o;
+};
+/**
+ * Initialization function to be executed after loading the engine (Module.postRun)
+ */
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+    },
+    postRun: function () {
+
+        // 엔진 초기화 API 호출(필수)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+        // Create object
+        controlView();
+    },
+};
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

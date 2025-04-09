@@ -20,39 +20,310 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="View" onClick="controlView();" />
+<input type="button" value="Delete" onClick="controlDelete();" />
+
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    /**
+ * Global variable management
+ * @param (object) .json Parse Container
+ * @param (JSLayer) Manage Object
+ */
+let GLOBAL = {
+    parseGeoJson: null,
+    layer: null,
+};
+/**
+ * Initialize GLOBAL variable
+ */
+function clearGlobal() {
+    GLOBAL.parseGeoJson = null;
+    if (GLOBAL.layer != null) {
+        let layerList = new Module.JSLayerList(true);
+        layerList.delLayerAtName(GLOBAL.layer.getName());
+    }
+    GLOBAL.layer = null;
+}
+/**
+ * UI view button click event
+ */
+function controlView() {
+    clearGlobal();
+    // Create layer
+    let layerList = new Module.JSLayerList(true);
+    GLOBAL.layer = layerList.createLayer("POLYGON_LAYER", Module.ELT_POLYHEDRON);
+    // GeoJson parse
+    GeoJsonParser.load("./data/GeoJson_Polygon.json", LoadComplete, loadFileError);
+}
+/**
+ * UI delete button click event
+ */
+function controlDelete() {
+    clearGlobal();
+}
+/**
+ * Event when loading GeoJson file
+ */
+function loadFileError() {
+    console.log("file failed to load");
+}
+/**
+ * Event when loading GeoJson file success
+ */
+function LoadComplete(_data) {
+    GLOBAL.parseGeoJson = _data;
+    if (GLOBAL.parseGeoJson != null) {
+        setCameraPosition();
+        parserData();
+    }
+}
+/**
+ * Move the camera based on the entire area of the GeoJson
+ */
+function setCameraPosition() {
+    let vec_min_position, vec_max_position;
+    let position_lon, position_lat;
+    let transform = Module.getProjection();
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+    vec_min_position = new Module.JSVector2D(GLOBAL.parseGeoJson.minX, GLOBAL.parseGeoJson.minY);
+    vec_max_position = new Module.JSVector2D(GLOBAL.parseGeoJson.maxX, GLOBAL.parseGeoJson.maxY);
+    // Convert EPSG:5179 to EPSG:4326
+    vec_min_position = transform.convertProjection(26, vec_min_position, 13);
+    vec_max_position = transform.convertProjection(26, vec_max_position, 13);
+
+    position_lon = (vec_max_position.x + vec_min_position.x) * 0.5;
+    position_lat = (vec_max_position.y + vec_min_position.y) * 0.5;
+    
+	var camera = Module.getViewCamera();
+	camera.setLocation(new Module.JSVector3D(position_lon, position_lat, 1000));
+	camera.setTilt(90.0);
+}
+/**
+ * Parsing GeoJson information to generate 3D Polygon and collect data
+ */
+function parserData() {
+    var vec_lonlat_position;
+    var transform = Module.getProjection();
+
+    if (GLOBAL.parseGeoJson.shapeType == 5) {
+        for (let item of GLOBAL.parseGeoJson.shapes) {
+            let arr_lonlat_position = [];
+            for (let element of item.content) {
+                vec_position = new Module.JSVector2D(element.x, element.y);
+                // EPSG:5179 convert number: 26(in engine)
+                // EPSG:4326 convert number: 13(in engine)
+                vec_lonlat_position = transform.convertProjection(26, vec_position, 13);
+                arr_lonlat_position.push(vec_lonlat_position);
+            }
+            // Using the record's attribute information to set the object key
+            str_object_key = GLOBAL.parseGeoJson.properties[item.count]["OBJECTID"];
+            createPolygon(str_object_key, arr_lonlat_position);
+        }
+    } else {
+        console.log("Shape Type Not polygon");
+    }
+}
+/*
+ * 3D Polygon(create and register)
+ * @param (String) Column "OBJECTID", value of the record properties for setting the Object Key
+ * @param (Array) List of longitude, latitude, and altitude for visualization.
+ */
+function createPolygon(_str_object_key, _arr_lonlat_position) {
+    let obj_polygon = Module.createPolygon("" + _str_object_key);
+
+    let part = [];
+    let arr_vectex = [];
+
+    for (var i = 0; i < _arr_lonlat_position.length; i++) {
+        arr_vectex.push(new Module.JSVector3D(_arr_lonlat_position[i].x, _arr_lonlat_position[i].y, 20));
+    }
+    part.push(_arr_lonlat_position.length);
+
+    let parameter = {
+        coordinates: {
+            coordinate: arr_vectex,
+            parts: part,
+        },
+        style: {
+            fill: new Module.JSColor(255, 255, 255, 255),
+            stroke: new Module.JSColor(255, 0, 0, 255),
+        },
+    };
+    let result = obj_polygon.createbyJson(parameter);
+    if (result.result == 1) GLOBAL.layer.addObject(obj_polygon, 0);
+    else console.log("error" + result.return);
+}
+/*********************************************************
+ * GeoJson parser
+ *********************************************************/
+GeoJsonParser = function () {};
+GeoJsonParser.load = function (_path, _callback, _onerror) {
+    let xhr = new XMLHttpRequest();
+    xhr.open("GET", _path);
+    xhr.responseType = "json";
+    xhr.onload = function () {
+        let parse = new GeoJsonParser().parse(xhr.response, _path);
+        _callback(parse);
+    };
+    xhr.onerror = _onerror;
+    xhr.send(null);
+};
+GeoJsonParser.prototype.parse = function (_response, _path) {
+    let is_first;
+    let count, min_x, min_y, max_x, max_y;
+    let json = {};
+
+    json.fileName = _path;
+    json.shapes = [];
+    json.properties = [];
+
+    is_first = true;
+    count = 0;
+    min_x = max_x = 0;
+    min_y = max_y = 0;
+
+    for (let item of _response.features) {
+        let shape = {};
+        shape.count = count++;
+
+        if (item.geometry.type == "Point") {
+            json.shapeType = 1;
+            shape.content = {
+                x: item.geometry.coordinates[0],
+                y: item.geometry.coordinates[1],
+            };
+            if (is_first) {
+                min_x = max_x = shape.content.x;
+                min_y = max_y = shape.content.y;
+                is_first = false;
+            } else {
+                if (min_x > shape.content.x) min_x = shape.content.x;
+                if (max_x < shape.content.x) max_x = shape.content.x;
+                if (min_y > shape.content.y) min_y = shape.content.y;
+                if (max_y < shape.content.y) max_y = shape.content.y;
+            }
+        } else if (item.geometry.type == "LineString") {
+            json.shapeType = 3;
+            shape.content = [];
+            for (let element of item.geometry.coordinates) {
+                let content = {
+                    x: element[0],
+                    y: element[1],
+                };
+                if (is_first) {
+                    min_x = max_x = content.x;
+                    min_y = max_y = content.y;
+                    is_first = false;
+                } else {
+                    if (min_x > content.x) min_x = content.x;
+                    if (max_x < content.x) max_x = content.x;
+                    if (min_y > content.y) min_y = content.y;
+                    if (max_y < content.y) max_y = content.y;
+                }
+                shape.content.push(content);
+            }
+        } else if (item.geometry.type == "MultiLineString") {
+            json.shapeType = 3;
+            shape.content = [];
+            for (let element of item.geometry.coordinates) {
+                for (let attributes of element) {
+                    let content = {
+                        x: attributes[0],
+                        y: attributes[1],
+                    };
+                    if (is_first) {
+                        min_x = max_x = content.x;
+                        min_y = max_y = content.y;
+                        is_first = false;
+                    } else {
+                        if (min_x > content.x) min_x = content.x;
+                        if (max_x < content.x) max_x = content.x;
+                        if (min_y > content.y) min_y = content.y;
+                        if (max_y < content.y) max_y = content.y;
+                    }
+                    shape.content.push(content);
+                }
+            }
+        } else if (item.geometry.type == "Polygon") {
+            json.shapeType = 5;
+            shape.content = [];
+            for (let element of item.geometry.coordinates) {
+                for (let attributes of element) {
+                    let content = {
+                        x: attributes[0],
+                        y: attributes[1],
+                    };
+                    if (is_first) {
+                        min_x = max_x = content.x;
+                        min_y = max_y = content.y;
+                        is_first = false;
+                    } else {
+                        if (min_x > shape.content.x) min_x = content.x;
+                        if (max_x < shape.content.x) max_x = content.x;
+                        if (min_y > shape.content.y) min_y = content.y;
+                        if (max_y < shape.content.y) max_y = content.y;
+                    }
+                    shape.content.push(content);
+                }
+            }
+        }
+
+        json.shapes.push(shape);
+        json.properties.push(this.parseProperties(item.properties));
+    }
+    json.minX = min_x;
+    json.minY = min_y;
+    json.maxX = max_x;
+    json.maxY = max_y;
+    return json;
+};
+GeoJsonParser.prototype.parseProperties = function (_record) {
+    let propertie = {};
+    for (let item in _record) {
+        propertie[item] = _record[item];
+    }
+    return propertie;
+};
+/**
+ * Initialization function to be executed after loading the engine (Module.postRun)
+ */
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+    },
+    postRun: function () {
+
+        // 엔진 초기화 API 호출(필수)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+        // Create object
+        controlView();
+    },
+};
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

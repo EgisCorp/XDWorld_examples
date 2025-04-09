@@ -20,39 +20,104 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Original Image</span>
+</br></br>
+<img src="./data/baseImage.png">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  Module.getViewCamera().setLocation(new Module.JSVector3D(127.20923913914588,37.23308370322332, 800.1002658670768));
+   
+  // Create POI layer
+  var layer = createPointLayer("TEST_POI");
+
+  // Customize image and adapt to POI
+  createCustomizedImagePOI([127.20849950054208, 37.23312685228751], "POINT_0", "./data/baseImage.png", [1, "A", "A1"], layer);
+  createCustomizedImagePOI([127.20955157223513, 37.23312685410696], "POINT_1", "./data/baseImage.png", [2, "B", "B2"], layer);
+  createCustomizedImagePOI([127.2107056651055, 37.23314207548249], "POINT_2", "./data/baseImage.png", [3, "C", "C3"], layer);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function createPointLayer(_layerName) {
+
+var layerList = new Module.JSLayerList(true);
+var layer = layerList.createLayer(_layerName, Module.ELT_3DPOINT);
+
+return layer;
+}
+
+/* After loading the point image, draw text */
+function createCustomizedImagePOI(_position, _pointObjectKey, _baseImageSrc, _drawText, _insertLayer) {
+
+  // 1. Get the JSSymbol object responsible for managing images
+  var symbol = Module.getSymbol();
+
+  // 2. Load the base image
+  var img = new Image();
+  img.onload = function() {
+
+      // 3. Create a canvas for the base image
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      
+      // 4. Draw text on top of the base image to create the POI image
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+      ctx.font = "700 20px Sans-serif";
+      ctx.fillStyle = 'rgb(0, 0, 0)';
+      ctx.fillText(_drawText[0], canvas.width*0.2, canvas.height*0.5);
+      ctx.fillText(_drawText[1], canvas.width*0.5, canvas.height*0.5);
+      ctx.fillText(_drawText[2], canvas.width*0.8, canvas.height*0.5);
+      
+      // 5. Create the POI
+      var point = new Module.createPoint(_pointObjectKey);
+          
+      // 6. Register the POI position
+      point.setPosition(new Module.JSVector3D(_position[0], _position[1], 100.0));
+          
+      // 7. Register the POI image
+      var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      point.setImage(imageData, canvas.width, canvas.height);
+          
+      // 8. Add the POI to the layer
+      _insertLayer.addObject(point, 0);
+  };
+  img.src = _baseImageSrc;
+}
   </script>
 </body>
 </html>

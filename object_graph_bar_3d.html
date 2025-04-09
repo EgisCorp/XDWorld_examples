@@ -20,39 +20,120 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera
+  var camera = Module.getViewCamera();
+  camera.move(new Module.JSVector3D(126.78693528538836, 35.00513429887883, 1000.0), 0, 0, 0);
+  camera.setPermitUnderGround(true);
+  camera.setLimitTilt(-88.0);
+  camera.setLimitAltitude(-1000.0);
+  camera.setTilt(30.0);
+  
+  // Create graph object type layer
+  var layerList = new Module.JSLayerList(true);
+  var layer = layerList.createLayer("LAYER_GRAPH", Module.ELT_GRAPH);
+
+  $.getJSON("./data/temperature_en.json", function(json) {
+    
+    // Create graph
+    var graph = createGraph(json);
+    layer.addObject(graph, 0);
+  });
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create graph */
+function createGraph(_data) {
+
+// Create graph object
+var graph = Module.createBarGraph3D("Graph");
+
+// Column, Row label list
+var columnLabelList = ["Barcellona", "Madrid", "Seville", "Granada",
+            "Valencia", "Santiago", "Bilbao", "Salamanca", "Malaga"];
+var rowLabelList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Column color list
+var columnColorList = [ new Module.JSColor(200, 255,   0,   0),
+            new Module.JSColor(200, 255, 128,   0),
+            new Module.JSColor(200, 255, 255,   0),
+            new Module.JSColor(200, 128, 255,   0),
+            new Module.JSColor(200,   0, 210,   0),
+            new Module.JSColor(200,   0, 255, 255),
+            new Module.JSColor(200,   0, 128, 255),
+            new Module.JSColor(200,  47,   0, 255),
+            new Module.JSColor(200, 148,   0, 211)
+            ];
+
+// Column list setting
+for (var i=0, len=columnLabelList.length; i<len; i++) {
+  graph.insertColumn("column"+i, columnLabelList[i], columnColorList[i]);
+}
+
+// Row list setting
+for (var i=0, len=rowLabelList.length; i<len; i++) {
+  graph.insertRow("row"+i, rowLabelList[i]);
+}
+
+// Input data
+var data = 0;
+for (var i=0, len=columnLabelList.length; i<len; i++) {
+  
+  for (var j=0, subLen=rowLabelList.length; j<subLen; j++) {
+      
+    data = _data[ columnLabelList[i] ] [ rowLabelList[j] ];
+    graph.setData("column"+i, "row"+j, data);
+  }
+}
+
+// Set the range of maximum and minimum values
+graph.setValueRange(0.0, 80.0, 10.0);
+
+// Set unit display text
+graph.setUnitText("('F)");
+
+// Set animation speed for bar rise
+graph.setAnimationSpeed(0.2);
+
+// Create graph
+graph.create(new Module.JSVector3D(126.78693528538836, 35.01813429887883, 100.0),
+       new Module.JSSize3D(400.0, 300.0, 600.0));
+       
+return graph;
+}
   </script>
 </body>
 </html>

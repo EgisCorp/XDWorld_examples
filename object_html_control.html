@@ -20,39 +20,235 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        .menu {
+          width: 200px;
+          height: 200px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+      
+        .menu li {
+          position: absolute;
+          left: 0px;
+          list-style: none;
+          transform-origin: 100px;
+          transition: 0.5s;
+          transform: rotate(0deg) translateX(80px);
+        }
+      
+        .menu.active li {
+          transform: rotate(calc(360deg / 8 * var(--i)));
+        }
+      
+        .menu li a {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 40px;
+          height: 40px;
+          background: #fff;
+          border-radius: 50%;
+          transform: rotate(calc(360deg / -8 * var(--i)));
+          box-shadow: 0 0 4px rgba(0, 0, 0, 0.15);
+          color: #000;
+          transition: 0.5s;
+        }
+      
+        .toggle {
+          position: absolute;
+          width: 60px;
+          height: 60px;
+          background: #fff;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 10000;
+          border-radius: 50%;
+          cursor: pointer;
+          box-shadow: 0 0 4px rgba(0, 0, 0, 0.15);
+          font-size: 2em;
+          transition: transform 1.25s;
+        }
+      
+        .menu.active .toggle {
+          transform: rotate(315deg);
+        }
+      </style>
+      
+      <input type="button" value="Edit Element" onClick="editElement();">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+    Module.getViewCamera().setLocation(new Module.JSVector3D(129.13782351349964, 35.17887462859219, 8000));
+    
+    createDivObject();
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+//Function for creating objects
+function createDivObject() {
+
+var layerList = new Module.JSLayerList(true);
+let layer = layerList.createLayer("HTML_OBJEC_LAYER", Module.ELT_POLYHEDRON); // normal
+layer.setMaxDistance(10000);
+
+let element = document.createElement("div");
+let parameter = {
+  position: new Module.JSVector3D(129.13782351349964, 35.17887462859219, 400.0), // Position
+  container: "divcontainer", // Specify the name of the container to hold the div (if there is no div corresponding to the name, it will be created during createHTMLObject operation)
+  canvas: Module.canvas, // Canvas for screen size setting
+  element: element, // HTML Element to be linked with the engine object
+  verticalAlign: "middle", // Vertical alignment (top, middle, bottom, px support) || Default top if not set
+  horizontalAlign: "center", // Horizontal alignment (left, center, right, px support) || Default left if not set
+};
+
+let object = Module.createHTMLObject("div_object");
+let complet = object.createbyJson(parameter);
+if (complet.result == 1) {
+  layer.addObject(object, 0);
+  // Add UI Element to the HTML Element corresponding to the element tag
+  createUI(element);
+}
+}
+
+// Add Sub Element to Element
+function createUI(_element) {
+let menu = document.createElement("div");
+let toggle = document.createElement("div");
+let icon = document.createElement("img");
+let imgsrc = "./data/add-outline.jpg";
+
+menu.className = "menu"; // Link CSS .menu [Check HTML BODY tab]
+toggle.className = "toggle"; // Link CSS .toggle [Check HTML BODY tab]
+icon.src = imgsrc; // Add image path
+
+// Link toggle Element with onclick event
+toggle.onclick = function() {
+  menu.classList.toggle("active");
+}
+
+toggle.appendChild(icon); // Add image to toggle Element
+menu.appendChild(toggle); // Add toggle to menu Element
+
+// Create Sub Elements
+let li_0 = createliimage("--i:0", String.fromCodePoint(0x1F600));
+let li_1 = createliimage("--i:1", String.fromCodePoint(0x1F603));
+let li_2 = createliimage("--i:2", String.fromCodePoint(0x1F604));
+let li_3 = createliimage("--i:3", String.fromCodePoint(0x1F601));
+let li_4 = createliimage("--i:4", String.fromCodePoint(0x1F606));
+let li_5 = createliimage("--i:5", String.fromCodePoint(0x1F605));
+let li_6 = createliimage("--i:6", String.fromCodePoint(0x1F923));
+let li_7 = createliimage("--i:7", String.fromCodePoint(0x1F602));
+
+// Add Sub Elements to the menu
+menu.appendChild(li_0);
+menu.appendChild(li_1);
+menu.appendChild(li_2);
+menu.appendChild(li_3);
+menu.appendChild(li_4);
+menu.appendChild(li_5);
+menu.appendChild(li_6);
+menu.appendChild(li_7);
+
+// Apply all Elements to the HTML Element corresponding to the element tag
+_element.appendChild(menu);
+}
+
+// Edit Element
+function editElement() {
+  var layerList = new Module.JSLayerList(true);
+  let layer = layerList.nameAtLayer("HTML_OBJEC_LAYER");
+  if(layer == null) return;
+  
+  let obj = layer.keyAtObject("div_object");
+  if(obj == null) return;
+
+let menu = document.createElement("div");
+let toggle = document.createElement("div");
+let icon = document.createElement("img");
+let imgsrc = "./data/edit-outline.jpg";
+
+menu.className = "menu"; // Link CSS .menu [Check HTML BODY tab]
+toggle.className = "toggle"; // Link CSS .toggle [Check HTML BODY tab]
+icon.src = imgsrc; // Add image path
+
+// Link toggle Element with onclick event
+toggle.onclick = function() {
+  menu.classList.toggle("active");
+}
+
+toggle.appendChild(icon); // Add image to toggle Element
+menu.appendChild(toggle); // Add toggle to menu Element
+
+// Create Sub Elements
+let li_0 = createliimage("--i:0", String.fromCodePoint(0x1F600));
+let li_1 = createliimage("--i:1", String.fromCodePoint(0x1F603));
+let li_2 = createliimage("--i:2", String.fromCodePoint(0x1F604));
+let li_3 = createliimage("--i:3", String.fromCodePoint(0x1F601));
+let li_4 = createliimage("--i:4", String.fromCodePoint(0x1F606));
+let li_5 = createliimage("--i:5", String.fromCodePoint(0x1F605));
+let li_6 = createliimage("--i:6", String.fromCodePoint(0x1F923));
+let li_7 = createliimage("--i:7", String.fromCodePoint(0x1F602));
+
+// Add Sub Elements to the menu
+menu.appendChild(li_0);
+menu.appendChild(li_1);
+menu.appendChild(li_2);
+menu.appendChild(li_3);
+menu.appendChild(li_4);
+menu.appendChild(li_5);
+menu.appendChild(li_6);
+menu.appendChild(li_7);
+
+// Apply all Elements to the HTML Element corresponding to the element tag
+obj.element.appendChild(menu);
+}
+
+// Create HTML li-related Elements
+function createliimage(_style, _emoji_code) {
+
+let li = document.createElement("li");
+let a = document.createElement("a");
+
+a.innerHTML = _emoji_code;
+li.style = _style;
+li.appendChild(a);
+
+return li;
+}
   </script>
 </body>
 </html>

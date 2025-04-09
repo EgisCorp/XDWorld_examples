@@ -20,39 +20,127 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera
+  var camera = Module.getViewCamera();
+  camera.setLocation(new Module.JSVector3D(126.78693528538836, 35.01013429887883, 600.0));
+  camera.setPermitUnderGround(true);
+  camera.setLimitTilt(-88.0);
+  camera.setLimitAltitude(-1000.0);
+  camera.setTilt(30.0);
+
+  // Create graph object type layer
+  var layerList = new Module.JSLayerList(true);
+  var layer = layerList.createLayer("LAYER_GRAPH", Module.ELT_GRAPH);
+  
+  // Create graph
+  var graph = createGraph();
+  layer.addObject(graph, 0);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function createGraph() {
+
+// Create graph object
+var graph = Module.createBarGraph("Graph");
+
+// Add legend
+graph.insertLegend("Legend1", "Joe", new Module.JSColor(200, 144, 237, 125));
+graph.insertLegend("Legend2", "Jane", new Module.JSColor(200, 67, 67, 72));
+graph.insertLegend("Legend3", "John", new Module.JSColor(200, 124, 181, 236));
+
+// Add data (Data will be applied in the order the legends were added)
+var dataValue = [
+  [2, 1, 1],
+  [4, 2, 0],
+  [4, 0, 4],
+  [0, 2, 7],
+  [5, 0, 0]
+];
+
+// Dataset name list
+var dataSetName = ["Apples", "Oranges", "Pears", "Grapes", "Bananas"],
+  labelTextOutlineColor = new Module.JSColor(255, 0, 0, 0),
+  labelTextFillColor = new Module.JSColor(255, 255, 255, 255)
+  ;
+
+for (var i=0, len=dataValue.length; i<len; i++) {
+  
+  var data = new Module.Collection();
+  
+  // Input data values
+  for (var j=0, subLen=dataValue[i].length; j<subLen; j++) {
+    data.add(dataValue[i][j]);
+  }
+  
+  // Input dataset with dataset name and data values
+  graph.insertDataSet(dataSetName[i], data);
+  
+  // Set options for displaying dataset names on the graph
+  graph.setDataSetNameFont(dataSetName[i], "Tahoma");	// Font name
+  graph.setDataSetNameTextSize(dataSetName[i], 12);	// Text size
+  graph.setDataSetNameTextColor(dataSetName[i], labelTextOutlineColor, labelTextFillColor);	// Text color
+}
+
+// Set the range of maximum and minimum values
+graph.setValueRange(0.0, 12.5, 2.5);
+
+// Set unit display text
+graph.setUnitText("(%)");
+
+// Set animation speed for bar rise
+graph.setAnimationSpeed(0.2);
+
+// Set legend box size
+graph.setLegendBoxSize(new Module.JSSize3D(20.0, 15.0, 15.0));
+
+// Set the spacing between dataset names and graph bars
+graph.setDataSetNameInterval(30.0);
+
+// Set the thickness of the graph floor plane
+graph.setFloorDepth(30.0);
+graph.setFloorColor(new Module.JSColor(150, 250, 250, 250));
+  
+// Create graph 
+graph.create(new Module.JSVector3D(126.78693528538836, 35.01813429887883, 60.0),
+       new Module.JSSize2D(400, 350),
+       1);	// 0(Stacked horizontally), 1(Stacked vertically) 
+       
+return graph;
+}
   </script>
 </body>
 </html>

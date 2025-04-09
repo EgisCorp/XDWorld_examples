@@ -20,39 +20,156 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+              dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(129.1264019168959, 35.1725596760313, 1000));
+  
+  // Gradation object path
+  var path = [
+    { position : new Module.JSVector3D(129.12486405043842, 35.17410008274932, 5.7), color : new Module.JSColor(255, 0, 0)},
+    { position : new Module.JSVector3D(129.12522538156702, 35.17364593649981, 5.6), color : new Module.JSColor(255, 127, 0)},
+    { position : new Module.JSVector3D(129.12563286539853, 35.17332821268188, 5.6), color : new Module.JSColor(255, 255, 0)},
+    { position : new Module.JSVector3D(129.1263305914994, 35.17295974883412, 5.1), color : new Module.JSColor(0, 255, 0)},
+    { position : new Module.JSVector3D(129.12698043684722, 35.1726640514706, 4.6), color : new Module.JSColor(0, 0, 255)},
+    { position : new Module.JSVector3D(129.12745206390392, 35.172341829658386, 4.4), color : new Module.JSColor(75, 0, 130)},
+    { position : new Module.JSVector3D(129.12787450626467, 35.17186746674491, 4.3), color : new Module.JSColor(143, 0, 255)}
+  ];
+  
+  // Create a gradient plane with a height of 50m
+  var polygon = createGradationPlane(path, 50.0);
+
+  // Create a polygon layer and add the object
+  var polygonLayer = Module.getObjectLayerList().createObjectLayer({
+    name: "TEST_VERTICAL_POLYGON",
+    type: Module.ELT_POLYHEDRON
+  });
+  polygonLayer.addObject(polygon, 0);
+
+  // Create a gradient line with a thickness of 3.0 at 50m above the path
+  var line = createGradationLine(path, 50.0, 10.0);
+
+  // Create a line layer and add the object
+  var lineLayer = Module.getObjectLayerList().createObjectLayer({
+    name: "TEST_BASE_LINE",
+    type: Module.ELT_POLYHEDRON
+  });
+  lineLayer.addObject(line, 0);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create a gradient plane */
+function createGradationPlane(_path, _height) {
+  
+  // Create vertex and color lists
+  var vertices = [];
+  var colors = [];
+
+  for (var i = 0; i < _path.length; i++) {
+      
+      var node = _path[i];
+
+      // Add vertices and colors for the base line
+      vertices.push(new Module.JSVector3D(node.position.Longitude, node.position.Latitude, node.position.Altitude));
+      colors.push(new Module.JSColor(0, node.color.r, node.color.g, node.color.b));
+
+      // Add vertices and colors for the line at height from the base line
+      vertices.push(new Module.JSVector3D(node.position.Longitude, node.position.Latitude, node.position.Altitude + _height));
+      colors.push(node.color);
+  }
+  
+  var indices = [];
+  // Create indices
+  for (var i = 0; i <= vertices.length - 4; i += 2) {
+      indices.push(...[i, i + 1, i + 3, i, i + 3, i + 2]);
+  }
+
+  // Create the gradient plane
+  var polygon = Module.createColorPolygon("GRADATION_POLYGON");
+  polygon.set({
+      vertex: vertices,
+      color: colors,
+      index: indices
+  });
+
+  // Set culling mode to show both sides
+  polygon.SetCullMode(1);
+  
+  return polygon;
+}
+
+/* Create a gradient line */
+function createGradationLine(_path, _height, _lineWidth) {
+
+  var coordinates = {
+      style: "XYZ",
+      coordinate: []
+  };
+  
+  var colors = [];
+  
+  // Create coordinate and color lists
+  for (var i = 0; i < _path.length; i++) {
+
+      var node = _path[i];
+
+      coordinates.coordinate.push(
+          [node.position.Longitude, node.position.Latitude, node.position.Altitude + _height]
+      );
+
+      colors.push({
+          a: 255,
+          r: node.color.r,
+          g: node.color.g,
+          b: node.color.b
+      });
+  }    
+
+  // Create the gradient line object
+  var line = Module.createLineString("GRADATION_LINE");
+  line.createbyJson({
+      coordinates: coordinates,
+      type: 0,        // Create a solid line      
+      union: false,   // Terrain union Off
+      depth: true,    // Depth Test Off
+      color: colors,
+      width: _lineWidth  // Line width
+  });
+
+  return line;
+}
   </script>
 </body>
 </html>

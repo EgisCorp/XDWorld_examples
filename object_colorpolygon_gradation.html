@@ -20,39 +20,98 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera position
+  let camera = Module.getViewCamera();
+      camera.setLocation(new Module.JSVector3D(129.128265, 35.171834, 1000.0));
+      camera.setTilt(90.0);
+  
+    var basePositions = [
+    [129.12599597147187, 35.17339329004985, 50.0],
+    [129.1264736891435, 35.172432534300555, 50.0],
+    [129.12705822860582, 35.172119138064076, 50.0],
+    [129.12837813524428, 35.17198042514761, 50.0],
+    [129.12925806742587, 35.171677294599604, 50.0],
+    [129.13014427905534, 35.1712405752301, 50.0],
+    [129.13067851056573, 35.170639446735436, 50.0]
+  ];
+  
+  // Create vertical gradation plane
+  createVerticalPlane(basePositions);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create vertical plane polygon based on the provided lines */
+function createVerticalPlane(_basePositions) {
+  
+  // Create polygon and line objects
+  var colorPolygon = Module.createColorPolygon("TEST_VERTICAL_POLYGON");
+  var baseLine = Module.createLineString("TEST_BASE_LINE");
+  
+  // Create coordinate list
+  var coordinates = new Module.JSVec3Array();
+  var parts = new Module.Collection();
+  
+  for (var i = 0; i < _basePositions.length; i++) {
+      coordinates.push(new Module.JSVector3D(_basePositions[i][0], _basePositions[i][1], _basePositions[i][2]));
+  }
+  parts.add(_basePositions.length);
+  
+  // Define the shape of the polygon's vertical plane
+  colorPolygon.SetVerticalPlane(coordinates, parts, -50.0,
+                                new Module.JSColor(0, 255, 255, 0), new Module.JSColor(255, 255, 0, 0));
+  colorPolygon.SetCullMode(1);
+  
+  // Create a layer and add the polygon object
+  var layerList = new Module.JSLayerList(true);
+  var colorPolygonlayer = layerList.createLayer("TEST_POLYGON_LAYER", Module.ELT_POLYHEDRON);
+  colorPolygonlayer.addObject(colorPolygon, 0);
+  
+  // Set up the line
+  baseLine.setPartCoordinates(coordinates, parts);
+  
+  var lineStyle = new Module.JSPolyLineStyle();
+  lineStyle.setWidth(1.0);
+  lineStyle.setColor(new Module.JSColor(255, 0, 0));
+  baseLine.setStyle(lineStyle);
+  
+  // Create a layer and add the line object
+  var lineLayer = layerList.createLayer("TEST_POLYGON_LAYER", Module.ELT_SKY_LINE);
+  lineLayer.addObject(baseLine, 0);
+}
   </script>
 </body>
 </html>

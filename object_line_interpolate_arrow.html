@@ -20,39 +20,275 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Terrain and line interval</span>
+<input type="range" min="0.5" max="100.0" step="0.1" value="1.0" onchange="set_altitude_gap(parseFloat(this.value));">
+<span id="altitude_gap">1.0</span>
+<br>
+<span>Number of lines horizontally</span>
+<input type="range" min="5" max="100" step="1" value="20" onchange="set_line_grid_position_col(parseInt(this.value));">
+<span id="line_grid_position_col">20</span>
+<br>
+<span>Number of lines vertically</span>
+<input type="range" min="5" max="100" step="1" value="10" onchange="set_line_grid_position_row(parseInt(this.value));">
+<span id="line_grid_position_row">10</span>
+<br>
+<span>Number of line points</span>
+<input type="range" min="2" max="10" step="1" value="5" onchange="set_vertex_count(parseInt(this.value));">
+<span id="vertex_count">5</span>
+<br>
+<span>Line scale</span>
+<input type="range" min="10000" max="50000" step="1000" value="40000" onchange="set_line_scale(parseFloat(this.value));">
+<span id="line_scale">40000</span>
+<br>
+<br>
+<input type="button" value="Create Arrow" onclick="createInterpolatedLine();">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+              dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(127.93912084971326, 36.33497243834537, 4660.8133732182905)); 
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+// Retrieve interpolated input data for line
+function getInterpolateInputData() {
+  return [{
+      position: new Module.JSVector2D(127.92996023310825, 36.339218782957616),    // Location (longitude, latitude)
+      direction: 350.257,                                                         // Direction (in degrees)
+      strength: 0.157
+},{
+  position : new Module.JSVector2D(127.94004915856662, 36.33943218892886),
+  direction : 76.484,
+  strength : 0.046
+},{
+  position : new Module.JSVector2D(127.94952424878231, 36.33961193851927),
+  direction : 68.708,
+  strength : 0.203
+},{
+  position : new Module.JSVector2D(127.92972401230794, 36.33567440871693),
+  direction : 165.370,
+  strength : 0.157
+},{
+  position : new Module.JSVector2D(127.93909967810096, 36.33541952492768),
+  direction : 157.262,
+  strength : 0.05
+},{
+  position : new Module.JSVector2D(127.95070496393248, 36.335420275855476),
+  direction : 51.461,
+  strength : 0.25
+},{
+  position : new Module.JSVector2D(127.9300205105515, 36.33218787047455),
+  direction : 216.902,
+  strength : 0.3
+},{
+  position : new Module.JSVector2D(127.9394780837407, 36.33205585089783),
+  direction : 153.819,
+  strength : 0.8
+},{
+  position : new Module.JSVector2D(127.951449146284, 36.332097200272656),
+  direction : 16.848,
+  strength : 0.14
+}];
+}
+
+// Line representation options
+var line_options = {
+  line_style: "arrow",
+  line_grid_position: {
+      col: 20,    // Number of arrows horizontally
+      row: 10     // Number of arrows vertically
+  },
+  area_rect: {
+      min: {
+          lon: 127.91520380652691,    // Minimum longitude of the area
+          lat: 36.317514766665125     // Minimum latitude of the area
+      },
+      max: {
+          lon: 127.965904037484,      // Maximum longitude of the area
+          lat: 36.35284437184708      // Maximum latitude of the area
+      }
+  },
+  line_scale: 40000.0,    // Spacing between lines (larger values result in longer arrows)
+  vertex_count: 5,        // Number of vertices per line
+  altitude_gap: 5.0       // Distance between terrain and lines
+};
+
+// Function to adjust options
+function set_altitude_gap(_value) {
+  line_options.altitude_gap = _value;
+  document.getElementById("altitude_gap").innerHTML = _value;
+}
+function set_line_grid_position_col(_value) {
+  line_options.line_grid_position.col = _value;
+  document.getElementById("line_grid_position_col").innerHTML = _value;
+}
+function set_line_grid_position_row(_value) {
+  line_options.line_grid_position.row = _value;
+  document.getElementById("line_grid_position_row").innerHTML = _value;
+}
+function set_vertex_count(_value) {
+  line_options.vertex_count = _value;
+  document.getElementById("vertex_count").innerHTML = _value;
+}
+function set_line_style(_value) {
+  line_options.line_style = _value;
+}
+function set_line_scale(_value) {
+  line_options.line_scale = _value;
+  document.getElementById("line_scale").innerHTML = _value;
+}
+
+/* Line Representation -------------------------------------------------------------------------- */
+
+// Create layer to store lines
+function getLayer() {
+  var layerList = new Module.JSLayerList(true);
+  var layer = layerList.nameAtLayer("WIND_PATH_LAYER");
+  if (layer == null) {
+      layer = layerList.createLayer("WIND_PATH_LAYER", Module.ELT_3DLINE);
+      layer.setMaxDistance(100000.0);
+  } else {
+      layer.removeAll();
+  }
+  return layer;
+}
+
+// Generate interpolated line
+function createInterpolatedLine() {
+  var interpolatedPath = Module.getAnalysis().createInterpolationPath({
+      positions: getGridPositions(
+          line_options.line_grid_position.col,
+          line_options.line_grid_position.row,
+          line_options.area_rect
+      ),
+      input: getInterpolateInputData(),
+      rect: {
+          min: new Module.JSVector2D(line_options.area_rect.min.lon, line_options.area_rect.min.lat),
+          max: new Module.JSVector2D(line_options.area_rect.max.lon, line_options.area_rect.max.lat)
+      },
+      vertexcount: line_options.vertex_count,
+      scale: line_options.line_scale
+  });
+  createArrowLine(interpolatedPath);
+}
+
+function createArrowLine(_interpolatedPath) {
+  var layer = getLayer();
+  var map = Module.getMap();
+  for (var i = 0; i < _interpolatedPath.size(); i++) {
+      var vertices = [];
+      for (var j = 0; j < _interpolatedPath.get(i).count(); j++) {
+          var pos = _interpolatedPath.get(i).get(j);
+          vertices.push([pos.x, pos.y, map.getTerrHeight(pos.x, pos.y) + line_options.altitude_gap]);
+      }
+      var strength = getLineStrengthColor(vertices);
+      var line = Module.createLineString("WIND_PATH_" + i);
+      line.createbyJson({
+          coordinates: {
+              coordinate: vertices,
+              style: "XYZ",
+          },
+          color: strength.color,
+          width: strength.width,
+          type: 3
+      });
+      layer.addObject(line, 0);
+  }
+}
+
+function getLineStrengthColor(vertices) {
+  var map = Module.getMap();
+  var totalDistance = 0.0;
+  for (var i = 0; i < vertices.length - 1; i++) {
+      totalDistance += map.GetPointDistance(
+          new Module.JSVector3D(vertices[i][0], vertices[i][1], vertices[i][2]),
+          new Module.JSVector3D(vertices[i + 1][0], vertices[i + 1][1], vertices[i + 1][2]),
+          false
+      );
+  }
+  var strengthColor = null;
+  var strengthWidth = 0.0;
+  if (totalDistance > 200) {
+      strengthColor = new Module.JSColor(255, 0, 0);
+      strengthWidth = 14.0;
+  } else if (totalDistance > 180) {
+      strengthColor = new Module.JSColor(255, 150, 0);
+      strengthWidth = 12.0;
+  } else if (totalDistance > 160) {
+      strengthColor = new Module.JSColor(255, 255, 0);
+      strengthWidth = 10.0;
+  } else if (totalDistance > 140) {
+      strengthColor = new Module.JSColor(150, 255, 0);
+      strengthWidth = 8.0;
+  } else if (totalDistance > 120) {
+      strengthColor = new Module.JSColor(0, 255, 150);
+      strengthWidth = 6.0;
+  } else if (totalDistance > 100) {
+      strengthColor = new Module.JSColor(0, 0, 255);
+      strengthWidth = 4.0;
+  } else {
+      strengthColor = new Module.JSColor(0, 0, 255);
+      strengthWidth = 2.0;
+  }
+  return { color: strengthColor, width: strengthWidth };
+}
+
+// Function to divide the specified area into a grid and return a list of starting positions for wind arrows
+function getGridPositions(_position_count_x, _position_count_y, _rect) {
+
+var rectWidth = _rect.max.lon - _rect.min.lon;
+var rectHeight = _rect.max.lat - _rect.min.lat;
+
+var grid_x_size = rectWidth / _position_count_x;
+var grid_y_size = rectHeight / _position_count_y;
+
+var gridPositions = [];
+
+for (var i=0; i<_position_count_x; i++) {
+
+  for (var j=0; j<_position_count_y; j++) {
+    gridPositions.push(
+      new Module.JSVector2D(
+        _rect.min.lon + (grid_x_size * i),
+        _rect.min.lat + (grid_y_size * j)
+      )
+    );
+  }
+}
+
+return gridPositions;
+}
   </script>
 </body>
 </html>

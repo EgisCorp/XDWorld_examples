@@ -20,39 +20,103 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>[Mouse Mode]</span>
+<input type="radio" name="mouseMode" onclick="setMouseState(1);" checked> Move map
+<input type="radio" name="mouseMode" onclick="setMouseState(21);"> input line
+<br>
+<input type="button" value="Create Polygon" style="width:100%;" onclick="createPolygon();">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+    // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.92836647767662, 37.52439503321471, 1000.0));
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create polygon */
+function createPolygon() {
+    
+// Get mouse input points
+var map = Module.getMap();
+var inputPoint = map.getInputPoints();
+
+// Proceed if there are more than 3 points
+var inputPointCount = inputPoint.count();
+if (inputPointCount < 3) {
+  return;
+}
+
+// Create a layer to store polygon objects (return the layer if already created)
+var layerList = new Module.JSLayerList(true);
+var layer = layerList.nameAtLayer("POLYGON_LAYER");
+if (layer == null) {
+  // Create a new layer if not exists
+  layer = layerList.createLayer("POLYGON_LAYER", Module.ELT_POLYHEDRON);
+}
+
+// Create polygon object
+var currentLayerObjectCount = layer.getObjectCount();
+var polygon = Module.createPolygon("POLYGON_" + currentLayerObjectCount);
+
+// Define polygon shape with input points (inputPoint, part)
+var part = new Module.Collection();
+part.add(inputPointCount);
+
+var vertex = new Module.JSVec3Array();
+for (var i = 0; i < inputPointCount; i++) {
+
+  // Add vertices after raising the altitude by 5m from the input point location
+  var point = inputPoint.get(i);
+  vertex.push(new Module.JSVector3D(point.Longitude, point.Latitude, point.Altitude + 5.0));
+}
+
+polygon.setPartCoordinates(vertex, part);
+
+// Add object to layer
+layer.addObject(polygon, 0);
+
+// Initialize input points
+map.clearInputPoint();
+}
+
+/* Set mouse state
+- 0 : move map
+- 21 : input line data
+*/
+function setMouseState(_set) {
+Module.XDSetMouseState(_set);	
+}
   </script>
 </body>
 </html>

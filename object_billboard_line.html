@@ -20,39 +20,205 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <label>Display vertical lines</label>
+<input type="checkbox" id="updateLinebox" onclick="updateLine()" checked>
+<br>-------------------------------------<br>
+<label>width   </label><label id="widthLabel" style="width: 50px;">5</label>
+<br>
+<input type="range" min="1" max="20" value="5" style="width: 210px; float: right;" id="widthSlider" oninput="updateLine()">
+<br>-------------------------------------<br>
+<label>color </label>
+<button type="button" onclick="setColor(0)">color1</button>
+<button type="button" onclick="setColor(1)">color2</button>
+<button type="button" onclick="setColor(2)">color3</button>
+<br>-------------------------------------<br>
+<label>altitude</label>
+<input type="text" id="altitudeInput" style="width: 20px">
+<button type="button" onclick="setAltitude()">set</button>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    let GLOBAL = {
+    billboard: null,
+    color: null,
+    altitude: 0.0,
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        // Call engine initialization API(essential)
+        Module.initialize({
+            container: document.getElementById("map"),
+            terrain: {
+                dem: {
+                    url: "https://xdworld.vworld.kr",
+                    name: "dem",
+                    servername: "XDServer3d",
+                    encoding: true,
+                },
+                image: {
+                    url: "https://xdworld.vworld.kr",
+                    name: "tile",
+                    servername: "XDServer3d",
+                },
+            },
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
+        });
+
+        let facilityLayer = Module.getTileLayerList().createXDServerLayer({
+            url: "https://xdworld.vworld.kr",
+            servername: "XDServer3d",
+            name: "facility_build",
+            type: 9,
+            minLevel: 0,
+            maxLevel: 15,
+        });
+
+        facilityLayer.setLODRatio(2.0);
+
+        // Initialize camera
+        let camera = Module.getViewCamera();
+
+        let layerList = new Module.JSLayerList(true);
+        let layer = layerList.createLayer("BILLBOARD", Module.ELT_BILLBOARD);
+        layer.setMaxDistance(200000.0);
+
+        // set camera
+        camera.setPermitUnderGround(true);
+        camera.setLocation(new Module.JSVector3D(129.1455, 35.1415, 1000.0));
+        camera.setDirect(-20.0);
+        camera.setTilt(30.0);
+
+        let position = [
+            new Module.JSVector3D(129.13, 35.157, 200.0),
+            new Module.JSVector3D(129.1333, 35.155, 150.0),
+            new Module.JSVector3D(129.134, 35.158, 100.0),
+            new Module.JSVector3D(129.1375, 35.156, 70.0),
+            new Module.JSVector3D(129.14, 35.158, 200.0),
+            new Module.JSVector3D(129.1424, 35.1553, 250.0),
+            new Module.JSVector3D(129.144, 35.157, 150.0),
+            new Module.JSVector3D(129.14635, 35.155545, 200.0),
+        ];
+
+        GLOBAL.billboard = new Array(8);
+
+        let slider = document.getElementById("widthSlider");
+        let width = Number(slider.value);
+
+        // Create Icon and Billboard objects
+        for (let i = 0; i < 8; ++i) {
+            createIcon(
+                "LibraryIcon" + i,
+                "./data/polygon_rtt_texture_" + i + ".png",
+                function (_iconName) {
+                    let billboard = Module.createBillboard("Billboardi");
+                    billboard.set(
+                        position[i],
+                        Module.getSymbol().getIcon(_iconName),
+                        100.0,
+                        100.0
+                    );
+                    GLOBAL.billboard[i] = billboard;
+                    layer.addObject(billboard, 0);
+
+                    let checkBox = document.getElementById("updateLinebox");
+                    let color = getRandomColor();
+                    parameter = {
+                        visible: checkBox.checked,
+                        width: width,
+                        color: color,
+                        altitude: GLOBAL.altitude,
+                    };
+                    GLOBAL.billboard[i].setVerticalLine(parameter);
+                }
+            );
+        }
+    },
+};
+
+function setColor(_idx) {
+	switch (_idx) {
+		case 0:
+			GLOBAL.color = new Module.JSColor(255, 240, 60, 30);
+			break;
+		case 1:
+			GLOBAL.color = new Module.JSColor(255, 15, 100, 200);
+			break;
+		default:
+			GLOBAL.color = new Module.JSColor(255, 62, 224, 14);
+	}
+	updateLine();
+}
+
+function setAltitude() {
+	GLOBAL.altitude = Number(document.getElementById("altitudeInput").value);
+	updateLine();
+}
+
+// Update line statue
+function updateLine() {
+	let width = Number(document.getElementById("widthSlider").value);
+	let checkBox = document.getElementById("updateLinebox");
+	let label = document.getElementById("widthLabel");
+	label.textContent = width;
+
+	if (GLOBAL.color == null) GLOBAL.color = getRandomColor();
+
+	for (let i = 0; i < 8; ++i) {
+		parameter = {
+			visible: checkBox.checked,
+			width: width,
+			color: GLOBAL.color,
+			altitude: GLOBAL.altitude
+		}
+		GLOBAL.billboard[i].setVerticalLine(parameter);
+	}
+};
+
+function getRandomColor() {
+	return new Module.JSColor(255, getRandomInt(255), getRandomInt(255), getRandomInt(255));
+}
+
+function getRandomInt(max) {
+	return Math.floor(Math.random() * max);
+}
+
+/* Create icon object (JSIcon) and add to Symbol */
+function createIcon(_iconName, _url, _imageLoadedCallback) {
+	
+	var img = new Image();
+	
+	// Load icon image
+	img.onload = function(){
+		
+		// Create image data through canvas
+		var canvas = document.createElement('canvas');
+		canvas.width = img.width;
+		canvas.height = img.height;
+		
+		var ctx = canvas.getContext('2d');
+		ctx.drawImage(img, 0, 0);
+		
+		var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+		
+		// Add new icon to Symbol
+		if (Module.getSymbol().insertIcon(_iconName, imageData, canvas.width, canvas.height)) {			
+			if (_imageLoadedCallback) {
+				_imageLoadedCallback(_iconName);
+			}
+		}
+	};
+	img.src = _url;
+}
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

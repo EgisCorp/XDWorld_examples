@@ -20,39 +20,160 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="radio" name="grid" onClick="createGrid(10.0);"> size=10
+<input type="radio" name="grid" onClick="createGrid(20.0);"> size=20
+<input type="radio" name="grid" onClick="createGrid(30.0);"> size=30
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	
+	// grid area coordinates list
+	GRID_AREA : [
+		[126.931853, 37.530050],
+		[126.933351, 37.529062],
+		[126.933637, 37.528572],
+		[126.932778, 37.527847],
+		[126.932053, 37.528509],
+		[126.931667, 37.529036],
+		[126.931326, 37.529604]
+	]
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Initial position setup
+		Module.getViewCamera().setLocation(new Module.JSVector3D(126.932342, 37.528878, 530.0));
+
+		// Markup grid area
+		markupGridArea();
+	}
+};
+
+/* Markup grid area for RTT display */
+function markupGridArea() {
+
+	// Create polygon for area RTT
+	var polygon = Module.createPolygon("TREE_AREA");
+
+	// Set polygon style
+	var style = new Module.JSPolygonStyle();
+	style.setFill(true);
+	style.setFillColor(new Module.JSColor(150, 255, 255, 0));
+	polygon.setStyle(style);
+	
+	// Set polygon coordinates
+	var part = new Module.Collection();
+	part.add(GLOBAL.GRID_AREA.length);
+
+	var area = new Module.JSVec3Array();
+	for (var i=0; i<GLOBAL.GRID_AREA.length; i++) {
+		var position = GLOBAL.GRID_AREA[i];
+		area.push(new Module.JSVector3D(position[0], position[1], 0.0));
+	}
+
+	polygon.setPartCoordinates(area, part);
+	
+	// Set union mode for RTT
+	polygon.setUnionMode(true);
+	
+    // Add object to layer
+    var layer = Module.getObjectLayerList().createObjectLayer({
+		name : "GRID_AREA_LAYER", 
+		type : Module.ELT_PLANE
+	});
+
+    layer.addObject(polygon, 0);
+}	
+
+/* Create hexagon grid */
+function createGrid(_cellSize) {
+	
+	// Create hexagon grid area coordinates list
+	var area = new Module.JSVec2Array();
+	for (var i=0; i<GLOBAL.GRID_AREA.length; i++) {
+		var position = GLOBAL.GRID_AREA[i];
+		area.push(new Module.JSVector2D(position[0], position[1]));
+	}
+
+	// Create grid object
+	var grid = Module.createColorGrid("HEXAGON_GRID");
+	grid.createHexagonGrid({
+		area : area,
+		cellSize : _cellSize,
+		defaultCellColor : Module.COLOR_WHITE,
+		cellColorList : [
+			// Color list for cells corresponding to positions
+			{longitude : 126.93242582773678, latitude : 37.529006594442066, color : Module.COLOR_GREEN},
+		],	
+		altitude : 20.0 // Grid height
+	});
+
+	// Return layer and add object
+	var layerList = Module.getObjectLayerList();
+	var layer = layerList.nameAtLayer("GRID_LAYER");
+	if (layer == null) {
+		layer = layerList.createObjectLayer({
+			name : "GRID_LAYER",
+			type : Module.ELT_POLYHEDRON
+		});
+	} else {
+		layer.removeAll();
+	}
+	layer.addObject(grid, 0);
+}
+
+/* Create hexagon grid */
+function createHexagonGrid(_options) {
+
+	// Create hexagon grid area coordinates list
+	var area = new Module.JSVec2Array();
+	for (var i=0; i<_options.area.length; i++) {
+		var position = _options.area[i];
+		area.push(new Module.JSVector2D(position[0], position[1]));
+	}
+
+	// Create grid object
+	var grid = Module.createColorGrid("HEXAGON_GRID");
+	grid.createHexagonGrid({
+		area : area,
+		cellSize : _options.cellSize,
+		defaultCellColor : Module.COLOR_WHITE,
+		cellColorList : _options.cellColorList,
+		altitude : _options.altitude
+	});
+
+	return grid;
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

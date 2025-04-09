@@ -20,39 +20,133 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="prev" onclick="prev();">
+<input type="button" value="next" onclick="next();">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	
+	ImageIndex : 0,
+	totalImageCount : 8,
+	polygon : null,
+	startTime : 0,
+	loadCount : 0
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        // Call engine initialization API(essential)
+        Module.initialize({
+            container: document.getElementById("map"),
+            terrain: {
+				dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+            },
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
+        });
+
+        // Set camera position
+        Module.getViewCamera().setLocation(
+            new Module.JSVector3D(129.1382650011958, 35.18110757714158, 1000)
+        );
+
+        // Create layer to store polygon objects
+        var layerList = new Module.JSLayerList(true);
+        var layer = layerList.createLayer(
+            "IMAGE_MASHUP_LAYER",
+            Module.ELT_PLANE
+        );
+        layer.setMaxDistance(60000000.0);
+
+        // Set polygon coordinates
+        var vertices = new Module.JSVec3Array();
+        vertices.push(
+            new Module.JSVector3D(129.1358795548428, 35.18151285035436, 0.0)
+        );
+        vertices.push(
+            new Module.JSVector3D(129.13910102131005, 35.18321779745, 0.0)
+        );
+        vertices.push(
+            new Module.JSVector3D(129.1412129025496, 35.18069414863917, 0.0)
+        );
+        vertices.push(
+            new Module.JSVector3D(129.13782351349964, 35.17887462859219, 0.0)
+        );
+
+        // Set polygon uv texture coordinates
+        var uv = new Module.JSVec2Array();
+        uv.push(new Module.JSVector2D(0.0, 1.0));
+        uv.push(new Module.JSVector2D(0.0, 0.0));
+        uv.push(new Module.JSVector2D(1.0, 0.0));
+        uv.push(new Module.JSVector2D(1.0, 1.0));
+
+        // Define polygon coordinate part
+        var part = new Module.Collection();
+        part.add(vertices.count());
+
+        // Create polygon object
+        var polygon = Module.createPolygon("IMAGE_MASHUP_POLYGON");
+        polygon.setPartCoordinatesUV(vertices, part, uv, true);
+        GLOBAL.polygon = polygon;
+
+        // Save the created polygon to the layer
+        layer.addObject(polygon, 0);
+
+        // Load the image list to be used for polygon RTT application
+        for (var i = 0; i < GLOBAL.totalImageCount; i++) {
+            polygon.loadTexture("polygon_rtt_texture_" + i, {
+                url: "./data/polygon_rtt_texture_" + i + ".png",
+                callback: function (e) {
+                    GLOBAL.loadCount++;
+                    if (GLOBAL.loadCount == GLOBAL.totalImageCount) {
+                        GLOBAL.polygon.setFaceTexture(
+                            0,
+                            "polygon_rtt_texture_0"
+                        );
+                    }
+                },
+            });
+        }
+    },
+};
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Change previous texture */
+function prev() {
+	
+    if (GLOBAL.ImageIndex > 0) {
+		GLOBAL.ImageIndex--;
+	}
+	
+    GLOBAL.polygon.setFaceTexture(0, "polygon_rtt_texture_"+GLOBAL.ImageIndex);
+}
+
+/* Change next texture */
+function next() {
+	
+    if (GLOBAL.ImageIndex < GLOBAL.totalImageCount-1) {
+		GLOBAL.ImageIndex++;
+	}
+
+	GLOBAL.polygon.setFaceTexture(0, "polygon_rtt_texture_"+GLOBAL.ImageIndex);
+}
   </script>
 </body>
 </html>

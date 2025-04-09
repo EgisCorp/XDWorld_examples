@@ -20,39 +20,107 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <label>model</label>
+<select style="margin-left: 40px;" onchange="setModel(this.value);">
+	<option value="discrete_LOD">b3dm</option>
+	<option value="request_volume">pnts</option>
+	<option value="tree_billboards">i3dm</option>
+</select>
+<br>
+<label>dem rate</label>
+<input id="dem_rate_slider" type="range" min=0.001 max=1.0 step=0.001 style="width:100px" value=0.001
+oninput="setDemRate(this.value);">
+<label id="dem_rate_label" style="width:20px">0.001</label>
+<br>
+<label style="color: red;">※ The current version is a beta release.<br>Some model files may not function as expected.</label>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	layerList: null,
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+				},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+        // Initialize camera
+        let camera = Module.getViewCamera();
+		camera.setPermitUnderGround(true);
+		camera.setLocation(new Module.JSVector3D(129.127, 35.17, 1000.0));
+        camera.setDirect(0.0);
+		camera.setLimitTilt(-90.0);
+
+		let layerList = new Module.JSLayerList(true);
+		GLOBAL.layerList = layerList;
+
+		let layer = layerList.createLayer("3DTILES_LAYER", Module.ELT_3DTILES);
+		layer.import3DTiles({
+			url : "./data/TilesetWithDiscreteLOD" + "/tileset.json",
+			autoMove : true,
+		});
+
+		Module.getTerrain().demRate = 0.001;
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function setModel(_value) {
+	GLOBAL.layerList.delLayerAtLast();
+	let layer = GLOBAL.layerList.createLayer("3DTILES_LAYER", Module.ELT_3DTILES);
+	let path = "./data/TilesetWith";
+	switch(_value) {
+		case 'discrete_LOD':
+			path += "DiscreteLOD"
+			break;
+		case 'request_volume':
+			let camera = Module.getViewCamera();
+			camera.setTilt(18.749999999999996);
+			camera.setDirect(-9.50003118923209);
+			camera.setLocation(new Module.JSVector3D(-75.61207109229323, 40.04241741204402, 5.130243316292763));
+			path += "RequestVolume";
+			break;
+		case 'tree_billboards':
+			path += "TreeBillboards";
+			break;
+	}
+
+	layer.import3DTiles({
+		url: path + "/tileset.json",
+		autoMove: _value == "request_volume" ? false : true,
+	});
+}
+
+function setDemRate(_value) {
+	Module.getTerrain().demRate = parseFloat(_value);
+	document.getElementById("dem_rate_label").textContent = _value;
+}
   </script>
 </body>
 </html>

@@ -20,39 +20,241 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <table>
+        <tr>
+          <td>
+                <span>direction</span>
+            </td>
+            <td>
+                <input type="range" min="0.0" max="360.0" step="0.1" value="0.0" onchange="resutFrustum('direction', this.value);">
+            </td>
+            <td>
+                <span id="direction">0.0</span>
+            </td>
+        </tr>
+        <tr>
+          <td>
+                <span>tilt</span>
+            </td>
+            <td>
+                <input type="range" min="-90.0" max="90.0" step="0.1" value="0.0" onchange="resutFrustum('tilt', this.value);">
+            </td>
+            <td>
+                <span id="tilt">0.0</span>
+            </td>
+        </tr>
+        <tr>
+          <td>       
+          <span>fov_x</span>
+            </td>
+            <td>
+                <input type="range" min="0.0" max="90.0" step="0.1" value="45.0" onchange="resutFrustum('fov_x', this.value);">
+            </td>
+            <td>
+                <span id="fov_x">45.0</span>
+            </td>
+        </tr>
+        <tr>
+          <td>
+          <span>fov_y</span>
+            </td>
+            <td>
+                <input type="range" min="0.0" max="90.0" step="0.1" value="30.0" onchange="resutFrustum('fov_y', this.value);">
+            </td>
+            <td>
+                <span id="fov_y">30.0</span>
+            </td>
+        </tr>
+        <tr>
+          <td>
+          <span>color(Alpha)</span>
+            </td>
+            <td>
+                <input type="range" min="0" max="255" step="1" value="255" onchange="resutFrustum('color_alpha', this.value);">
+            </td>
+            <td>
+                <span id="color_alpha">255</span>
+            </td>
+        </tr>
+        <tr>
+          <td>
+          <span>color(Red)</span>
+            </td>
+            <td>
+                <input type="range" min="0" max="255" step="1" value="255" onchange="resutFrustum('color_red', this.value);">
+            </td>
+            <td>
+                <span id="color_red">255</span>
+            </td>
+        </tr>
+        <tr>
+          <td>
+          <span>color(Blue)</span>
+            </td>
+            <td>
+                <input type="range" min="0" max="255" step="1" value="255" onchange="resutFrustum('color_blue', this.value);">
+            </td>
+            <td>
+                <span id="color_blue">255</span>
+            </td>
+        </tr>
+        <tr>
+          <td>
+          <span>color(Green)</span>
+            </td>
+            <td>
+                <input type="range" min="0" max="255" step="1" value="0" onchange="resutFrustum('color_green', this.value);">
+            </td>
+            <td>
+                <span id="color_green">0</span>
+            </td>
+        </tr>
+    </table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+    frustum : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+	    // Set camera position
+	    Module.getViewCamera().setLocation(new Module.JSVector3D(127.096388,37.216111, 700.0));
+
+	    var layerList = new Module.JSLayerList(true);
+	    var layer = layerList.createLayer("CCTV", Module.ELT_POLYHEDRON);
+	    GLOBAL.layer = layer;
+	    
+		GLOBAL.frustum = createViewFrustum({
+	    	position : new Module.JSVector3D(127.09636415469302, 37.216118995503926, 100.0),
+	        pan : 0.0,
+	        tilt : 0.0,
+	        fov_x : 45.0,
+	        fov_y : 30.0,
+	        distance : 100.0,
+	        color : new Module.JSColor(200, 255, 255, 0)
+	    });
+	    
+	    // Create a line object perpendicular to the ground from the frustum starting position
+	    createVerticalLine(GLOBAL.frustum.getEyepos());
+	    
+	    // Add object to layer
+		layer.addObject(GLOBAL.frustum, 0);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create Frustum object */
+function createViewFrustum(_options) {
+
+    var frustum = Module.createViewFrustum("FRUSTUM");
+    frustum.createViewFrustum(
+        _options.position, 
+        _options.pan, _options.tilt, 
+        _options.fov_x, _options.fov_y, 
+        _options.distance
+   	);
+	frustum.setColor(_options.color);
+    
+	return frustum;
+}
+
+/* Create a line object perpendicular to the ground from the frustum starting position */
+function createVerticalLine(_position) {
+	
+    var line = Module.createLineString("FRUSTUM_LINE");
+    
+    var vertices = new Module.JSVec3Array();
+    vertices.push(_position);
+    _position.Altitude = 0.0;
+    vertices.push(_position);
+    
+    var part = new Module.Collection();
+    part.add(2);
+    
+    line.setPartCoordinates(vertices, part);
+    line.setUnionMode(false);
+    
+    // Set line color
+	var lineStyle = new Module.JSPolyLineStyle();
+	lineStyle.setColor(new Module.JSColor(255, 255, 255, 0));
+	lineStyle.setWidth(2.0);
+	line.setStyle(lineStyle);
+    
+    // Create line layer
+    var layerList = new Module.JSLayerList(true);
+    var layer = layerList.createLayer("FRUSTUM_LINE_LAYER", Module.ELT_3DLINE);
+    layer.addObject(line, 0);
+}
+
+/* Recreate Frustum */
+function resutFrustum(_resutType, _value) {
+
+	if (GLOBAL.frustum == null) {
+    	return
+    }
+        
+    // Update setting value text
+    document.getElementById(_resutType).innerHTML = _value;
+    
+    switch (_resutType) {
+        case 'direction':
+            GLOBAL.frustum.setPan(parseFloat(_value));
+            break;
+        case 'tilt':
+            GLOBAL.frustum.setTilt(parseFloat(_value));
+            break;
+        case 'fov_x':
+            GLOBAL.frustum.setFovX(parseFloat(_value));
+            break;
+        case 'fov_y':
+            GLOBAL.frustum.setFovY(parseFloat(_value));
+            break;
+        case 'color_alpha':
+        case 'color_red':
+        case 'color_green':
+        case 'color_blue':
+            GLOBAL.frustum.setColor(new Module.JSColor(
+            	parseInt(document.getElementById("color_alpha").innerHTML),
+                parseInt(document.getElementById("color_red").innerHTML),
+                parseInt(document.getElementById("color_green").innerHTML),
+                parseInt(document.getElementById("color_blue").innerHTML)
+            ));
+            break;
+    }
+    
+    // Update screen
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

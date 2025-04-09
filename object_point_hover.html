@@ -20,39 +20,234 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        #interface {
+        background-color: rgba(0, 0, 0, 0.0);
+      }
+    
+        #popup {
+        position: fixed;
+        background-color: #FFFFFF;
+        padding: 10px 10px 10px 15px;
+        border-radius: 5px;
+        font-size: 13px;
+        font-weight: bold;
+        opacity: 0.5;
+        margin: 8px;
+        display: none;
+        z-index: 99;
+        pointer-events: none;
+      }
+    </style>
+    <div id='popup'></div>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	layer : null,
+	prevPickPoint : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		createRandomPoint(100);
+
+		setMouseEvent();
+
+		Module.getViewCamera().setLocation(new Module.JSVector3D(128.17027234928892, 37.317742034123754, 891874.4705844223));
+	}
+};
+
+function getPointMarkerIcon(_id, _color) {
+
+	var canvas = document.createElement('canvas');
+	var size = 16;
+	canvas.width = size;
+	canvas.height = size;
+
+	var ctx = canvas.getContext('2d');
+	ctx.beginPath();
+	ctx.arc(size/2, size/2, size/2, 0, 2 * Math.PI, false);
+	ctx.fillStyle = _color;
+	ctx.fill();
+
+	// Regist image data
+	if (Module.getSymbol().insertIcon(_id, ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height)) {
+		return Module.getSymbol().getIcon(_id);
+	}
+
+	return null;
+}
+
+function createRandomPoint(_count) {
+
+	var pointIcon = getPointMarkerIcon('normal', 'rgba(255, 255, 0, 0.5)');
+	var pointHighlightIcon = getPointMarkerIcon('highlight', 'rgba(255, 0, 0, 0.5)');
+	if (pointIcon == null) {
+		return;
+	}
+
+	var layer = Module.getObjectLayerList().createObjectLayer({
+		name : "point_layer",
+		type : Module.ELT_3DPOINT,
+		maxDistance : 99999999.9
+	});
+	GLOBAL.layer = layer;
+
+	for (var i=0; i<_count; i++) {
+
+		var point = Module.createPoint("POINT_"+i);
+
+		point.setPosition(new Module.JSVector3D(
+			Math.random() * (132.0 - 124.0) + 124.0,
+			Math.random() * (43.0 - 33.0) + 33.0,
+			10000.0
+		));
+		
+		point.setIcon(pointIcon);
+		point.setHighlightIcon(pointHighlightIcon);
+
+		layer.addObject(point, 0);
+	}
+
+	layer.rebuildObjectLayer();
+}
+
+function setMouseEvent() {
+
+	if (typeof Module.canvas == "undefined") {
+		return;
+	}
+
+	document.getElementById("map").onmousemove = function(e) {
+		
+		var pick = GLOBAL.layer.pick(e.offsetX, e.offsetY);
+
+		if (pick == null) {
+
+			// If the object is not picked, the previous object is reset.
+			if (GLOBAL.pickPoint != null) {
+				GLOBAL.pickPoint.setHighlight(false);
+				GLOBAL.pickPoint = null;
+				openPopup(null);
+			}
+	
+		} else {
+			
+			var object = GLOBAL.layer.keyAtObject(pick.objectKey);
+
+			if (GLOBAL.pickPoint != null) {
+				GLOBAL.pickPoint.setHighlight(false);
+			}
+
+			object.setHighlight(true);
+			openPopup([e.clientX, e.clientY - 10], object.getId() + " popup");
+
+			GLOBAL.pickPoint = object;
+		}
+	}
+}
+
+function getquadrant(_position) {
+
+	if (_position == null) {
+		return -1;
+	}
+
+	var width = window.innerWidth;
+	var height = window.innerHeight;
+
+	if (_position[0] < width/2) {
+		if (_position[1] < height/2) {
+			return 1;
+		} else {
+			return 3;
+		}
+	} else {
+		if (_position[1] < height/2) {
+			return 2;
+		} else {
+			return 4;
+		}
+	}
+}
+
+function openPopup(_position, _text) {
+
+	var popup = document.getElementById("popup");
+	if (popup == null) {
+		return;
+	}
+
+	if (_position == null) {
+		popup.style.display = "none";
+	} else {
+
+		var width = Module.canvas.width;
+		var height = Module.canvas.height;
+
+		var quadrant = getquadrant(_position);
+
+		switch (quadrant) {
+		case 1:
+			popup.style.right = "auto";
+			popup.style.left = _position[0] + "px";
+			popup.style.bottom = "auto";
+			popup.style.top = _position[1] + "px";
+			break;
+		case 2:
+			popup.style.left = "auto";
+			popup.style.right = width-_position[0] + "px";
+			popup.style.bottom = "auto";
+			popup.style.top = _position[1] + "px";
+			break;
+		case 3:
+			popup.style.right = "auto";
+			popup.style.left = _position[0] + "px";
+			popup.style.top = "auto";
+			popup.style.bottom = height-_position[1] + "px";
+			break;
+		default:
+			popup.style.left = "auto";
+			popup.style.right = width-_position[0] + "px";
+			popup.style.top = "auto";
+			popup.style.bottom = height-_position[1] + "px";
+			break;
+		}
+
+		popup.style.display = "block";
+		popup.innerHTML = _text;
+	}
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

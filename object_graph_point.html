@@ -20,39 +20,122 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="checkbox" onChange="setPointLineVisible(this.checked);"> Display point vertical lines.</input>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Graph : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera
+		var camera = Module.getViewCamera();
+		camera.setLocation(new Module.JSVector3D(126.78693528538836, 35.00213429887883, 800.0));
+		camera.setTilt(20.0);
+
+		camera.setPermitUnderGround(true);
+		camera.setLimitTilt(-88.0);
+		camera.setLimitAltitude(-1000.0);
+
+		// Create graph object type layer
+		var layerList = new Module.JSLayerList(true);
+		var layer = layerList.createLayer("LAYER_GRAPH", Module.ELT_GRAPH);
+
+		// Load graph data
+		$.getJSON("./data/pointData.json", function(respond) {
+			
+			// Create graph
+			var graph = createGraph(respond.data);
+			layer.addObject(graph, 0);
+			
+			layer.setMaxDistance(1000000.0);
+			
+			GLOBAL.Graph = graph;
+		});
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create graph */
+function createGraph(_data) {
+
+	// Create graph object
+	var graph = Module.createPointGraph("Graph");
+
+	// Add graph legends and colors
+	graph.insertLegend(0.0, new Module.JSColor(117, 0, 159));
+	graph.insertLegend(0.2, new Module.JSColor(0, 53, 239));
+	graph.insertLegend(0.4, new Module.JSColor(0, 153, 246));
+	graph.insertLegend(0.6, new Module.JSColor(142, 251, 0));
+	graph.insertLegend(0.8, new Module.JSColor(255, 255, 0));
+	graph.insertLegend(1.0, new Module.JSColor(255, 216, 0));
+	graph.insertLegend(1.2, new Module.JSColor(255, 107, 33));
+	graph.insertLegend(1.4, new Module.JSColor(255, 0, 0));
+
+	// Set X, Y, Z coordinates
+	graph.setAxisRange(0, 0.0, 1.0, 0.1);
+	graph.setAxisRange(1, 0.0, 1.1, 0.1);
+	graph.setAxisRange(2, -0.2, 1.3, 0.1);
+
+	// Input data
+	var dataSet = 0,
+		len = _data.length
+		;
+	for (i=0; i<len; i++) {
+		dataSet = _data[i];
+		graph.insertData(dataSet.x, dataSet.y, dataSet.z, dataSet.value);
+	}
+
+	// Set point vertical line to invisible
+	graph.setPointLineVisible(false);
+
+	// Create graph
+	graph.create(
+		new Module.JSVector3D(126.78693528538836, 35.01813429887883, 100.0),
+		new Module.JSSize3D(400.0, 500.0, 300.0)
+	);
+				
+	return graph;
+}
+
+function setPointLineVisible(_bSet) {
+
+	if (GLOBAL.Graph == null) {
+		return;
+	}
+
+	GLOBAL.Graph.setPointLineVisible(_bSet);
+}
   </script>
 </body>
 </html>

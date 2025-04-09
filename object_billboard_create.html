@@ -20,39 +20,128 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Layer : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera position
+		var camera = Module.getViewCamera();	
+		camera.setTilt(42);
+		camera.setLocation(new Module.JSVector3D(127.0280174300449, 37.49134356590197, 600.0));
+		
+		// Add building layer
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+		Module.setVisibleRange("facility_build", 1.5, 200000.0);
+		
+		// Create layer to store billboard
+		var layerList = new Module.JSLayerList(true);
+		GLOBAL.Layer = layerList.createLayer("BILLBOARD", Module.ELT_BILLBOARD);
+		GLOBAL.Layer.setMaxDistance(200000.0);
+			
+		// Register Icon
+		createIcon("LibraryIcon", "./data/billboard_icon0.png", function(_iconName) {
+			createBillboard("Billboard0", new Module.JSVector3D(127.02857931345973, 37.497162636575126, 180.06082765944302), _iconName);
+			createBillboard("Billboard1", new Module.JSVector3D(127.02658675036531, 37.49503193915024, 105.90265260543674), _iconName);
+		});
+		
+		createIcon("WifiIcon", "./data/billboard_icon1.png", function(_iconName) {
+			createBillboard("Billboard2", new Module.JSVector3D(127.02635585718895, 37.49593048789443, 185.48948934022337), _iconName);
+			createBillboard("Billboard3", new Module.JSVector3D(127.03042887825468, 37.497153259638615, 120.36115500889719), _iconName);
+		});
+		
+		createIcon("HomeIcon", "./data/billboard_icon2.png", function(_iconName) {
+			createBillboard("Billboard4", new Module.JSVector3D(127.03009102657755, 37.49827393900996, 130.64789778459817), _iconName);
+			createBillboard("Billboard5", new Module.JSVector3D(127.02701312238139, 37.49669642258654, 235.91241467557847), _iconName);
+		});
+		
+		createIcon("CafeIcon", "./data/billboard_icon3.png", function(_iconName) {
+			createBillboard("Billboard6", new Module.JSVector3D(127.02903755790646, 37.49605775325664, 115.0783973429352), _iconName);
+			createBillboard("Billboard7", new Module.JSVector3D(127.02563395077522, 37.49674634607262, 185.69131097383797), _iconName);
+		});
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create icon object (JSIcon) and add to Symbol */
+function createIcon(_iconName, _url, _imageLoadedCallback) {
+	
+	var img = new Image();
+	
+	// Load icon image
+	img.onload = function(){
+		
+		// Create image data through canvas
+		var canvas = document.createElement('canvas');
+		canvas.width = img.width;
+		canvas.height = img.height;
+		
+		var ctx = canvas.getContext('2d');
+		ctx.drawImage(img, 0, 0);
+		
+		var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+		
+		// Add new icon to Symbol
+		if (Module.getSymbol().insertIcon(_iconName, imageData, canvas.width, canvas.height)) {			
+			if (_imageLoadedCallback) {
+				_imageLoadedCallback(_iconName);
+			}
+		}
+	};
+	img.src = _url;
+}
+
+/* Create billboard object with symbol icon applied */
+function createBillboard(_objectKey, _position, _iconName) {
+	
+	// Create billboard object
+	var billboard = Module.createBillboard(_objectKey);
+	
+	// Set billboard icon by getting Icon object from Symbol with iconName
+	billboard.set(_position, Module.getSymbol().getIcon(_iconName), 30.0, 30.0);
+	
+	// Add object to the layer
+	GLOBAL.Layer.addObject(billboard, 0);
+}
   </script>
 </body>
 </html>

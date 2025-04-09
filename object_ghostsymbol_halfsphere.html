@@ -20,39 +20,149 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Set camera
+  Module.getViewCamera().look(new Module.JSVector3D(126.75920130674226, 36.61610484486044, 6603.90219051484), new Module.JSVector3D(126.75524359319125, 36.718343078919034, 1605.3267635470256));
+  
+  // Load model
+  loadGhostSymbolModel("./data/half_sphere.3ds", function (_modelID) {
+    
+    createHalfSphere(
+      _modelID,
+      new Module.JSVector3D(126.75174929181311, 36.74082929819784, 4.999087207019329),
+      [{
+        radius : 1000,
+        opacity : 0.6,
+        color : new Module.JSColor(255, 0, 0),
+      },{
+        radius : 2000,
+        opacity : 0.4,
+        color : new Module.JSColor(255, 255, 0),
+      },{
+        radius : 3000,
+        opacity : 0.2,
+        color : new Module.JSColor(0, 255, 0),
+      }]
+    );
+  });
+}
+};
+
+/* Create object */
+function createHalfSphere(_modelID, _position, _radius_colors) {
+
+// Create ghost symbol layer
+var ghostSymbolLayer = Module.getObjectLayerList().createObjectLayer({
+  name : "HALF_SPHERE_LAYER",
+  type : Module.ELT_GHOST_3DSYMBOL,
+  maxDistance : 1000000
+});
+
+// Create outer line
+var outline_layer = Module.getObjectLayerList().createObjectLayer({
+  name : "HALF_SPHERE_OUTLINE_LAYER",
+  type : Module.ELT_PLANE,
+  maxDistance : 1000000,
+  selectable : false
+});
+
+// Return model height
+var modelHalfHeight = Module.getGhostSymbolMap().getGhostSymbolSize(_modelID).height * 0.5;
+Module.getGhostSymbolMap().setModelFaceReflect(_modelID, 0, 0.5);
+
+// Create object
+for (var i=0; i<_radius_colors.length; i++) {
+
+  var options = _radius_colors[i];
+  var radius = options.radius;
+
+  // Create ghost symbol
+  var halfSphere = Module.createGhostSymbol("HALF_SPHERE_" + i);
+  halfSphere.setBasePoint(0, -modelHalfHeight, 0);
+  halfSphere.setGhostSymbol(_modelID);
+  halfSphere.setPosition(_position);
+  halfSphere.setScale(new Module.JSSize3D(radius, radius, radius));
+  halfSphere.color = options.color;
+  halfSphere.opacity = options.opacity;
+
+  // Add to layer
+  ghostSymbolLayer.addObject(halfSphere, 0);
+
+  // Create outer line
+  var line = Module.createLineString("HALF_SPHERE_OUTLINE_" + i);
+  
+  var vertex = new Module.JSVec3Array();
+  var map = Module.getMap();
+
+  // Calculating the coordinates of a circle based on angles as it rotates 360 degrees
+  var segment = 32;
+  var segmentAngle = 360.0 / segment;
+
+  var angle = 0.0;
+  for (var angle = 0; angle < 360; angle+=segmentAngle) {
+    vertex.push(map.getPositionByAngleDistance3D(_position, radius, angle));
+  }
+  vertex.push(vertex.get(0));
+
+  line.createbyJson({
+    coordinates : {
+      coordinate : vertex,
+      style : "JSVector3D"
+    },
+    color : options.color,
+    width : 5.0,
+    union: true
+  });
+
+  outline_layer.addObject(line, 0);
+}
+}
+
+/* Load model */
+function loadGhostSymbolModel(_url, _callback) {
+
+Module.getGhostSymbolMap().insert({
+
+  id : "cylinder",
+  url : _url,
+  callback : function(e) {
+    _callback(e.id);
+  }
+});
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

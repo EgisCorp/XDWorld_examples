@@ -20,39 +20,195 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="radio" name="grid" onClick="createGrid(null);" checked> None
+<input type="radio" name="grid" onClick="createGrid(5.0);"> 5m
+<input type="radio" name="grid" onClick="createGrid(10.0);"> 10m
+<input type="radio" name="grid" onClick="createGrid(20.0);"> 20m
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	GRID_AREA : null	// grid area coordinates list
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+		// Initial position setup
+		Module.getViewCamera().setLocation(new Module.JSVector3D(126.932342, 37.528878, 530.0));
+
+		// Store grid area coordinates list
+		GLOBAL.GRID_AREA = new Module.JSVec3Array();
+		GLOBAL.GRID_AREA.push(new Module.JSVector3D(126.931853, 37.530050, 0.0));
+		GLOBAL.GRID_AREA.push(new Module.JSVector3D(126.933351, 37.529062, 0.0));
+		GLOBAL.GRID_AREA.push(new Module.JSVector3D(126.933637, 37.528572, 0.0));
+		GLOBAL.GRID_AREA.push(new Module.JSVector3D(126.932778, 37.527847, 0.0));
+		GLOBAL.GRID_AREA.push(new Module.JSVector3D(126.932053, 37.528509, 0.0));
+		GLOBAL.GRID_AREA.push(new Module.JSVector3D(126.931667, 37.529036, 0.0));
+		GLOBAL.GRID_AREA.push(new Module.JSVector3D(126.931326, 37.529604, 0.0));
+
+		// // Markup grid area
+		markupGridArea();
+	}
+};
+
+/* // Markup grid area RTT */
+function markupGridArea() {
+
+	// Create polygon for area RTT
+	var polygon = Module.createPolygon("TREE_AREA");
+
+	// Set polygon style
+	var style = new Module.JSPolygonStyle();
+	style.setFill(true);
+	style.setFillColor(new Module.JSColor(150, 255, 255, 0));
+	polygon.setStyle(style);
+	
+	// Set polygon coordinates
+	var part = new Module.Collection();
+	part.add(GLOBAL.GRID_AREA.count());
+	polygon.setPartCoordinates(GLOBAL.GRID_AREA, part);
+	
+	// Set union mode for RTT
+	polygon.setUnionMode(true);
+	
+    // Add object to layer
+    var layer = Module.getObjectLayerList().createObjectLayer({
+		name : "GRID_AREA_LAYER", 
+		type : Module.ELT_PLANE
+	});
+
+    layer.addObject(polygon, 0);
+}	
+
+/* Create grid */
+function createGrid(_interval) {
+
+	// Get min and max rect coordinates of grid area
+	var areaBoundary = GLOBAL.GRID_AREA.getBoundary();
+
+	// Return vertex list by dividing the analysis area rect into regular intervals
+	var gridIntervals = Module.getMath().GetIntervalPositionInRect(
+		new Module.JSVector2D(areaBoundary.min.Longitude, areaBoundary.min.Latitude),
+		new Module.JSVector2D(areaBoundary.max.Longitude, areaBoundary.max.Latitude),
+		_interval,	// Horizontal interval
+		_interval	// Vertical interval
+	);
+
+	// Create vertex and color lists
+	var gridIntervalPositions = gridIntervals.position;
+	var gridIntervalCountWidth = gridIntervals.positionCountWidth;
+	var gridIntervalCountHeight = gridIntervals.positionCountHeight;
+
+	var vertexList = [];
+	var colorList = [];
+
+	var gridArea2D = GLOBAL.GRID_AREA.toJSVec2Array();
+	var randomColorList = [
+		Module.COLOR_RED,
+		Module.COLOR_GREEN,
+		Module.COLOR_BLUE,
+		Module.COLOR_YELLOW,
+		Module.COLOR_WHITE
+	];
+
+	for (var i=0; i<gridIntervalCountHeight-1; i++) {
+
+		for (var j=0; j<gridIntervalCountWidth-1; j++) {
+
+			// Calculate grid cell vertices
+			var leftTopIndex = (gridIntervalCountWidth*i) + j;
+			var rightTopIndex = leftTopIndex + 1;
+			var rightBottomIndex = leftTopIndex + gridIntervalCountWidth + 1;
+			var leftBottomIndex = leftTopIndex + gridIntervalCountWidth;
+
+			var leftTop = gridIntervalPositions.get(leftTopIndex);
+			var rightTop = gridIntervalPositions.get(rightTopIndex);
+			var rightBottom = gridIntervalPositions.get(rightBottomIndex);
+			var leftBottom = gridIntervalPositions.get(leftBottomIndex);
+
+			// Check if cell coordinates are inside the grid area
+			if (!isInPolygon(gridArea2D, [leftTop, rightTop, rightBottom, leftBottom])) {
+				continue;
+			}
+
+			// Add grid cell vertices to the list
+			vertexList.push(new Module.JSVector3D(leftTop.x, leftTop.y, 15.0));
+			vertexList.push(new Module.JSVector3D(rightBottom.x, rightBottom.y, 15.0));
+			vertexList.push(new Module.JSVector3D(rightTop.x, rightTop.y, 15.0));
+			
+			vertexList.push(new Module.JSVector3D(leftTop.x, leftTop.y, 15.0));
+			vertexList.push(new Module.JSVector3D(leftBottom.x, leftBottom.y, 15.0));
+			vertexList.push(new Module.JSVector3D(rightBottom.x, rightBottom.y, 15.0));
+
+			// Set random color for each vertex
+			var cellColor = randomColorList[parseInt(Math.random()*randomColorList.length)];
+			for (var k=0; k<6; k++) {
+				colorList.push(cellColor);
+			}
+		}
+	}
+
+	// Create grid polygon
+	var grid = Module.createColorPolygon("TERRAIN_ALTITUDE_COLOR");
+	grid.set({
+		vertex : vertexList,
+		color : colorList
+	});
+
+	// Return layer and add object
+	var layerList = Module.getObjectLayerList();
+	var layer = layerList.nameAtLayer("GRID_LAYER");
+	if (layer == null) {
+		layer = layerList.createObjectLayer({
+			name : "GRID_LAYER",
+			type : Module.ELT_POLYHEDRON
+		});
+	} else {
+		layer.removeAll();
+	}
+	layer.addObject(grid, 0);
+}
+
+/* Check if the point list is inside the grid area */
+function isInPolygon(_area, _pointList) {
+
+	var isInPolygon = Module.getMath().isPointInPolygon(_area, _pointList);
+	for (var i=0; i<isInPolygon.length; i++) {
+		if (!isInPolygon[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

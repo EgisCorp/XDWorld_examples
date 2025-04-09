@@ -20,39 +20,103 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.92416038220622, 37.52166339268871, 500.0));
+  
+  createPOI();
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function createPOI() {
+
+// Create a layer to add POI objects
+var layerList = new Module.JSLayerList(true);
+var layer = layerList.createLayer("POI_TEST", Module.ELT_3DPOINT);
+
+// TEXT POI
+var poi_with_text = Module.createPoint("POI_WITH_TEXT");
+poi_with_text.setPosition(new Module.JSVector3D(126.92294276906125, 37.52153977459489, 14.736136004328728));
+poi_with_text.setText("TEXT");
+layer.addObject(poi_with_text, 0);
+
+// Image POI
+var img = new Image();
+img.onload = function() {
+
+  // Draw image on canvas after loading
+  var canvas = document.createElement('canvas');
+  var ctx = canvas.getContext('2d');
+  canvas.width = this.width;
+  canvas.height = this.height;
+  ctx.drawImage(img, 0, 0);
+  
+  // Create image POI
+  var poi_with_image = Module.createPoint("POI_WITH_IMAGE");
+  poi_with_image.setPosition(new Module.JSVector3D(126.92411650990323, 37.521620864485, 13.315417435020208));
+  poi_with_image.setImage(ctx.getImageData(0, 0, this.width, this.height).data, this.width, this.height);
+  this.layer.addObject(poi_with_image, 0);
+  };
+  img.layer = layer;
+  img.src = "./data/map_pin.png"
+  
+// Text & image POI
+var img = new Image();
+img.onload = function() {
+
+  // Draw image on canvas after loading
+  var canvas = document.createElement('canvas');
+  var ctx = canvas.getContext('2d');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  ctx.drawImage(img, 0, 0);
+  
+  // Create image POI
+  var poi_with_text_n_image = Module.createPoint("POI_WITH_IMAGE");
+  poi_with_text_n_image.setPosition(new Module.JSVector3D(126.92522784212862, 37.52163632683868, 13.357510312460363));
+  poi_with_text_n_image.setImage(ctx.getImageData(0, 0, this.width, this.height).data, this.width, this.height);
+  
+  // Set text
+  poi_with_text_n_image.setText("TEXT");
+  
+  this.layer.addObject(poi_with_text_n_image, 0);
+  };
+  img.layer = layer;
+  img.src = "./data/map_pin.png"
+}
   </script>
 </body>
 </html>

@@ -20,39 +20,149 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <div id="my_div" style="background: cornsilk; position: relative; z-index: 2; width: 250px; height: 30px">
+        <input type="radio" name="radio_ahead" onChange="setAhead(1);" /> ON <input type="radio" name="radio_ahead" onChange="setAhead(0);" checked /> OFF
+        <input type="button" value="POI" onclick="CreatePOI();" />
+        <input type="button" value="HTML" onclick="CreateHTMLObject();" />
+</div>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    let GLOBAL = {
+    Layer : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        Module.initialize({
+            container: document.getElementById("map"),
+            terrain: {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+            },
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
+        });
+
+        // Set Camera
+        var camera = Module.getViewCamera();
+        camera.setLocation(new Module.JSVector3D(129.1218, 35.167229, 1000.0));
+
+        // Set facility layer
+        Module.getTileLayerList().createXDServerLayer({
+            url: "https://xdworld.vworld.kr",
+            servername: "XDServer3d",
+            name: "facility_build",
+            type: 9,
+            minLevel: 0,
+            maxLevel: 15,
+        });
+
+        // Create POI Object
+        CreatePOI();
+    },
+};
+
+function setAhead(_is_type) {
+    GLOBAL.Layer.object_ahead = _is_type;
+
+    Module.XDRenderData();
+}
+
+function resetStatus(_layer) {
+    document.getElementsByName("radio_ahead")[0].checked = false;
+    document.getElementsByName("radio_ahead")[1].checked = true;
+
+    _layer.object_ahead = false;
+
+    Module.XDRenderData();
+}
+
+function CreatePOI() {
+    
+    if (GLOBAL.Layer != null) GLOBAL.Layer.removeAll();
+
+    var img = new Image();
+    img.onload = function () {
+        var canvas = document.createElement("canvas");
+        var ctx = canvas.getContext("2d");
+        canvas.width = this.width;
+        canvas.height = this.height;
+        ctx.drawImage(img, 0, 0);
+
+        let layerList = new Module.JSLayerList(true);
+        let layer = layerList.createLayer("POI_TEST", Module.ELT_3DPOINT);
+
+        for (let x = 0; x < 10; ++x) {
+            for (let y = 0; y < 10; ++y) {
+                let name = "POI_" + x + "_" + y;
+                let poi = Module.createPoint(name);
+
+                poi.setText(name);
+                poi.setPosition(new Module.JSVector3D(129.12 + 0.0003 * x, 35.166 + 0.0003 * y, 10));
+                poi.setImage(ctx.getImageData(0, 0, this.width, this.height).data, this.width, this.height);
+                layer.addObject(poi, 0);
+            }
+        }
+        resetStatus(layer);
+        GLOBAL.Layer = layer;
+    };
+    img.src = "./data/map_pin.png";
+    
+    
+}
+
+function CreateHTMLObject() {
+
+    if (GLOBAL.Layer != null) GLOBAL.Layer.removeAll();
+    
+    let layerList = new Module.JSLayerList(true);
+    var layer = layerList.createLayer("HTML_TEST", Module.ELT_POLYHEDRON);
+
+    for (let x = 0; x < 10; ++x) {
+        for (let y = 0; y < 10; ++y) {
+            let name = "HTML_" + x + "_" + y;
+
+            let object = Module.createHTMLObject(name);
+            let element = document.createElement("img");
+            let parameter = {
+                position: new Module.JSVector3D(129.12 + 0.0003 * x, 35.166 + 0.0003 * y, 10), // Position
+                container: "map", // Specify the name of the container to hold the div (if there is no div corresponding to the name, it will be created during createHTMLObject operation)
+                canvas: Module.canvas, // Canvas for screen size setting
+                element: element, // HTML Element to be linked with the engine object
+            };
+
+            let complete = object.createbyJson(parameter);
+
+            if (complete.result == 1) {
+                layer.addObject(object, 0);
+                element.style.color = "rgba(255,255,255,1)";
+                element.className = "image";
+                element.src = "./data/map_pin.png";
+            }
+        }
+    }
+    
+	resetStatus(layer);
+    GLOBAL.Layer = layer;
+}
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

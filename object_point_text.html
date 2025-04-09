@@ -20,39 +20,132 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.92416038220622, 37.52166339268871, 500.0));
+
+  // Create point object
+  let position = new Module.JSVector3D(126.92416038220622, 37.52166339268871, 50);
+  let point = createPOI(position, {
+    text : "POI Text\nTest message\naAbBcCdDeE\n123456789",
+    font : "Consolas",
+    fontSize : 15,
+    fontColor: "rgba(0, 0, 0, 1.0)",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    outlineColor: "rgba(200, 200, 0, 0.5)",
+    outlineWidth : 1,
+  });
+  
+  // Add object to layer
+  let layerList = new Module.JSLayerList(true);
+  let layer = layerList.createLayer("POI_TEST", Module.ELT_3DPOINT);
+  layer.addObject(point, 0);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create POI object */
+function createPOI(_position, _textOptions) {
+
+// Create POI
+let point = Module.createPoint("TEXT_POI");
+point.setPosition(_position);
+
+let canvas = document.createElement("canvas");
+let boardImage = createBoardImage(canvas, _textOptions);
+point.setImage(boardImage.data, boardImage.width, boardImage.height);
+
+return point;
+}
+
+/* Draw POI image on canvas */
+function createBoardImage(_canvas, _textOptions) {
+
+// Set default font
+let fontname, fontsize,	linewidth;
+
+fontname = _textOptions.font;
+fontsize = _textOptions.fontSize;
+linewidth = _textOptions.outlineWidth;
+
+// Font settings
+let _ctx = _canvas.getContext("2d");
+_ctx.font = fontsize + "px " + fontname;	// Size and font 
+
+// Measure length
+let strlist = _textOptions.text.split("\n");
+let width = 0;
+let linecount = 0;
+
+// Set image width and height
+for (let item of strlist) {
+  let w = _ctx.measureText(item).width
+  if (w > width) width = w;
+  linecount++;
+}
+
+var rectWidth = width + _textOptions.fontSize;
+var rectHeight = _textOptions.fontSize * (linecount + 1);
+
+_canvas.width = rectWidth;
+_canvas.height = rectHeight;
+
+_ctx.fillStyle = _textOptions.backgroundColor;		// Background 
+_ctx.fillRect(0, 0, width + _textOptions.fontSize, _textOptions.fontSize * (linecount + 1));
+_ctx.strokeRect(0, 0, width + _textOptions.fontSize, _textOptions.fontSize * (linecount + 1));
+
+_ctx.lineWidth = _textOptions.linewidth;
+_ctx.textBaseline = "middle";
+_ctx.textAlign = "center";
+
+linecount = 1;
+
+for (let item of strlist) {
+  _ctx.strokeStyle = _textOptions.outlineColor;
+  _ctx.strokeText(item, (width + _textOptions.fontSize) * 0.5, _textOptions.fontSize * linecount);
+  _ctx.fillStyle = _textOptions.fontColor;
+  _ctx.fillText(item, (width + _textOptions.fontSize) * 0.5, _textOptions.fontSize * linecount);
+  linecount++;
+}
+
+return {
+  width : rectWidth,
+  height : rectHeight,
+  data : _ctx.getImageData(0, 0, rectWidth, rectHeight).data,
+};
+}
   </script>
 </body>
 </html>

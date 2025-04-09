@@ -20,39 +20,131 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+      },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+    Module.getViewCamera().setLocation(new Module.JSVector3D(127.221825542238, 36.87130576548358, 1348461.04383406));
+
+  var camera = Module.getViewCamera();
+  camera.setPermitUnderGround(true);
+  camera.setLimitTilt(-88.0);
+  camera.setLimitAltitude(-1000.0);
+
+  setTimeout(function() {
+    $.getJSON("./data/grid_value.json",function(_data){
+      showGrid(_data);
+    });
+  }, 10);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function showGrid(_data) {
+
+// Add layer
+var layerList = new Module.JSLayerList(true);
+var layer = layerList.createLayer("TEST_GRID_COLOR_LAYER", Module.ELT_POLYHEDRON);
+layer.setMaxDistance(2000000.0);
+layer.setMinDistance(100000.0);
+
+// Create grid object
+var colorGrid3D = Module.createColorGrid3D("TEST_GRID");
+
+// Set the grid cell positions based on the maximum, minimum rect, and cell count
+colorGrid3D.SetGridCellDefaultColor(new Module.JSColor(255, 255, 255, 0));
+
+// Set the position, size, and height of the grid cells
+var rowNum = 100,
+  colNum = 100;
+  
+var gridCellNum = colorGrid3D.SetGridPosition(
+  new Module.JSVector2D(124.2, 39), 		// Top-left corner of the grid
+  new Module.JSVector2D(130.5, 39), 		// Top-right corner of the grid
+  new Module.JSVector2D(130.5, 34.5), 	// Bottom-right corner of the grid
+  new Module.JSVector2D(124.2, 34.5), 	// Bottom-left corner of the grid
+  100000.0, 								// Elevation of the grid bottom surface
+  rowNum, 								// Number of grid cells horizontally
+  colNum									// Number of grid cells vertically
+);
+
+// List of colors for grid cells based on values
+var gridCellColor = [
+  new Module.JSColor(150,68,53,210),
+  new Module.JSColor(150,67,104,253),
+  new Module.JSColor(150,36,159,229),
+  new Module.JSColor(150,104,205,107),
+  new Module.JSColor(150,232,187,46),
+  new Module.JSColor(150,245,229,38)
+];
+
+var grididx = 0;
+var gridValue = 0;
+
+// Placement of grid colors and heights for each cell
+for(var i=0; i < rowNum;i++){
+  for(var j=0; j < colNum;j++){
+    
+    // Set cell color
+    if (typeof _data.cells[grididx] != 'undefined') {
+      
+      gridValue = parseFloat(_data.cells[grididx].VALUE);
+      
+      var color_index = null;
+
+      if(gridValue > 50) 			color_index = 5;
+      else if(gridValue > 40) 	color_index = 4;
+      else if(gridValue > 30)		color_index = 3;
+      else if(gridValue > 20) 	color_index = 2;
+      else if(gridValue > 10) 	color_index = 1;
+      else 						color_index = 0;
+
+    } else {
+      gridValue = 0;
+      color_index = 0;
+    }
+
+    colorGrid3D.SetGridCellColor(j, i, gridCellColor[color_index]);
+    colorGrid3D.SetGridCellHeight(j, i, gridValue*1000.0);
+    
+    grididx++;
+  }
+}
+  
+// Create the grid object based on the configured options
+colorGrid3D.Create();
+
+layer.addObject(colorGrid3D, 0);
+}
   </script>
 </body>
 </html>

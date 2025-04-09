@@ -20,39 +20,70 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <Select id="SE_MouseMode" onChange="SetMouseState(parseInt(this.value));">
+        <option value="1">Move map</option>
+        <option value="101">Rectangle</option>
+        <option value="102">Circle</option>
+        <option value="103">Arrow(one-way)</option>
+        <option value="104">Arrow(two-way)</option>
+        <option value="105">Polygon(convex)</option>
+        <option value="106">Polygon(concave)</option>
+        <option value="107">Rectangle(rounded corner)</option>
+        <option value="108">Bearing</option>
+        <option value="109">Star</option>
+        <option value="110">Plus sign</option>
+      </Select>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	LayerList : null,
+	Layer : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		GLOBAL.LayerList = new Module.JSLayerList(true);
+		GLOBAL.Layer = GLOBAL.LayerList.createLayer("TestLayer", 0);
+		GLOBAL.Layer.setEditable(true);
+		
+		Module.getViewCamera().moveLonLatAlt(127.0273188, 37.4977981, 1000, true);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function SetMouseState(_value) {
+	Module.XDSetMouseState(_value);
+	document.getElementById("SE_MouseMode").value = 1;	// Change move-map mode
+}
   </script>
 </body>
 </html>

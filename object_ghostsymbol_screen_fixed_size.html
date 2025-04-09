@@ -20,39 +20,153 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="checkbox" onchange="setUseScreenFixedSize(this.checked);" checked> Use Screen Fixed Size<br>
+<input type="range" id="screenFixedSize" min="0.1" max="200.0" step="0.1" value="50.0" oninput="setScreenFixedSize(parseFloat(this.value));">
+<span id="screenFixedSizeValue">50.0</span>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	ghostSymbolObject : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        
+        // Call engine initialization API(essential)
+        Module.initialize({
+            container: document.getElementById("map"),
+            terrain: {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+            },
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+        });
+
+        // Set camera
+		Module.getViewCamera().look(
+			new Module.JSVector3D(129.12603346824545, 35.169099063383726, 107.46673581656069),
+			new Module.JSVector3D(129.12613682938152, 35.17124739865533, 5.853058106265962)
+		);
+
+		var objectPosition = new Module.JSVector3D(129.1261352701963, 35.170643013330896, 50.0);
+
+		createPoint(objectPosition);
+		createGhostSymbol(objectPosition);
+    }
+};
+
+function createGhostSymbol(_position) {
+
+    // Create the ghost symbol layer
+    Module.getGhostSymbolMap().insert({
+        id: "torus",
+        url: "./data/torus.3ds",
+        callback: function(e) {
+
+            // Create object and add to layer
+            var object = Module.createGhostSymbol("torus");
+    
+            object.setGhostSymbol(e.id);
+            object.setPosition(_position);
+            object.color = Module.COLOR_RED;
+            object.setScreenFixedSize(parseFloat(document.getElementById("screenFixedSize").value));
+            
+            var ghostSymbolLayer = Module.getObjectLayerList().createObjectLayer({
+                name : "GHOST_SYMBOL_LAYER",
+                type : Module.ELT_GHOST_3DSYMBOL,
+                maxDistance : 99999999.0
+            });
+            ghostSymbolLayer.addObject(object, 0);
+        
+            GLOBAL.ghostSymbolObject = object;
+        }
+    });
+}
+
+function createPoint(_position) {
+
+    // Create position point
+    var point = Module.createPoint("POINT");
+    
+    var pointImage = getPointDotImage(5, 'red');
+    point.setImage(pointImage.data, pointImage.width, pointImage.height);
+    
+    point.setPosition(_position);
+    point.setPositionLine(0.0, Module.COLOR_RED);
+
+    // Create layer and add object
+    var pointLayer = Module.getObjectLayerList().createObjectLayer({
+        name : "POINT_LAYER",
+        type : Module.ELT_GHOST_3DSYMBOL,
+        minDistance : 0.0,
+        maxDistance : 99999999.0
+    });
+
+    pointLayer.addObject(point, 0);
+}
+
+function getPointDotImage(_size, _fillColor) {
+
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+    canvas.width = _size;
+    canvas.height = _size;
+    context.fillStyle = _fillColor;
+    context.beginPath();
+    context.arc(_size / 2, _size / 2, _size / 2, 0, Math.PI * 2, true);
+    context.fill();
+    return {
+        data: context.getImageData(0, 0, _size, _size).data,
+        width: _size,
+        height: _size
+    };
+}
+
+function setUseScreenFixedSize(_use) {
+
+    if (GLOBAL.ghostSymbolObject == null) {
+        return;
+    }
+
+    var sizeRange = document.getElementById("screenFixedSize");
+    
+    if (_use) {
+        GLOBAL.ghostSymbolObject.setScreenFixedSize(parseFloat(sizeRange.value));
+        sizeRange.disabled = false;
+    } else {
+        GLOBAL.ghostSymbolObject.setScreenFixedSize(null);
+        sizeRange.disabled = true;
+    }
+} 
+
+function setScreenFixedSize(_size) {
+    
+    if (GLOBAL.ghostSymbolObject == null) {
+        return;
+    }
+    
+    GLOBAL.ghostSymbolObject.setScreenFixedSize(_size);
+
+    document.getElementById("screenFixedSizeValue").innerHTML = _size.toFixed(1);
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

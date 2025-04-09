@@ -20,39 +20,289 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span id="message"></span>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
+    var GLOBAL = {
+    layer : null,
+    animationHandle : null
+};
+
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera position
+        Module.getViewCamera().look(new Module.JSVector3D(129.35042717968093, 29.527315681168254, 515638.65307826176), new Module.JSVector3D(125.85012486973929, 33.635509529768555, 13700.624016179703));
+				
+        // Terrain slope rate setting
+        Module.getTerrain().demRate = 0.0;
+
+        // Load arrow group data
+        $.ajax({
+            url: "./data/arrowGroup.json",
+            type: "GET",
+            dataType: "json",
+            success: function(_data) {
+                createGrid(_data);
             }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
         });
-      }
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+// create arrow groups
+function createGrid(_data) {
+
+    var layer = Module.getObjectLayerList().createObjectLayer({
+        name : "arrow_group_layer",
+        type : Module.ELT_POLYHEDRON,
+        maxDistance : 9999999.9
+    });
+    GLOBAL.layer = layer;
+
+    var frameIndex = 0;
+    var objectCreateInterval = setInterval(function() {
+
+        // create arrow group object
+        var object = createArrowGroup("arrow_grid_"+frameIndex, _data.positions, _data.frames[frameIndex++]);
+        if (object != null) {
+            layer.addObject(object, 0);
+        }
+
+        document.getElementById("message").innerText = "Create Arrow Processing : "+(frameIndex+1)+"/"+_data.frames.length;
+
+        // If all arrow groups are created, play the animation
+        if (frameIndex >= _data.frames.length) {
+            clearInterval(objectCreateInterval);
+            play();
+        }
+
+    }, 1);
+}
+
+// create arrow group object
+function createArrowGroup(_objectID, _positions, _frame) {
+
+    var vertexList = [];
+    var indexList = [];
+    var colorList = [];
+
+    for (var i=0; i<_positions.length; i++) {
+
+        var arrowVertex = getArrowGeometry(
+            new Module.JSVector3D(_positions[i].longitude, _positions[i].latitude, _frame[i].height),
+            _frame[i].u,
+            _frame[i].v
+        );
+
+        if (arrowVertex == null) {
+            continue;
+        }
+        
+        var indexStart = vertexList.length;
+        indexList.push(...[
+            indexStart, indexStart+1, indexStart+2,
+            indexStart, indexStart+3, indexStart+1
+        ]);
+        vertexList.push(...arrowVertex.vertexList);
+        colorList.push(...arrowVertex.colorList);
+    }
+
+    var object = Module.createColorPolygon(_objectID);
+    object.set({
+        vertex : vertexList,
+        index : indexList,
+        color : colorList
+    });
+
+    object.setVisible(false);
+
+    return object;
+}
+
+// Create arrow group geometry
+function getArrowGeometry(_position, _u, _v) {
+
+    var direction = getWindDirection(_u, _v);
+    var length = Math.sqrt(_u * _u + _v * _v);
+    if (length == 0) {
+        return null;
+    }
+
+    var size = length;
+
+    var halfArrowSize = size * 0.5;
+    var tilt = 0.0;
+
+    // Arrow head
+    var arrowHeadDirection = (direction < 0) ? direction + 360.0 : direction;
+    var distance = halfArrowSize * Math.cos(tilt * (Math.PI / 180.0));
+    var altitudeGap = halfArrowSize * Math.sin(tilt * (Math.PI / 180.0));
+    altitudeGap = (altitudeGap < 0.0) ? altitudeGap *= -1.0 : altitudeGap;
+
+    var arrowHead = Module.getMap().getPositionByAngleDistance3D(_position, distance, arrowHeadDirection);
+    arrowHead.Altitude += altitudeGap;
+
+    // Arrow tail(Left)
+    var arrowLeftTailDirection = (direction + 200.0) % 360.0;
+    arrowLeftTailDirection = (arrowLeftTailDirection < 0) ? arrowLeftTailDirection + 360.0 : arrowLeftTailDirection;
+
+    var arrowLeftTail = Module.getMap().getPositionByAngleDistance3D(_position, distance, arrowLeftTailDirection);
+    arrowLeftTail.Altitude -= altitudeGap;
+
+    // Arrow tail(Right)
+    var arrowRightTailDirection = (direction + 160.0) % 360.0;
+    arrowRightTailDirection = (arrowRightTailDirection < 0) ? arrowRightTailDirection + 360.0 : arrowRightTailDirection;
+
+    var arrowRightTail = Module.getMap().getPositionByAngleDistance3D(_position, distance, arrowRightTailDirection);
+    arrowRightTail.Altitude -= altitudeGap;
+
+    var color = getWindDirectionColor(direction);
+
+    return {
+        vertexList : [_position, arrowHead, arrowRightTail, arrowLeftTail],
+        colorList : [color, color, color, color]
+    }
+}
+
+// Get wind direction color
+function getWindDirectionColor(angle) {
+
+    const colors = {
+        N: { r: 150, g: 150, b: 255 },	// North
+        E: { r: 150, g: 255, b: 150 },	// East
+        S: { r: 255, g: 150, b: 150 },	// South
+        W: { r: 255, g: 255, b: 150 } 	// West
     };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+    angle = angle % 360;
+    if (angle < 0) angle += 360;
+
+    let startColor, endColor, startAngle, endAngle;
+    if (angle >= 0 && angle < 90) {
+        startColor = colors.N;
+        endColor = colors.E;
+        startAngle = 0;
+        endAngle = 90;
+    } else if (angle >= 90 && angle < 180) {
+        startColor = colors.E;
+        endColor = colors.S;
+        startAngle = 90;
+        endAngle = 180;
+    } else if (angle >= 180 && angle < 270) {
+        startColor = colors.S;
+        endColor = colors.W;
+        startAngle = 180;
+        endAngle = 270;
+    } else {
+        startColor = colors.W;
+        endColor = colors.N;
+        startAngle = 270;
+        endAngle = 360;
+    }
+
+    const factor = (angle - startAngle) / (endAngle - startAngle);
+
+    const r = Math.round(startColor.r + factor * (endColor.r - startColor.r));
+    const g = Math.round(startColor.g + factor * (endColor.g - startColor.g));
+    const b = Math.round(startColor.b + factor * (endColor.b - startColor.b));
+
+    return new Module.JSColor(255, r, g, b);
+}
+
+// Get wind direction by u, v
+function getWindDirection(_u, _v) {
+
+    let theta = Math.atan2(_v, _u);
+
+    let thetaDegrees = theta * (180 / Math.PI);
+
+    if (thetaDegrees < 0) {
+        thetaDegrees += 360;
+    }
+
+    return thetaDegrees;
+}
+
+// Play animation
+function play() {
+
+    if (GLOBAL.layer == null) {
+        return;
+    }
+
+    // Hide all objects
+    for (var i = 0; i < GLOBAL.layer.getObjectCount(); i++) {
+        var obj = GLOBAL.layer.indexAtObject(i);
+        if (obj != null) {
+            obj.setVisible(false);
+        }
+    }
+
+    var index = 0;
+    var prevObject = GLOBAL.layer.indexAtObject(index);
+    if (prevObject == null) {
+        return;
+    }
+    prevObject.setVisible(true);
+
+    GLOBAL.animationHandle = setInterval(function() {
+
+        if (GLOBAL.layer.getObjectCount() <= index) {
+            index = 0;
+        }
+        
+        var currentObjects = GLOBAL.layer.indexAtObject(index);
+        if (currentObjects == null) {
+            if (prevObject != null) {
+                prevObject.setVisible(false);
+            }
+            clearInterval(GLOBAL.animationHandle);
+        }
+
+        if (prevObject != null) {
+            prevObject.setVisible(false);
+        }
+
+        currentObjects.setVisible(true);
+        prevObject = currentObjects;
+
+        Module.XDRenderData();
+
+        document.getElementById("message").innerText = "Display object index : "+(index+1)+" of "+GLOBAL.layer.getObjectCount();
+
+        index++;
+
+    }, 100);
+}
   </script>
 </body>
 </html>

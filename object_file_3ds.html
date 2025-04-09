@@ -20,39 +20,66 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+    // Set camera location
+    Module.getViewCamera().setLocation(new Module.JSVector3D(129.128265, 35.171834, 20.0));
+    
+    // Load 3DS
+    load3DS("./data/MODEL.3DS", new Module.JSVector3D(129.128246934178, 35.17183854378833, 4.7));
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Load 3DS file */
+function load3DS(_url, _position) {
+  
+  // Create polygon layer
+var layerList = new Module.JSLayerList(true);
+var layer = layerList.createLayer("POLYGON_3DS_LAYER", Module.ELT_POLYHEDRON);
+
+var polygon = Module.createPolygon("POLYGON_3DS_LOAD");
+polygon.loadFile({
+  position : _position,
+  url : _url,
+  align : "bottom"
+});
+
+layer.addObject(polygon, 0);
+
+return polygon;
+}
   </script>
 </body>
 </html>

@@ -20,39 +20,89 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.928502, 37.524372, 1000.0));
+
+  // Create layer to add polygon
+  var layer = createLayer("COLOR_POLYGONS");
+
+  // Create polygon
+  var RED = new Module.JSColor(255, 0, 0);
+  var YELLOW = new Module.JSColor(255, 255, 0);
+  var center = new Module.JSVector3D(126.928502, 37.524372, 15.0);
+  var radius = 100.0;
+  var segment = 20;	// The number of points composing the circle. More points result in a closer approximation to the curved surface
+  
+  createCirclePolygon(layer, "POLYGON_0", center, radius, segment, RED, YELLOW);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create Circle Polygon */
+function createCirclePolygon(_layer, id, _center, _radius, _segment, _fillColor, _outlineColor) {
+
+// Create polygon object
+var polygon = Module.createPolygon(id);
+
+// Set polygon color
+var polygonStyle = new Module.JSPolygonStyle();
+polygonStyle.setFill(true);
+polygonStyle.setFillColor(_fillColor);
+if (_outlineColor != null) {
+  polygonStyle.setOutLine(true);
+  polygonStyle.setOutLineWidth(2.0);
+  polygonStyle.setOutLineColor(_outlineColor);
+}
+polygon.setStyle(polygonStyle);
+
+// Set vertex polygon shape
+polygon.setCircle(_center, _radius, _segment);
+
+// Add object to layer
+_layer.addObject(polygon, 0);
+}
+
+/* Create Layer */
+function createLayer(_layerName) {
+
+var layerList = new Module.JSLayerList(true);
+var layer = layerList.createLayer(_layerName, Module.ELT_POLYHEDRON);
+
+return layer;
+}
   </script>
 </body>
 </html>

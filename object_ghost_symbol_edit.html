@@ -20,39 +20,339 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        input[type="text"] {
+          width: 75px;
+          text-align: center;
+        }
+        input[type="range"] {
+          width: 80px;
+        }
+        input[type="button"] {
+          width: 40px;
+          height: 70px;
+        }
+      </style>
+      <span>Position</span>
+      <table>
+        <tr>
+          <td><span>LON</span></td>
+          <td>
+            <input id="longitude" type="text" value="0.0">
+          </td>
+          <td rowspan="3">
+            <input type="button" value="Move" onclick="setPosition();">
+          </td>
+        </tr>
+        <tr>
+          <td><span>LAT</span></td>
+          <td>
+            <input id="latitude" type="text" value="0.0">
+          </td>
+        </tr>
+        <tr>
+          <td><span>ALT</span></td>
+          <td>
+            <input id="altitude" type="text" value="0.0">
+          </td>
+        </tr>
+      </table>
+      <br>
+      <span>Rotation</span>
+      <table>
+        <tr>
+          <td><span>X</span></td>
+          <td>
+            <input id="rotationX" type="range" value="0.0" min="0.0" max="360.0" step="0.1" onchange="setRotation();">
+            <span id="rotationXtext"></span>
+          </td>
+        </tr>
+        <tr>
+          <td><span>Y</span></td>
+          <td>
+            <input id="rotationY" type="range" value="0.0" min="0.0" max="360.0" step="0.1" onchange="setRotation();">
+            <span id="rotationYtext"></span>
+          </td>
+        </tr>
+        <tr>
+          <td><span>Z</span></td>
+          <td>
+            <input id="rotationZ" type="range" value="0.0" min="0.0" max="360.0" step="0.1" onchange="setRotation();">
+            <span id="rotationZtext"></span>
+          </td>
+        </tr>
+      </table>
+      <br>
+      <span>Scale</span>
+      <table>
+        <tr>
+          <td><span>X</span></td>
+          <td>
+            <input id="scaleX" type="range" value="1.0" min="0.5" max="5.0" step="0.1" onchange="setScale();">
+            <span id="scaleXtext"></span>
+          </td>
+        </tr>
+        <tr>
+          <td><span>Y</span></td>
+          <td>
+            <input id="scaleY" type="range" value="1.0" min="0.5" max="5.0" step="0.1" onchange="setScale();">
+            <span id="scaleYtext"></span>
+          </td>
+        </tr>
+        <tr>
+          <td><span>Z</span></td>
+          <td>
+            <input id="scaleZ" type="range" value="1.0" min="0.5" max="5.0" step="0.1" onchange="setScale();">
+            <span id="scaleZtext"></span>
+          </td>
+        </tr>
+      </table>
+      <br>
+      <span>Base Point</span>
+      <table>
+        <tr>
+          <td><span>X</span></td>
+          <td>
+            <input id="basePointX" type="range" value="0.0" min="-10.0" max="10.0" step="0.1" onchange="setBasePoint();">
+            <span id="basePointXtext"></span>
+          </td>
+        </tr>
+        <tr>
+          <td><span>Y</span></td>
+          <td>
+            <input id="basePointY" type="range" value="0.0" min="-10.0" max="10.0" step="0.1" onchange="setBasePoint();">
+            <span id="basePointYtext"></span>
+          </td>
+        </tr>
+        <tr>
+          <td><span>Z</span></td>
+          <td>
+            <input id="basePointZ" type="range" value="0.0" min="-10.0" max="10.0" step="0.1" onchange="setBasePoint();">
+            <span id="basePointZtext"></span>
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	ghostSymbolMap : null,
+	ghostSymbolLayer : null,
+	ghostSymbolObject : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera
+		Module.getViewCamera().setLocation(new Module.JSVector3D(129.126128, 35.170648, 200.0));
+		
+		// Return the map managing the ghost symbol models
+		GLOBAL.ghostSymbolMap = Module.getGhostSymbolMap();
+
+		// Create the ghost symbol layer
+		var layerList = new Module.JSLayerList(true);
+		GLOBAL.ghostSymbolLayer = layerList.createLayer("GHOST_SYMBOL_LAYER", Module.ELT_GHOST_3DSYMBOL);
+
+		Module.getGhostSymbolMap().insert({
+			id: "TREE",
+			url: "./data/ghost_bluewontree01.3ds",
+			callback: function(e) {
+				// Set texture
+				Module.getGhostSymbolMap().setModelTexture({
+					id: e.id,
+					face_index: 0,
+					url: "./data/ghost_bluewontree01.jpg",
+					callback: function(e) {
+						console.log(e.id);
+					}
+				});
+
+				// Create object and add to layer
+				var object = createGhostSymbol("object_tree", e.id, [129.1261352701963, 35.170643013330896, 5.807222427800298]);
+				GLOBAL.ghostSymbolLayer.addObject(object, 0);
+				GLOBAL.ghostSymbolObject = object;
+
+				// Display object properties
+				displayGhostSymbolProperties();
+			}
+		});
+
+		// Terrain transparency
+		Module.XDESetPlanetTransparecny(0.7);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create Ghost Symbol model object */
+function createGhostSymbol(_objectKey, _modelKey, _position) {
+    var newModel = Module.createGhostSymbol(_objectKey);
+    
+    // Set base point
+    var modelHeight = GLOBAL.ghostSymbolMap.getGhostSymbolSize(_modelKey);
+    newModel.setBasePoint(0, -modelHeight.height * 0.5, 0);
+    newModel.setRotation(0, 90.0, 0);
+    newModel.setScale(new Module.JSSize3D(1.0, 1.0, 1.0));
+    newModel.setGhostSymbol(_modelKey);
+    newModel.setPosition(new Module.JSVector3D(_position[0], _position[1], _position[2]));   
+    
+    return newModel;
+}
+
+/* Return and display properties of Ghost Symbol model */
+function displayGhostSymbolProperties() {
+	
+	if (GLOBAL.ghostSymbolObject == null) {
+		return;
+	}
+	
+	// Position
+	var position = GLOBAL.ghostSymbolObject.getPosition();
+	document.getElementById("longitude").value = position.Longitude;
+	document.getElementById("latitude").value = position.Latitude;
+	document.getElementById("altitude").value = position.Altitude;
+	
+	// Rotate
+	var rotateX = GLOBAL.ghostSymbolObject.getRotationX();
+	document.getElementById("rotationXtext").innerHTML = rotateX.toFixed(1);
+	document.getElementById("rotationX").value = rotateX;
+	
+	var rotateY = GLOBAL.ghostSymbolObject.getRotationY();
+	document.getElementById("rotationYtext").innerHTML = rotateY.toFixed(1);
+	document.getElementById("rotationY").value = rotateY;
+	
+	var rotateZ = GLOBAL.ghostSymbolObject.getRotationZ();
+	document.getElementById("rotationZtext").innerHTML = rotateZ.toFixed(1);
+	document.getElementById("rotationZ").value = rotateZ;
+	
+	// Scale
+	var scale = GLOBAL.ghostSymbolObject.getScale();
+	document.getElementById("scaleXtext").innerHTML = scale.width.toFixed(1);
+	document.getElementById("scaleX").value = scale.width;
+	
+	document.getElementById("scaleYtext").innerHTML = scale.height.toFixed(1);
+	document.getElementById("scaleY").value = scale.height;
+	
+	document.getElementById("scaleZtext").innerHTML = scale.depth.toFixed(1);
+	document.getElementById("scaleZ").value = scale.depth;
+	
+	// Base point
+	var basePointX = GLOBAL.ghostSymbolObject.getBasePointX();
+	document.getElementById("basePointXtext").innerHTML = basePointX.toFixed(1);
+	document.getElementById("basePointX").value = basePointX;
+	
+	var basePointY = GLOBAL.ghostSymbolObject.getBasePointY();
+	document.getElementById("basePointYtext").innerHTML = basePointY.toFixed(1);
+	document.getElementById("basePointY").value = basePointY;
+	
+	var basePointZ = GLOBAL.ghostSymbolObject.getBasePointZ();
+	document.getElementById("basePointZtext").innerHTML = basePointZ.toFixed(1);
+	document.getElementById("basePointZ").value = basePointZ;
+}
+
+// Set ghost symbol position
+function setPosition() {
+
+	if (GLOBAL.ghostSymbolObject == null) {
+		return;
+	}
+	
+	var position = new Module.JSVector3D(
+		parseFloat(document.getElementById("longitude").value),
+		parseFloat(document.getElementById("latitude").value),
+		parseFloat(document.getElementById("altitude").value)
+	);
+	
+	GLOBAL.ghostSymbolObject.setPosition(position);
+}
+
+/* Set ghost symbol rotation angle */
+function setRotation() {
+	
+	if (GLOBAL.ghostSymbolObject == null) {
+		return;
+	}
+	
+	var rotateX = parseFloat(document.getElementById("rotationX").value);
+	var rotateY = parseFloat(document.getElementById("rotationY").value);
+	var rotateZ = parseFloat(document.getElementById("rotationZ").value);
+	
+	GLOBAL.ghostSymbolObject.setRotation(rotateX, rotateY, rotateZ);
+	
+	document.getElementById("rotationXtext").innerHTML = rotateX.toFixed(1);
+	document.getElementById("rotationYtext").innerHTML = rotateY.toFixed(1);
+	document.getElementById("rotationZtext").innerHTML = rotateZ.toFixed(1);
+		
+	
+	Module.XDRenderData();
+}
+
+/* Set ghost symbol scale */
+function setScale() {
+	
+	if (GLOBAL.ghostSymbolObject == null) {
+		return;
+	}
+	
+	var scaleX = parseFloat(document.getElementById("scaleX").value);
+	var scaleY = parseFloat(document.getElementById("scaleY").value);
+	var scaleZ = parseFloat(document.getElementById("scaleZ").value);
+	
+	GLOBAL.ghostSymbolObject.setScale(new Module.JSSize3D(scaleX, scaleY, scaleZ));
+	
+	document.getElementById("scaleXtext").innerHTML = scaleX.toFixed(1);
+	document.getElementById("scaleYtext").innerHTML = scaleY.toFixed(1);
+	document.getElementById("scaleZtext").innerHTML = scaleZ.toFixed(1);
+	
+	Module.XDRenderData();
+}
+
+/* Set ghost symbol base point */
+function setBasePoint() {
+	
+	if (GLOBAL.ghostSymbolObject == null) {
+		return;
+	}
+	
+	var basePointX = parseFloat(document.getElementById("basePointX").value);
+	var basePointY = parseFloat(document.getElementById("basePointY").value);
+	var basePointZ = parseFloat(document.getElementById("basePointZ").value);
+	
+	GLOBAL.ghostSymbolObject.setBasePoint(basePointX, basePointY, basePointZ);
+	
+	document.getElementById("basePointXtext").innerHTML = basePointX.toFixed(1);
+	document.getElementById("basePointYtext").innerHTML = basePointY.toFixed(1);
+	document.getElementById("basePointZtext").innerHTML = basePointZ.toFixed(1);
+	
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

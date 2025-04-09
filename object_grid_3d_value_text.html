@@ -20,39 +20,177 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  Module.getViewCamera().look(
+    new Module.JSVector3D(126.49982627348689, 34.052488740732656, 325533.00805305503),
+    new Module.JSVector3D(128.09721300659024, 35.6320271755193, 137976.41591331083)
+  );
+  
+  createGrid([
+    [19000, 16000, 19000, 33000, 40000],
+    [27000, 18000, 24000, 43000, 41000],
+    [34000, 27000, 36000, 47000, 21000],
+    [42000, 38000, 26000, 41000, 28000],
+    [35000, 19000, 22000, 11000, 48000]
+  ]);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function createGrid(_data) {
+  
+if (_data.length == 0) {
+  return false;
+}
+
+// Add layer
+var layerList = new Module.JSLayerList(true);
+var layer = layerList.createLayer("TEST_GRID_COLOR_LAYER", Module.ELT_POLYHEDRON);
+layer.setMaxDistance(2000000.0);
+layer.setMinDistance(100000.0);
+
+// Create grid object
+var colorGrid3D = Module.createColorGrid3D("TEST_GRID");
+
+// Set the grid cell positions based on the maximum, minimum rect, and cell count
+colorGrid3D.SetGridCellDefaultColor(new Module.JSColor(255, 255, 255, 0));
+
+// Set the position, size, and height of the grid cells
+var rowNum = _data.length,
+  colNum = _data[0].length;
+  
+colorGrid3D.SetGridPosition(
+  new Module.JSVector2D(127.67753590262737, 36.406060550251624), 		// Top-left corner of the grid
+  new Module.JSVector2D(129.11548332617704, 36.406060550251624), 		// Top-right corner of the grid
+  new Module.JSVector2D(129.11548332617704, 35.196108208847754), 	// Bottom-right corner of the grid
+  new Module.JSVector2D(127.67753590262737, 35.196108208847754), 	// Bottom-left corner of the grid
+  100000.0, 		// Elevation of the grid bottom surface
+  rowNum, 		// Number of grid cells horizontally
+  colNum			// Number of grid cells vertically
+);
+
+// List of colors for grid cells based on values
+var gridCellColor = [
+  new Module.JSColor(150,68,53,210),
+  new Module.JSColor(150,67,104,253),
+  new Module.JSColor(150,36,159,229),
+  new Module.JSColor(150,104,205,107),
+  new Module.JSColor(150,232,187,46),
+  new Module.JSColor(150,245,229,38)
+];
+
+// Placement of grid colors and heights for each cell
+for(var i=0; i < rowNum;i++) {
+
+  for(var j=0; j < colNum;j++){
+    
+    var cellData = _data[i][j];
+
+    // Set cell color
+    var color_index = null;
+
+    if (cellData > 50000) {
+      color_index = 5;
+    } else if (cellData > 40000) {
+      color_index = 4;
+    } else if (cellData > 30000) {
+      color_index = 3;
+    } else if (cellData > 20000) {
+      color_index = 2;
+    } else if (cellData > 10000) {
+      color_index = 1;
+    } else {
+      color_index = 0;
+    }
+
+    colorGrid3D.SetGridCellColor(j, i, gridCellColor[color_index]);
+    colorGrid3D.SetGridCellHeight(j, i, cellData);
+  }
+}
+  
+// Create the grid object based on the configured options
+colorGrid3D.Create();
+
+layer.addObject(colorGrid3D, 0);
+
+markupGridCellHeight(colorGrid3D);
+
+return true;
+}
+
+/* markup cell height on top of the cell */
+function markupGridCellHeight(_grid) {
+
+// 레이어 생성
+var layer = Module.getObjectLayerList().nameAtLayer("GRID_CELL_MARKER_LAYER");
+if (layer == null) {
+  layer = Module.getObjectLayerList().createObjectLayer({
+    name : "GRID_CELL_MARKER_LAYER",
+    type : Module.ELT_3DPOINT,
+    maxDistance : 9999999.0
+  });
+}
+
+var cellWidthCount = _grid.getCellWidthCount();
+var cellHeightCount = _grid.getCellHeightCount();
+
+for (var i=0; i<cellWidthCount; i++) {
+
+  for (var j=0; j<cellHeightCount; j++) {
+
+    var cellBox = _grid.getCellBox(j, i);
+    var cellCenter = new Module.JSVector3D(
+      (cellBox.upLeftTop.longitude + cellBox.upRightTop.longitude + cellBox.upRightBottom.longitude + cellBox.upLeftBottom.longitude) / 4.0,
+      (cellBox.upLeftTop.latitude + cellBox.upRightTop.latitude + cellBox.upRightBottom.latitude + cellBox.upLeftBottom.latitude) / 4.0,
+      (cellBox.upLeftTop.altitude + cellBox.upRightTop.altitude + cellBox.upRightBottom.altitude + cellBox.upLeftBottom.altitude) / 4.0
+    );
+
+    // create point object
+    var point = Module.createPoint("GRID_CELL_MARKER");
+    point.setPosition(cellCenter);
+
+    var cellHeight = _grid.getCellHeight(j, i);
+    point.setText(cellHeight.toFixed(0).toString());
+
+    var cellColor = _grid.getCellColor(j, i);
+    point.setFontStyle("Arial", 15, 500, cellColor, Module.COLOR_BLACK);
+
+    layer.addObject(point, 0);
+  }
+}
+}
   </script>
 </body>
 </html>

@@ -20,39 +20,103 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      [Mouse Mode]</br>
+<input type="button" value="inputArea" onclick="Module.XDSetMouseState(Module.MML_INPUT_RECT);">
+<input type="button" value="Grab" onclick="Module.XDSetMouseState(Module.MML_MOVE_GRAB);"></br></br>
+[Create Plane]</br>
+<input type="button" value="createPlane" onclick="createPlane();"></br></br>
+[Get Coordinate Info]</br>
+<input type="button" value="getCoordinate" onclick="getCoordinate();">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Figure : null,
+	Layer : null,	
+	LayerList : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		GLOBAL.LayerList = new Module.JSLayerList(true);
+		GLOBAL.Layer = GLOBAL.LayerList.createLayer("TestLayer", 0);
+		GLOBAL.Layer.setEditable(true);
+		GLOBAL.Layer.setMaxDistance(300000);
+		
+		Module.getViewCamera().moveLonLatAlt(127.0273188, 37.4977981, 1000, true);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function createPlane() {
+	var max = Module.getMap().getInputPointList().item(1);   // Top left
+	var min = Module.getMap().getInputPointList().item(3);   // Bottom right
+
+	GLOBAL.Figure = Module.createFigure("rect_figure");
+	GLOBAL.Figure.createPlane(new Module.JSVector3D(max.Longitude, max.Latitude, max.Altitude), new Module.JSVector3D(min.Longitude, min.Latitude, min.Altitude));
+	GLOBAL.Layer.addObject(GLOBAL.Figure, 0); 
+		
+	Module.XDSetMouseState(Module.MML_SELECT_POINT);
+	Module.getMap().setSelectObject(GLOBAL.Figure);
+	
+	Module.XDClearInputPoint();
+}
+
+function getCoordinate()
+{		
+	// Distinguish between right and left based on the purple circle (rotation function).
+	Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+	
+	var coordinate = GLOBAL.Figure.getRectInfo();
+	
+	// Left Top Coordinate
+	console.log(coordinate.leftTop.Longitude);
+	console.log(coordinate.leftTop.Latitude);
+	console.log(coordinate.leftTop.Altitude);
+	
+	// Left Bottom Coordinate
+	console.log(coordinate.leftBottom.Longitude);
+	console.log(coordinate.leftBottom.Latitude);
+	console.log(coordinate.leftBottom.Altitude);
+	
+	// Right Top Coordinate
+	console.log(coordinate.rightTop.Longitude);
+	console.log(coordinate.rightTop.Latitude);
+	console.log(coordinate.rightTop.Altitude);
+	
+	// Right Bottom Coordinate
+	console.log(coordinate.rightBottom.Longitude);
+	console.log(coordinate.rightBottom.Latitude);
+	console.log(coordinate.rightBottom.Altitude);
+}
   </script>
 </body>
 </html>

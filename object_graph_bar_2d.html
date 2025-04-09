@@ -20,39 +20,145 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="checkbox" onchange="setGraphBackground(this.checked);" checked> Display Y-axis and grid on the graph.
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Graph : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera
+		var camera = Module.getViewCamera();
+		camera.setLocation(new Module.JSVector3D(129.122265, 35.16804, 600.0));
+		camera.setTilt(20.0);
+		
+		// Create graph object type layer
+		var layerList = new Module.JSLayerList(true);
+		var layer = layerList.createLayer("LAYER_GRAPH", Module.ELT_GRAPH);
+		
+		// Create graph
+		GLOBAL.Graph = createGraph();
+		layer.addObject(GLOBAL.Graph, 0);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create graph */
+function createGraph() {
+	
+	// Create graph object
+	var graph = Module.createBarGraph("Graph");
+	
+	// Add legend
+	graph.insertLegend("Legend1", "A Type", new Module.JSColor(200, 255, 0, 0));
+	graph.insertLegend("Legend2", "B Type", new Module.JSColor(200, 255, 255, 0));
+	graph.insertLegend("Legend3", "C Type", new Module.JSColor(200, 0, 0, 255));
+	graph.insertLegend("Legend4", "D Type", new Module.JSColor(200, 255, 255, 255));
+	
+	/* Add Data */
+	// Dataset List (Data order corresponds to the order of legend addition, with data and legend being in a 1:1 relationship)
+	var dataSetList = [
+		{
+			// First dataset
+			FieldName : "2010",			// Name of the dataset
+			Data : [18, 62, 76.7, 13.0]		// Order follows the legend addition sequence: 'A Type, B Type, C Type, D Type'
+		},
+		{
+			// Second dataset
+			FieldName : "2011",
+			Data : [75, 26.5, 39.8, 21.3]
+		},
+		{
+			// Third dataset
+			FieldName : "2012",
+			Data : [3.7, 32.2, 30, 2.3]
+		},
+		{
+			// Fourth dataset
+			FieldName : "2013",
+			Data : [85, 97, 50, 7.5]
+		},
+		{
+			// Fifth dataset
+			FieldName : "2014",
+			Data : [14.5, 9.1, 45, 19.4]
+		}
+	];
+	
+	// Add data to the graph object
+	for (var i=0, len=dataSetList.length; i<len; i++) {
+		
+		// Create a data collection object
+		var data = new Module.Collection();
+		
+		// Input data values
+		for (var j=0, subLen=dataSetList[i].Data.length; j<subLen; j++) {
+			data.add(dataSetList[i].Data[j]);
+		}
+		
+		// Input dataset with dataset name and data values
+		graph.insertDataSet(dataSetList[i].FieldName, data);
+	}
+	
+	// Set the range of maximum and minimum values for the graph y-axis
+	graph.setValueRange(0.0, 100.0, 10.0);
+	
+	// Set the unit display text
+	graph.setUnitText("(%)");
+	
+	// Set the animation speed for bar rise
+	graph.setAnimationSpeed(0.1);
+	
+	// Create graph
+	graph.create(new Module.JSVector3D(129.12263821366713, 35.178739294057365, 50.0),
+				 new Module.JSSize2D(300, 250),
+				 0);
+				 
+	return graph;
+}
+
+/* Set graph grid display */
+function setGraphBackground(_bVisible) {
+	
+	if (GLOBAL.Graph == null) {
+		return;
+	}
+	
+	GLOBAL.Graph.setGridVisible(_bVisible);
+	
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

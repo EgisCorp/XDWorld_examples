@@ -20,39 +20,93 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="range" min="0.00" max="2.00" step="0.01" value="1.00" onchange="setImageScale(parseFloat(this.value));">
+<span id="image_scale">1.00</span>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	POI : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera position
+		Module.getViewCamera().setLocation(new Module.JSVector3D(126.92416038220622, 37.52166339268871, 500.0));
+		
+		createPOI();
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function createPOI() {
+	
+	// Create POI
+	var img = new Image();
+	img.onload = function() {
+
+		// Draw the image on a canvas after loading
+		var canvas = document.createElement('canvas');
+		var ctx = canvas.getContext('2d');
+		canvas.width = this.width;
+		canvas.height = this.height;
+		ctx.drawImage(img, 0, 0);
+		
+		// Create an image-based POI
+		var poi = Module.createPoint("POI");
+		poi.setPosition(new Module.JSVector3D(126.92411650990323, 37.521620864485, 13.315417435020208));
+		poi.setImage(ctx.getImageData(0, 0, this.width, this.height).data, this.width, this.height);
+		
+		GLOBAL.POI = poi;
+		
+		// Create a layer to add the POI object
+		var layerList = new Module.JSLayerList(true);
+		var layer = layerList.createLayer("POI_TEST", Module.ELT_3DPOINT);
+		layer.addObject(poi, 0);
+    };
+    img.src = "./data/map_pin.png"
+}
+
+/* Adjust image scale */
+function setImageScale(_scale) {
+	
+	if (GLOBAL.POI == null) {
+		return;
+	}
+	
+	GLOBAL.POI.image_scale = _scale;
+	document.getElementById("image_scale").innerHTML = _scale.toFixed(2);
+	
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

@@ -20,39 +20,231 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="Set CCTV" onclick="setCCTV();">
+<input type="button" value="Clear CCTV" onclick="clearCCTV();">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+    layer : null,
+	poilayer : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+function startFrustum1()
+{	
+	// Seoul Custom House Intersection
+	var videoobj = createVideoFrustum({
+		url : "https://topiscctv1.eseoul.go.kr/sd1/ch69.stream/chunklist_w88632062.m3u8",
+		position : new Module.JSVector3D(127.03517880603653, 37.51528242513336, 74.0159663297236),
+		pan : 15.222757550772029,
+		tilt : 20.24533459348634,
+		fov_x : 88.95999999999998,
+		fov_y : 88.54999999999977,
+		distance : 150.0,
+		bank : 0,
+		objectmapping: true,
+		background : false,
+		frustum : false,
+		streaming : true,
+		xaxis : false,
+		yaxis : true,
+		alpha : 180
+	}, "videoobj1");	
+	
+	GLOBAL.layer.addObject(videoobj, 0);
+	
+	createPOI(127.03532737596267, 37.5156268584513, 20);
+}
+
+function startFrustum2()
+{	
+	// Dosan Park
+	var videoobj = createVideoFrustum({
+		url : "https://topiscctv1.eseoul.go.kr/sd1/ch131.stream/chunklist_w1193280876.m3u8",
+		position : new Module.JSVector3D(127.03371449445042, 37.521428830547556, 56.18109053838998),
+		pan : 151.74750791557318,
+		tilt : 25.472757550772027,
+		fov_x : 88.95999999999998,
+		fov_y : 88.54999999999977,
+		distance : 150.0,
+		bank : 0,
+		objectmapping: true,
+		background : false,
+		frustum : false,
+		streaming : true,
+		xaxis : false,
+		yaxis : true,
+		alpha : 180
+	}, "videoobj2");	
+	
+	GLOBAL.layer.addObject(videoobj, 0);
+	
+	createPOI(127.03396280513684, 37.521077180572924, 20);
+}
+
+function startFrustum3()
+{
+	// Samseong Station
+	var videoobj = createVideoFrustum({
+		url : "https://topiscctv1.eseoul.go.kr/sd1/ch81.stream/chunklist_w1528746386.m3u8",
+		position : new Module.JSVector3D(127.0629041199481, 37.50865960436377, 41.62495251186192),
+		pan : 42.26650877660909,
+		tilt : 25.222757550772034,
+		fov_x : 88.95999999999998,
+		fov_y : 88.54999999999977,
+		distance : 150.0,
+		bank : 0,
+		objectmapping: true,
+		background : false,
+		frustum : false,
+		streaming : true,
+		xaxis : false,
+		yaxis : true,
+		alpha : 180
+	}, "videoobj3");	
+	
+	GLOBAL.layer.addObject(videoobj, 0);
+	
+	createPOI(127.06312170351903, 37.50884453215254, 20);
+}
+
+function createVideoFrustum(_options, _id) {
+
+	var videoObj = Module.createVideoObject(_id);
+	
+	let json = {
+		url: _options.url,
+		position: _options.position,
+		pan: _options.pan,
+		tilt: _options.tilt,
+		bank : _options.bank,
+		fov: {
+			width: _options.fov_x, 
+			height: _options.fov_y
+		},
+		objectmapping: _options.objectmapping,
+		background : _options.background,
+		frustum : _options.frustum,
+		streaming: _options.streaming,
+		far: _options.distance,
+		xaxis : _options.xaxis,
+		yaxis : _options.yaxis,
+		alpha : _options.alpha
+	};	
+	
+	var result = videoObj.createVideo(json);
+	
+	return videoObj;
+}
+
+/* Create Point object */
+function createPOI(_longitude, _latitude, _altitude) {
+	
+	// Load POI image
+	var img = new Image();
+	img.onload = function() {
+
+		// Draw image on canvas after loading
+		var canvas = document.createElement('canvas');
+		var ctx = canvas.getContext('2d');
+		canvas.width = img.width;
+		canvas.height = img.height;
+		ctx.drawImage(img, 0, 0);
+		
+		// Create POI image
+		var point = Module.createPoint("POI_"+GLOBAL.poilayer.getObjectCount());
+		point.setPosition(new Module.JSVector3D(_longitude, _latitude, _altitude));
+		point.setImage(ctx.getImageData(0, 0, this.width, this.height).data, this.width, this.height);
+		
+		// Set POI vertical line
+		point.setPositionLine(30.0, new Module.JSColor(255, 0, 0));
+		
+		GLOBAL.poilayer.addObject(point, 0);
+	};
+	img.src = "./data/cctv.png";
+}
+
+function setCCTV(){
+	//Create CCTV	
+	startFrustum1();
+	startFrustum2();
+	startFrustum3();
+}
+
+function clearCCTV(){
+	// Clear CCTV
+	var count = GLOBAL.layer.getObjectCount();
+	for(var i=0; i<count; i++) {
+		var obj = GLOBAL.layer.indexAtObject(i);
+		obj.clearTexture();
+	}
+	
+	GLOBAL.layer.removeAll();
+	
+	GLOBAL.poilayer.removeAll();
+}
+
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Add building layer
+		var layer = Module.getTileLayerList().createXDServerLayer({
+			url : "https://xdworld.vworld.kr",
+			servername : "XDServer3d",
+			name : "facility_build",
+			type : 9,
+			minLevel : 0,
+			maxLevel : 15
+		});
+		
+		// Set camera position
+		Module.getViewCamera().setLocation(new Module.JSVector3D(127.0479041199481, 37.51565960436377, 5000.0));
+		
+		// Connect Javascript file to use hls
+		const script_element = document.createElement('script');
+		script_element.setAttribute('src', 'https://cdn.jsdelivr.net/npm/hls.js@latest');
+		document.querySelector('head').appendChild(script_element);
+		
+		var layerList = new Module.JSLayerList(true);
+		GLOBAL.layer = layerList.createLayer("CCTV", Module.ELT_POLYHEDRON);
+		GLOBAL.layer.setMaxDistance(1000.0);
+		GLOBAL.layer.setEditable(true);
+		
+		// Create layer to add POI object
+		GLOBAL.poilayer = layerList.createLayer("POI_Layer", Module.ELT_3DPOINT);
+		GLOBAL.poilayer.setMaxDistance(50000.0);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+
   </script>
 </body>
 </html>

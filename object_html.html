@@ -20,39 +20,131 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        .image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      </style>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+    Module.getViewCamera().setLocation(new Module.JSVector3D(129.13782351349964, 35.17887462859219, 8000));
+    
+    createDivObject();
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+//Function for creating objects
+function createDivObject() {
+
+var layerList = new Module.JSLayerList(true);
+let layer = layerList.createLayer("HTML_OBJEC_LAYER", Module.ELT_POLYHEDRON);//normal
+layer.setMaxDistance(10000);
+
+let element = document.createElement("div");
+let parameter = {
+  position: new Module.JSVector3D(129.13782351349964, 35.17887462859219, 400.0),	// Position
+  container: "divcontainer",	// Specify the name of the container to hold the div (if there is no div corresponding to the name, it will be created during createHTMLObject operation)
+  canvas: Module.canvas,	// Canvas for screen size setting
+  element: element,	// HTML Element to be linked with the engine object
+  //verticalAlign: "middle",	// Vertical alignment (top, middle, bottom, px support)	|| Default top if not set
+  //horizontalAlign: "center",	// Horizontal alignment (left, center, right, px support)	|| Default left if not set
+};
+
+let object = Module.createHTMLObject("div_object");
+let complet = object.createbyJson(parameter);
+if (complet.result == 1) {
+  layer.addObject(object, 0);
+  // Output string to the HTML Element corresponding to the element tag
+  element.style.color = "rgba(255,255,255,1)";
+  element.textContent = "click Me";
+  // Link HTML Element corresponding to the element tag with onclick event provided by HTML
+  element.onclick = clickdivcontrol;
+  
+}	
+}
+
+// onclick event for HTML controller composing div_object
+function clickdivcontrol(_element) {
+
+  if (_element.currentTarget.innerHTML == "click Me") {
+      // click Text "click Me"
+      let ele = document.getElementById(_element.srcElement.id);
+      let element = document.createElement("img");
+      element.className = "image";
+      element.src = "./data/giftest.gif";
+      ele.innerHTML = "";
+      ele.appendChild(element);
+  } else {
+      let str_src = _element.currentTarget.lastChild.src;
+      let ele = document.getElementById(_element.currentTarget.id);
+      _element.currentTarget.removeChild(_element.currentTarget.lastChild);
+
+      let element;
+      if (str_src.includes("giftest.gif")) {
+          element = createImage("./data/pngtest.png"); // Add image(png) element
+      } else if (str_src.includes("pngtest.png")) {
+          element = createVidio("./data/cctv.mp4"); // Add video element
+      } else if (str_src.includes("cctv.mp4")) {
+          element = createImage("./data/giftest.gif"); // Add image(gif) element
+      }
+      ele.innerHTML = "";
+      ele.appendChild(element);
+  }
+}
+
+// Create image Element
+function createImage(_path) {
+let element;
+element = document.createElement("img");
+element.className = "image";
+element.src = _path;
+return element;
+}
+
+// Create video Element
+function createVidio(_path) {
+let element;
+element = document.createElement("video");
+element.type = 'video/mp4';
+element.src = _path;
+element.play();
+element.style.width = "400px";
+return element;
+}
   </script>
 </body>
 </html>

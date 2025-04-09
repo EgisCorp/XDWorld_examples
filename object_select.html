@@ -20,39 +20,127 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        input[type="text"] {
+          text-align: right;
+            width: 100px;
+        }
+      </style>
+      <table>
+          <tr>
+            <td>
+                  <span>Object Key</span>
+              </td>
+              <td>
+                  <input type="text" id="objectKey" value="-">
+              </td>
+          </tr>
+           <tr>
+            <td>
+                  <span>Longitude</span>
+              </td>
+              <td>
+                  <input type="text" id="longitude" value="-">
+              </td>
+          </tr>
+          <tr>
+            <td>
+                  <span>Latitude</span>
+              </td>
+              <td>
+                  <input type="text" id="latitude" value="-">
+              </td>
+          </tr>
+          <tr>
+            <td>
+                  <span>Altitude</span>
+              </td>
+              <td>
+                  <input type="text" id="altitude" value="-">
+              </td>
+          </tr>
+      </table>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
+
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
               url : "https://xdworld.vworld.kr",
               name : "dem",
               servername : "XDServer3d",
               encoding : true
-            },
-            image : {
+          },
+          image : {
               url : "https://xdworld.vworld.kr",
               name : "tile",
               servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+          }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+    // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.92836647767662, 37.52439503321471, 500.0));
+  
+  // Add building layer
+  var layer = Module.getTileLayerList().createXDServerLayer({
+  url : "https://xdworld.vworld.kr",
+  servername : "XDServer3d",
+  name : "facility_build",
+  type : 9,
+  minLevel : 0,
+  maxLevel : 15
+});
+  Module.setVisibleRange("facility_build", 3.0, 100000.0);
+  
+  // Set object select event
+  Module.canvas.addEventListener("Fire_EventSelectedObject", function(e){
+    printObjectProperties(e);
+  });
+  
+  // Change mouse state to object select mode
+  Module.XDSetMouseState(Module.MML_SELECT_POINT);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Print object properties */
+function printObjectProperties(_event) {
+
+// Retrieve object from layer list using object key
+var layerList = new Module.JSLayerList(false);
+var layer = layerList.nameAtLayer(_event.layerName);
+if (layer == null) {
+  return;
+}
+
+var object = layer.keyAtObject(_event.objKey);
+if (object == null) {
+  return;
+}
+
+// Print object information
+document.getElementById("objectKey").value = object.getId();
+
+var positionCenter = object.getCenter();	
+document.getElementById("longitude").value = positionCenter.Longitude.toFixed(6);
+document.getElementById("latitude").value = positionCenter.Latitude.toFixed(6);
+document.getElementById("altitude").value = positionCenter.Altitude.toFixed(6);
+}
   </script>
 </body>
 </html>

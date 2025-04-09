@@ -20,39 +20,249 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>[Clicked Cell Info]</span>
+<br>
+<br>
+<table style="width:240px;">
+    <tr>
+        <td>Index X</td>
+        <td><span id="cell_index_x">-</td>
+    </tr>
+    <tr>
+        <td>Index Y</td>
+        <td><span id="cell_index_y">-</td>
+    </tr>
+    <tr>
+        <td>Center</td>
+        <td><span id="cell_center">-</td>
+    </tr>
+    <tr>
+        <td>LeftTop</td>
+        <td><span id="cell_lefttop">-</td>
+    </tr>
+    <tr>
+        <td>RightTop</td>
+        <td><span id="cell_righttop">-</td>
+    </tr>
+    <tr>
+        <td>RightBottom</td>
+        <td><span id="cell_rightbottom">-</td>
+    </tr>
+    <tr>
+        <td>LeftBottom</td>
+        <td><span id="cell_leftbottom">-</td>
+    </tr>
+</table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	layer : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+		Module.getViewCamera().look(
+			new Module.JSVector3D(128.39291529454718, 33.89438982532666, 241924.24606181495), 
+			new Module.JSVector3D(128.39230726947432, 35.823164202157216, 99999.84278616961)
+		);
+
+		// Create grid
+		createGrid();
+
+		// Mouse left button click event
+		Module.canvas.onmousedown = function(e) {
+
+			// 마우스 왼쪽 버튼 클릭
+			if (e.button == 0) {
+			
+				// 클릭한 셀의 위치 표시
+				if (GLOBAL.layer != null) {
+					markClickedCell(GLOBAL.layer, e.offsetX, e.offsetY);
+				}
+			}
+		};
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create grid */
+function createGrid() {
+		
+	// create grid object
+	var colorGrid = Module.createColorGrid("TEST_GRID");
+
+	// calculate grid cell position by max, min rect and cell count
+	colorGrid.SetGridCellDefaultColor(new Module.JSColor(255, 255, 255, 0));
+
+	// set grid cell position, size, height
+	var rowNum = 50,
+		colNum = 50;
+
+	colorGrid.SetGridPosition(
+		new Module.JSVector2D(127.67753590262737, 36.406060550251624), 	// grid left top
+		new Module.JSVector2D(129.11548332617704, 36.406060550251624), 	// grid right top
+		new Module.JSVector2D(129.11548332617704, 35.196108208847754), 	// grid right bottom
+		new Module.JSVector2D(127.67753590262737, 35.196108208847754), 	// grid left bottom
+		100000.0, 	// grid height
+		rowNum, 	// grid row count
+		colNum		// grid column count
+	);
+
+	// grid cell color list
+	var gridCellColor = [
+		new Module.JSColor(150, 68, 53, 210),
+		new Module.JSColor(150, 67, 104, 253),
+		new Module.JSColor(150, 36, 159, 229),
+		new Module.JSColor(150, 104, 205, 107),
+		new Module.JSColor(150, 232, 187, 46),
+		new Module.JSColor(150, 245, 229, 38)
+	];
+	
+	for(var i=0; i < rowNum;i++){
+
+		for(var j=0; j < colNum;j++){
+			
+			// set cell color randomly
+			var randomColorIndex = Math.floor(Math.random() * gridCellColor.length);
+			colorGrid.SetGridCellColor(j, i, gridCellColor[randomColorIndex]);
+		}
+	}
+
+	// create grid
+	colorGrid.Create();
+
+	// add grid to layer
+	var layerList = new Module.JSLayerList(true);
+	var layer = layerList.createLayer("TEST_GRID_COLOR_LAYER", Module.ELT_POLYHEDRON);
+	layer.setMaxDistance(2000000.0);
+	layer.setMinDistance(0.0);
+	layer.addObject(colorGrid, 0);
+
+	GLOBAL.layer = layer;
+}
+
+/* mark clicked cell */
+function markClickedCell(_layer, _screenX, _screenY) {
+
+	// get picked position of grid layer
+	var pick = _layer.pick(_screenX, _screenY);
+	if (pick == null) {
+		return;
+	}
+
+	// returns a grid object of the picking location
+	var grid = _layer.keyAtObject(pick.objectKey);
+	if (grid == null) {
+		return;
+	}
+
+	// returns the cell index of the clicked latitude and longitude point
+	var index = JSON.parse(grid.GetGridCellIndexByPosition(pick.position));
+	if (typeof index.x == "undefined" || typeof index.y == "undefined") {
+		return;
+	}
+	
+	// returns the center position of the cell
+	var cellCenterPosition = grid.GetGridCellPosition(index.x, index.y);
+
+	// print cell information
+	document.getElementById("cell_index_x").innerHTML = index.x;
+	document.getElementById("cell_index_y").innerHTML = index.y;
+	document.getElementById("cell_center").innerHTML = cellCenterPosition.Longitude.toFixed(6) + ", " + cellCenterPosition.Latitude.toFixed(6);
+	
+	var cellRect = grid.GetGridCellRect(index.x, index.y);
+	var leftTop = cellRect.get(0);
+	var rightTop = cellRect.get(1);
+	var rightBottom = cellRect.get(2);
+	var leftBottom = cellRect.get(3);
+
+	document.getElementById("cell_lefttop").innerHTML = leftTop.Longitude.toFixed(6) + ", " + leftTop.Latitude.toFixed(6);
+	document.getElementById("cell_righttop").innerHTML = rightTop.Longitude.toFixed(6) + ", " + rightTop.Latitude.toFixed(6);
+	document.getElementById("cell_rightbottom").innerHTML = rightBottom.Longitude.toFixed(6) + ", " + rightBottom.Latitude.toFixed(6);
+	document.getElementById("cell_leftbottom").innerHTML = leftBottom.Longitude.toFixed(6) + ", " + leftBottom.Latitude.toFixed(6);
+
+	// set grid cell position marker
+	setGridCellMarker(cellCenterPosition, index);
+}
+
+/* set grid cell position marker */
+function setGridCellMarker(_position, _index) {
+
+	// get or create layer
+	var layer = Module.getObjectLayerList().nameAtLayer("GRID_CELL_MARKER_LAYER");
+	if (layer == null) {
+		layer = Module.getObjectLayerList().createObjectLayer({
+			name : "GRID_CELL_MARKER_LAYER",
+			type : Module.ELT_3DPOINT,
+			maxDistance : 9999999.0
+		});
+	}
+
+	var marker = layer.keyAtObject("GRID_CELL_MARKER");
+	if (marker == null) {
+
+		marker = Module.createPoint("GRID_CELL_MARKER");
+		
+		// set marker image
+		var imageCanvas = document.createElement('canvas');
+		imageCanvas.width = 15;
+		imageCanvas.height = 15;
+
+		var ctx = imageCanvas.getContext('2d');
+		ctx.beginPath();
+		ctx.lineWidth = 1;
+		ctx.arc(imageCanvas.width * 0.5, imageCanvas.height * 0.5, imageCanvas.width / 2 - ctx.lineWidth, 0, 2 * Math.PI, false);
+		ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+		ctx.fill();
+		ctx.lineWidth = 1; 
+		ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+		ctx.stroke();
+
+		marker.setImage(ctx.getImageData(0, 0, imageCanvas.width, imageCanvas.height).data, imageCanvas.width, imageCanvas.height);
+		
+
+		// add marker to layer
+		layer.addObject(marker, 0);
+	}
+
+	// set marker position
+	marker.setPosition(_position);
+	
+	// set marker line
+	marker.setPositionLine(10000.0, Module.COLOR_WHITE);
+
+	// set marker text
+	marker.setText("Cell Index : (x)" + _index.x + ", (y)" + _index.y);
+}
   </script>
 </body>
 </html>

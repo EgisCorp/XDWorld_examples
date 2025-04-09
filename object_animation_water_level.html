@@ -20,39 +20,288 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        // Call engine initialization API(essential)
         Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
+            container: document.getElementById("map"),
+            terrain: {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
             },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
         });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+        // Initial position setting
+        Module.getViewCamera().look(
+            new Module.JSVector3D(
+                129.1182937185767,
+                35.162568941386375,
+                1229.4302869262174
+            ),
+            new Module.JSVector3D(
+                129.12182496370994,
+                35.17459547603862,
+                -0.09328505210578442
+            )
+        );
+
+        // Create rotation animation cylinder
+        createAnimationCylinder({
+            // Cylinder position
+            longitude: 129.12180112140845,
+            latitude: 35.17393290084113,
+
+            // Cylinder size
+            radius: 40.0,
+            height: 100.0,
+
+            // Cylinder text information
+            cylinders: [
+                {
+                    id: "blue",
+                    text: "Interest",
+                    fillColor: Module.COLOR_BLUE,
+                    textColor: Module.COLOR_WHITE,
+                },
+                {
+                    id: "yellow",
+                    text: "Caution",
+                    fillColor: Module.COLOR_YELLOW,
+                    textColor: Module.COLOR_BLACK,
+                },
+                {
+                    id: "orange",
+                    text: "Warning",
+                    fillColor: Module.COLOR_ORANGE,
+                    textColor: Module.COLOR_BLACK,
+                },
+                {
+                    id: "red",
+                    text: "Critical",
+                    fillColor: Module.COLOR_RED,
+                    textColor: Module.COLOR_BLACK,
+                },
+            ],
+        });
+
+        // Represent water column height
+        loadImage("./data/water_noise.jpg", function (_flowNoiseTexture) {
+            createWaterCylinder(_flowNoiseTexture, {
+                longitude: 129.12180112140845,
+                latitude: 35.17393290084113,
+                altitude: 170.0,
+                radius: 50.0,
+            });
+        });
+    },
+};
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create water cylinder */
+function createWaterCylinder(_flowNoiseTexture, _options) {
+
+	// Create layer
+	var layer = Module.getObjectLayerList().createObjectLayer({
+		name : "FLOW_POLYGON_LAYER",
+		type : Module.ELT_POLYHEDRON
+	});
+
+	// Create circular coordinates for water cylinder
+	var segment = 36;
+	var circleCoordinates = createCircleCoordinates(segment, _options.longitude, _options.latitude, _options.altitude, _options.radius);
+
+	// Create top face of water cylinder
+	var polygon = Module.createFlowPolygon("FLOW_POLYGON");
+	polygon.flow_speed = 0.6;
+	polygon.color = new Module.JSColor(99, 144, 176);
+	polygon.opacity = 0.7;
+
+	polygon.create({
+		vertex : circleCoordinates,			// Polygon shape
+		normaltexture : _flowNoiseTexture,		// Flow noise texture
+	});
+
+	layer.addObject(polygon, 0);
+
+	// Create walls of water cylinder
+	for (var i=0; i<circleCoordinates.count(); i++) {
+	
+		var polygonWall = Module.createFlowPolygon("FLOW_POLYGON_WALL"+i);
+	
+		// Create wall coordinates
+		var vector = new Module.JSVec3Array();
+		vector.push(circleCoordinates.get((i+1)%segment));
+		vector.push(circleCoordinates.get(i));
+
+		// Set wall color
+		polygonWall.color = new Module.JSColor(29, 104, 176);
+
+		// Set wall opacity
+		polygonWall.opacity = 0.7;
+
+		// Create wall
+		polygonWall.createWall({
+			vertex : vector,			// Polygon shape
+			normaltexture : _flowNoiseTexture,
+			height : -_options.altitude
+		});
+
+		layer.addObject(polygonWall, 0);
+	}
+}
+
+/* Create circular coordinates */
+function createCircleCoordinates(_segment, _longitude, _latitude, _altitude, _radius) {
+
+    var result = new Module.JSVec3Array();
+	var centerPosition = new Module.JSVector3D(_longitude, _latitude, _altitude);
+    var map = Module.getMap();
+
+    // Calculate coordinates of the circle for each angle
+	var segmentAngle = 360.0 / _segment;
+
+	var angle = 0.0;
+    for (var angle = 0; angle < 360; angle+=segmentAngle) {
+        result.push(map.getPositionByAngleDistance3D(centerPosition, _radius, angle));
+    }
+
+    return result;
+}
+
+/* Load and save image */
+function loadImage(_url, _callback) {
+
+	var img = new Image();
+	
+	img.src = _url;
+	img.onload = function(){
+		
+		var canvas = document.createElement('canvas');
+		canvas.width = this.width;
+		canvas.height= this.height;
+		
+		var ctx = canvas.getContext('2d');
+		ctx.drawImage(this, 0, 0);
+
+		var symbol = Module.getSymbol();
+		var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+		if (symbol.insertIcon("WATER_EFFECT_NOISE", imageData, canvas.width, canvas.height)) {			
+			_callback(symbol.getIcon("WATER_EFFECT_NOISE"));
+		}
+	}
+}
+
+/* Create rotation animation cylinder */
+function createAnimationCylinder(_options) {
+
+	var cylinderList = [];
+
+	// Create layer
+	var layer = Module.getObjectLayerList().createObjectLayer({
+		name : "ROTATE_CYLINDER",
+		type : Module.ELT_POLYHEDRON
+	});
+
+	// Set size and height of each cylinder
+	var cylinderRadius = _options.radius;
+	var cylinderHeight = _options.height;
+
+	layer.setObjectHorizontal(cylinderRadius);
+	layer.setObjectVertical(cylinderRadius);
+	layer.setObjectHeight(cylinderHeight);
+
+	// Create rotating cylinders
+	var longitude = _options.longitude;
+	var latitude = _options.latitude;
+
+	var altitude = 0.0;
+
+	for(var i=0; i<_options.cylinders.length; i++) {
+
+		var cylinderOptions = _options.cylinders[i];
+
+		// Create cylinder image
+		var cylinderImage = createAnimationCylinderImage(
+			cylinderOptions.text, 							
+			'rgba('+cylinderOptions.fillColor.r+','+cylinderOptions.fillColor.g+','+cylinderOptions.fillColor.b+', 1)',	
+			'rgba('+cylinderOptions.textColor.r+','+cylinderOptions.textColor.g+','+cylinderOptions.textColor.b+', 1)',	
+			parseInt(cylinderRadius*Math.PI) * 10, 	
+			cylinderHeight * 10						
+		);
+
+		// Create cylinder
+		var cylinder = Module.createAnimationObject(cylinderOptions.id);
+		var result = cylinder.createbyJson({
+			position: new Module.JSVector3D(longitude, latitude, cylinderHeight*i),
+			color: cylinderOptions.fillColor,
+			type: 1,
+			segment: 12,
+			image: cylinderImage
+		});
+		
+		// Save cylinder to the list
+		if (result.result == 1) {
+			layer.addObject(cylinder, 0);
+			cylinderList.push(cylinder);
+		}
+
+		altitude += cylinderOptions.height;
+	};
+
+	return result;
+}
+
+/* Create image for rotation animation cylinder */
+function createAnimationCylinderImage(_text, _backgroundcolor, _fontcolor, _width, _height) {
+
+	// Create canvas
+	let canvas = document.createElement('canvas');
+	canvas.width = _width;
+	canvas.height = _height;
+
+	let ctx = canvas.getContext("2d");
+	ctx.width = _width;
+	ctx.height = _height;
+	
+	// Background color
+	ctx.fillStyle = _backgroundcolor;
+	ctx.fillRect(0, 0, _width, _height);
+	
+	// Text
+	ctx.font = 900 + " " + _height * 0.3 + "px D2Coding";	
+	ctx.fillStyle = _fontcolor;
+	ctx.strokeStyle = _fontcolor;
+	ctx.textBaseline = "middle";
+	ctx.textAlign = "center";
+	ctx.fillText(_text, _width * 0.5, _height * 0.5);
+	
+	// Return image data
+	return {
+		image: ctx.getImageData(0, 0, canvas.width, canvas.height).data,
+		width: canvas.width,
+		height: canvas.height,
+	}
+}
   </script>
 </body>
 </html>
