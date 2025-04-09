@@ -20,39 +20,132 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <select onchange="setPositionText(this.value);">
+        <option value="seoul">Seoul</option>
+        <option value="daegu">Daegu</option>
+        <option value="busan">Busan</option>
+      </select>
+      <table>
+        <tr>
+          <td>
+            <span>Longitude</span>
+          </td>
+          <td>
+            <input type="text" id="longitude" value="126.92836647767662">
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span>Latitude</span>
+          </td>
+          <td>
+            <input type="text" id="latitude" value="37.52439503321471">
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span>Altitude</span>
+          </td>
+          <td>
+            <input type="text" id="altitude" value="1000.0">
+          </td>
+        </tr>
+        <tr colspan="2">
+          <td>
+            <input type="button" value="Move" onclick="setCameraPosition();">
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Camera : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Return the camera API object
+		GLOBAL.Camera = Module.getViewCamera();
+
+		// Set camera location
+		GLOBAL.Camera.setLocation(new Module.JSVector3D(129.128265, 35.171834, 1000.0));
+		GLOBAL.Camera.setTilt(30.0);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set longitude, latitude, and altitude for each location */
+function setPositionText(_positionType) {
+	
+	// Set longitude, latitude, and altitude text according to the specified location
+	switch (_positionType) {
+		case 'seoul' :
+			document.getElementById("longitude").value = "126.92836647767662";
+			document.getElementById("latitude").value = "37.52439503321471";
+			document.getElementById("altitude").value = "1000.0";
+			break;
+		case 'daegu' :
+			document.getElementById("longitude").value = "128.6061273549514";
+			document.getElementById("latitude").value = "35.87310069909742";
+			document.getElementById("altitude").value = "1000.0";
+			break;
+		case 'busan' :
+			document.getElementById("longitude").value = "129.128265";
+			document.getElementById("latitude").value = "35.171834";
+			document.getElementById("altitude").value = "1000.0";
+			break;
+	}
+}
+
+/* Move camera position */
+function setCameraPosition() {
+	
+	if (GLOBAL.Camera == null) {
+		return;
+	}
+	
+	// Get longitude, latitude, and altitude coordinates
+	var longitude = parseFloat(document.getElementById("longitude").value);
+	var latitude = parseFloat(document.getElementById("latitude").value);
+	var altitude = parseFloat(document.getElementById("altitude").value);
+	
+	if (isNaN(longitude) || isNaN(latitude) || isNaN(altitude)) {
+		return;
+	}
+	
+	// Execute camera movement
+	GLOBAL.Camera.setTilt(88.0);
+	GLOBAL.Camera.setLocation(new Module.JSVector3D(longitude, latitude, altitude));
+}
   </script>
 </body>
 </html>

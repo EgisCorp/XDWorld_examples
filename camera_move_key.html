@@ -20,39 +20,238 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        #map {
+            position: absolute;
+            width: calc(100%);
+            height: calc(100%);
+            left: 0px;
+            top: 0px;
+        }
+        .key-container {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(5, 50px);
+            grid-template-rows: repeat(2, 40px);
+        }
+        .key {
+            width: 50px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            border: 1px solid black;
+            font-size: 20px;
+            font-family: Arial, sans-serif;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+        .key:hover {
+            background-color: lightgray;
+        }
+        .tooltip {
+            visibility: hidden;
+            width: 100px;
+            background-color: black;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+              font-size: 14px;
+        }
+        .key:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        </style>
+        <div class="control-panel">
+            <input type="range" id="speedRange" min="0.1" max="10.0" step="0.1" value="1.0">
+            <span id="speedValue">Speed: 1.0</span>
+        </div>
+        <br>
+        <div class="key-container">
+            <div id="q" class="key">Q↪️
+                <span class="tooltip">Rotate Left</span>
+            </div>
+            <div id="w" class="key">W⬆️
+                <span class="tooltip">Move Front</span>
+            </div>
+            <div id="e" class="key">E↩️
+                <span class="tooltip">Rotate Right</span>
+            </div>
+            <div id="r" class="key">R🔼
+                <span class="tooltip">Move Up</span>
+            </div>
+            <div id="t" class="key">T⤴️
+                <span class="tooltip">Tilt Up</span>
+            </div>
+            <div id="a" class="key">A⬅️
+                <span class="tooltip">Move Left</span>
+            </div>
+            <div id="s" class="key">S⬇️
+                <span class="tooltip">Move Back</span>
+            </div>
+            <div id="d" class="key">D➡️
+                <span class="tooltip">Move Right</span>
+            </div>
+            <div id="f" class="key">F🔽
+                <span class="tooltip">Move Down</span>
+            </div>
+            <div id="g" class="key">G⤵️
+                <span class="tooltip">Tilt Down</span>
+            </div>
+        </div>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    /* 키보드 버튼 눌림 상태 */
+var KEYBOARD_PRESS = {
+	w: false,    // move(front)
+	a: false,    // move(left)
+	s: false,    // move(back)
+	d: false,    // move(right)
+	q: false,    // Rotate(left)
+	e: false,    // Rotate(right)
+	r: false,    // move(up)
+	f: false,    // move(down)
+	t: false,    // tilt(up)
+	g: false     // tilt(down)
+};
+var Module = {
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// set camera position
+		Module.getViewCamera().look(
+			new Module.JSVector3D(126.91621770299018, 37.5294716468344, 64.4025495601818),
+			new Module.JSVector3D(126.91878767423215, 37.527806758194465, 12.888984507881105)
+		);
+
+		// set tilt limit
+		Module.getViewCamera().setLimitTilt(-88.0);
+
+		// load building
+		Module.getTileLayerList().createXDServerLayer({
+			url: "https://xdworld.vworld.kr",
+			servername: "XDServer3d",
+			name: "facility_build",
+			type: 9,
+			minLevel: 0,
+			maxLevel: 15
+		});
+
+		// set key press event
+		setKeyboardMoveEvent();
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function setKeyboardMoveEvent() {
+
+	// set key press event
+	document.addEventListener('keydown', function(event) {
+		const key = event.key.toLowerCase();
+		const keyElement = document.getElementById(key);
+		if (keyElement) {
+			keyElement.style.backgroundColor = 'blue';
+			keyElement.style.color = 'white';
+		}
+		KEYBOARD_PRESS[key] = true;
+	});
+
+	document.addEventListener('keyup', function(event) {
+		const key = event.key.toLowerCase();
+		const keyElement = document.getElementById(key);
+		if (keyElement) {
+			keyElement.style.backgroundColor = 'white';
+			keyElement.style.color = 'black';
+		}
+		KEYBOARD_PRESS[key] = false;
+	});
+
+	setInterval(renewCameraMoving, 10);
+
+	// set move speed
+	const speedRange = document.getElementById('speedRange');
+	const speedValue = document.getElementById('speedValue');
+
+	speedRange.addEventListener('input', function() {
+		speedValue.textContent = 'Speed: ' + speedRange.value;
+	});
+}
+
+/* Move camera */
+function renewCameraMoving() {
+
+	var speed = parseFloat(document.getElementById('speedRange').value);
+
+	var camera = Module.getViewCamera();
+	if (KEYBOARD_PRESS.w) {
+		camera.moveFrontBack(speed);
+	} else if (KEYBOARD_PRESS.s) {
+		camera.moveFrontBack(-speed);
+	} else;
+
+	if (KEYBOARD_PRESS.a) {
+		camera.moveLeftRight(-speed);
+	} else if (KEYBOARD_PRESS.d) {
+		camera.moveLeftRight(speed);
+	} else;
+
+	if (KEYBOARD_PRESS.q) {
+		camera.rotateLeft();
+	} else if (KEYBOARD_PRESS.e) {
+		camera.rotateRight();
+	} else;
+
+	if (KEYBOARD_PRESS.r) {
+		camera.setAltitude(camera.getAltitude() + speed);
+	} else if (KEYBOARD_PRESS.f) {
+		camera.setAltitude(camera.getAltitude() - speed);
+	} else;
+
+	if (KEYBOARD_PRESS.t) {
+		camera.setTilt(camera.getTilt() - 1.0);
+	} else if (KEYBOARD_PRESS.g) {
+		camera.setTilt(camera.getTilt() + 1.0);
+	} else;
+
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

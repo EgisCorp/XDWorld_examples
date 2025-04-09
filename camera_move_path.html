@@ -20,39 +20,146 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="Start" onClick="startCameraAutoMove();">
+		<input type="button" value="Pause" onClick="pauseCameraAutoMove();">
+		<input type="button" value="Stop" onClick="stopCameraAutoMove();">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Camera : null,
+	bPauseAutoMove : false
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		GLOBAL.Camera = Module.getViewCamera();
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+
+		// Set camera position
+		GLOBAL.Camera.moveLonLatAlt(129.128865, 35.151865, 500, true);
+		GLOBAL.Camera.setTilt(10.0);
+		
+		// Camera automatic movement end notification event
+		Module.canvas.addEventListener("Fire_EventFinishAutoMove", function(e){
+			alert("Camera auto-move is over.");
+			GLOBAL.Camera.setAnimationSpeed(30.0);
+		});
+		
+		// Set Camera automatic movement coordinate
+		setAutoMovePosition();	
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Automatic camera movement environment setup */
+function setAutoMovePosition() {
+	
+	// Save the list of coordinates to move to
+	var vMovePositionList = new Module.JSVec3Array();
+	vMovePositionList.push(new Module.JSVector3D(129.12695440075726, 35.16601614946393, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.12188858001704, 35.173578909363805, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.12027302076595, 35.17489727168604, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.1193336034672, 35.176296224587475, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.1190279600194, 35.17860154261975, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.11881985356138, 35.180264448198166, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.12215516060454, 35.181766761096405, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.12291400219758, 35.18064007716887, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.12565760870476, 35.17721443124514, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.1272389795138, 35.17534299088415, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.12913906934602, 35.17457845310284, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.13018205603095, 35.173853089888496, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.13120815706273, 35.17275200542546, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.1335963098941, 35.16982495740488, 50.0));
+	vMovePositionList.push(new Module.JSVector3D(129.12658435097237, 35.16600137251294, 50.0));
+	
+	// Set automatic movement coordinates
+	GLOBAL.Camera.setAutoMovePosition(vMovePositionList);
+	
+	GLOBAL.Camera.setAnimationSpeed(10);	// Slow down camera movement animation
+	GLOBAL.Camera.setAutoMoveWaitFrame(3);	// Set automatic movement execution interval
+}
+
+/* Start camera automatic movement */
+function startCameraAutoMove() {
+	
+	GLOBAL.Camera.startAutoMove();			// Execute automatic movement
+	Module.XDRenderData();
+	GLOBAL.bPauseAutoMove = false;
+}
+
+/* Stop camera automatic movement */
+function stopCameraAutoMove() {
+	GLOBAL.Camera.stopAutoMove();
+}
+
+/* Pause camera automatic movement */
+function pauseCameraAutoMove() {
+	
+	GLOBAL.bPauseAutoMove = !GLOBAL.bPauseAutoMove;
+	GLOBAL.Camera.pauseAutoMove(GLOBAL.bPauseAutoMove);
+	
+	Module.XDRenderData();
+}
+
+function initPage() {
+
+	initEvent(Module.canvas);
+
+	// Set camera
+	var camera = Module.getViewCamera();
+	camera.move(new Module.JSVector3D(126.78693528538836, 35.00513429887883, 1000.0), 0, 0, 0);
+	camera.setPermitUnderGround(true);
+	camera.setLimitTilt(-88.0);
+	camera.setLimitAltitude(-1000.0);
+	camera.setTilt(30.0);
+}
+
+function initEvent(_canvas) {
+	
+	window.onresize = function() {
+		Module.Resize(window.innerWidth, window.innerHeight);
+		Module.XDRenderData();
+	};
+	canvas.addEventListener("contextmenu", function(e){
+		e.preventDefault();
+	});
+};
   </script>
 </body>
 </html>

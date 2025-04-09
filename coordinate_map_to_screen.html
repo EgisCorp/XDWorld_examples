@@ -20,39 +20,137 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>[POI Position] </span>
+<table>
+	<tr>
+		<td>Longitude</td>
+		<td>126.924116</td>
+	</tr>
+	<tr>
+		<td>Latitude</td>
+		<td>37.5216208</td>
+	</tr>
+	<tr>
+		<td>Altitude</td>
+		<td>13.3154174</td>
+	</tr>
+</table>
+<br>
+<span>[POI Screen Coordinates] </span>
+<table>
+	<tr>
+		<td>X</td>
+		<td style="color:blue;" id="screenX">0</td>
+	</tr>
+	<tr>
+		<td>Y</td>
+		<td style="color:blue;" id="screenY">0</td>
+	</tr>
+</table>
+
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	pointPosition : {
+		lon : 126.92411,
+		lat : 37.52162,
+		alt : 13.3
+	}
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera position
+		Module.getViewCamera().setLocation(new Module.JSVector3D(126.92416038220622, 37.52166339268871, 500.0));
+		
+		// Create POI
+		createPOI("./data/number_point_1.png");
+
+		// Set canvas events
+		initEvent(Module.canvas);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Create Point object */
+function createPOI(_imageSrc, _lineColor) {
+
+	// Create a layer to add POI objects
+	var layerList = new Module.JSLayerList(true);
+	var layer = layerList.createLayer("POI_TEST", Module.ELT_3DPOINT);
+	
+	// Load POI image
+	var img = new Image();
+	img.onload = function() {
+	
+	// Draw the image on the canvas after loading
+	var canvas = document.createElement('canvas');
+	var ctx = canvas.getContext('2d');
+	canvas.width = img.width;
+	canvas.height = img.height;
+	ctx.drawImage(img, 0, 0);
+	
+	// Create POI from the image
+		var point = Module.createPoint("POI");
+		point.setPosition(new Module.JSVector3D(GLOBAL.pointPosition.lon, GLOBAL.pointPosition.lat, GLOBAL.pointPosition.alt));
+		point.setImage(ctx.getImageData(0, 0, this.width, this.height).data, this.width, this.height);
+				
+		layer.addObject(point, 0);
+    };
+    img.src = _imageSrc
+}
+
+/* Set event */
+function initEvent(canvas) {
+		
+	canvas.onmousemove = function() {
+		displayMapToScreenPosition();
+	};
+	
+	canvas.onmousewheel = function() {
+		displayMapToScreenPosition();
+	};
+}
+
+/* Convert map coordinates to screen coordinates and set the screen position of the div */
+function displayMapToScreenPosition() {
+	
+	var screentPosition = Module.getMap().MapToScreenPointEX(
+		new Module.JSVector3D(GLOBAL.pointPosition.lon, GLOBAL.pointPosition.lat, GLOBAL.pointPosition.alt)
+	);
+	
+	document.getElementById("screenX").innerHTML = screentPosition.x;
+	document.getElementById("screenY").innerHTML = screentPosition.y;
+}
   </script>
 </body>
 </html>

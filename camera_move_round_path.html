@@ -20,39 +20,123 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="Start" onClick="startCameraAutoMove();">
+<input type="button" value="Pause" onClick="pauseCameraAutoMove();">
+<input type="button" value="Stop" onClick="stopCameraAutoMove();">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Camera : null,
+	bPauseAutoMove : false
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Add building layer
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+
+		// Set camera position
+	    GLOBAL.Camera = Module.getViewCamera();
+		GLOBAL.Camera.look(
+			new Module.JSVector3D(129.12732457984308, 35.171000072302796, 400.0),
+			new Module.JSVector3D(129.12732457984308, 35.171000072302796, 4.0)
+		);
+		
+		// Camera automatic movement end notification event
+		Module.canvas.addEventListener("Fire_EventFinishAutoMove", function(e){
+			
+			alert("Camera auto-move is over.");
+			
+			// Reset camera move speed
+			GLOBAL.Camera.setAnimationSpeed(10);
+		});
+		
+		// Set Camera automatic movement coordinate
+		setAutoMovePosition();
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set camera position for automatic movement */
+function setAutoMovePosition() {
+	
+	// Set automatic movement coordinates
+	var Camera = GLOBAL.Camera;
+	if (Camera == null) {
+		return;
+	}
+	
+	// Camera auto-move speed. Configure before executing setAutoMoveRoundPositions.
+	Camera.SetAutoMoveSpeed(0.2);
+		
+	// Set automatic movement positions
+	Camera.setAutoMoveRoundPositions(new Module.JSVector3D(129.12732457984308, 35.171000072302796, 4.0),
+									400.0, 350.0,
+									-130.0, -160.0, true);
+	
+	Camera.setAutoMoveWaitFrame(1);	// Set automatic movement execution interval
+}
+
+/* Start camera auto move */
+function startCameraAutoMove() {
+	
+	GLOBAL.Camera.startAutoMove();			// Execute automatic movement
+	Module.XDRenderData();
+	GLOBAL.Camera.setAnimationSpeed(0.1);	// Slow down camera movement speed
+	GLOBAL.bPauseAutoMove = false;
+}
+
+/* Stop camera auto move */
+function stopCameraAutoMove() {
+	GLOBAL.Camera.stopAutoMove();
+	GLOBAL.Camera.setAnimationSpeed(10);	// Reset camera move speed
+}
+
+/* Pause camera auto move */
+function pauseCameraAutoMove() {
+	
+	GLOBAL.bPauseAutoMove = !GLOBAL.bPauseAutoMove;
+	GLOBAL.Camera.pauseAutoMove(GLOBAL.bPauseAutoMove);
+	GLOBAL.Camera.setAnimationSpeed(10);	// Reset camera move speed
+	
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

@@ -20,39 +20,263 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="Start" onClick="startCameraAutoMove();">
+<input type="button" value="Pause" onClick="pauseCameraAutoMove();">
+<input type="button" value="Stop" onClick="stopCameraAutoMove();">
+<br>
+<label>Lock orientation</label>
+<input type="checkbox" id="chkbox-orientation" oninput="setLockOrientation();" checked>
+
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	bPauseAutoMove : false
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+	    // Set camera
+		var camera = Module.getViewCamera();
+		camera.setLocation(new Module.JSVector3D(129.128265, 35.171834, 1000.0));
+		camera.setLimitTilt(-88.0);
+		
+		// Add building layer
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+
+		// Set drone move path
+		var path = createMovePath([
+			{lon : 129.12725559054454, lat : 35.17394144492911, alt : 20.0},
+			{lon : 129.1292373690529, lat : 35.17307863327498, alt : 25.0},
+			{lon : 129.1313805284066, lat : 35.17057720869221, alt : 36.0},
+			{lon : 129.1297339976797, lat : 35.169624346433096, alt : 40.0},
+			{lon : 129.127598801057, lat : 35.172189370784984, alt : 45.0}
+		], 1.0);
+
+		Module.getViewCamera().setAutoMovePath(path);
+		Module.getViewCamera().setAutoMoveWaitFrame(3);	// Set automatic movement execution interval
+
+		// Display drone path 
+		loadModel("./data/gate.3ds", function(e) {
+
+			var layerList = new Module.JSLayerList(true);
+			var layer = layerList.createLayer("DRONE_GATE_LINE", Module.ELT_GHOST_3DSYMBOL);
+			var gateColor = new Module.JSColor(
+				parseInt(Math.random()*255.0), 
+				parseInt(Math.random()*255.0), 
+				parseInt(Math.random()*255.0)
+			);
+			var gateScale = new Module.JSSize3D(5.0, 5.0, 5.0);
+
+			for (var i=0; i<path.length; i+=5) {
+
+				var gate = Module.createGhostSymbol("GATE_"+i);
+				gate.setRotation(0, path[i].direction, 0);
+				gate.setGhostSymbol(e.id);
+				gate.setPosition(path[i].position);
+				gate.setScale(gateScale);
+				gate.color = gateColor;
+				gate.opacity = 0.5;
+				
+				layer.addObject(gate, 0);
+			}
+		});
+
+		// Camera automatic movement end notification event
+		Module.canvas.addEventListener("Fire_EventFinishAutoMove", function(e){
+			Module.api.camera.setAnimationSpeed(10.0);
+		});
+	}
+};
+
+/* Start camera automatic movement */
+function startCameraAutoMove() {
+	
+	Module.getViewCamera().setAnimationSpeed(1);
+	Module.getViewCamera().startAutoMove();			// Execute automatic movement
+	Module.XDRenderData();
+	GLOBAL.bPauseAutoMove = false;
+}
+
+/* Stop camera automatic movement */
+function stopCameraAutoMove() {
+	Module.getViewCamera().stopAutoMove();
+	Module.getViewCamera().setAnimationSpeed(10);
+}
+
+/* Pause camera automatic movement */
+function pauseCameraAutoMove() {
+	
+	GLOBAL.bPauseAutoMove = !GLOBAL.bPauseAutoMove;
+	Module.getViewCamera().pauseAutoMove(GLOBAL.bPauseAutoMove);
+	
+	Module.XDRenderData();
+}
+
+/* Set lock orientation option */
+/* If this option is true, the camera is fixed in the direction of movement */
+/* Drag the right mouse button to adjust the camera direction */
+function setLockOrientation() {
+    let chkbox = document.getElementById("chkbox-orientation");
+	Module.getViewCamera().setLockOrientationAutoMove(chkbox.checked);
+}
+
+/* Create path segments */
+function createMovePath(_path, _interval) {
+
+	if (_interval < 0.0001 || _path.length < 2) {
+		return [];
+	}
+
+	var path = [];
+
+	for (var i=0; i<_path.length-1; i++) {
+
+		var current = _path[i];
+		var next = _path[i+1];
+
+		// Return the list of sub-path coordinates
+		var distance = Module.getMap().GetPointDistance(
+			new Module.JSVector3D(current.lon, current.lat, current.alt),
+			new Module.JSVector3D(next.lon, next.lat, next.alt),
+			false
+		);
+
+		var splitCount = parseInt(distance/_interval);
+		var partPath = Module.JSMath.splitLine({
+			coordinates: {
+				coordinate: transformJSVector3D([current, next]),
+				style: "JSVector3D",
+			},
+			split: splitCount
+		});
+
+		if (partPath.result != 1) {
+			continue;
+		}
+
+		// Calculate tilt angle
+		var tilt = tiltWithTwoPoints(current.lon, current.lat, current.alt, next.lon, next.lat, next.alt);
+
+		// Calculate azimuth angle
+		var direction = directionWithTwoPoints(current.lon, current.lat, next.lon, next.lat);
+
+		var partPathPositions = partPath.return.data;
+		for (var j=0; j<partPathPositions.count(); j++) {
+
+			path.push({
+				position : partPathPositions.get(j),
+				tilt : tilt,
+				direction : direction
+			});
+		}
+	}
+
+	return path;
+}
+
+/* Calculate the azimuth angle between two points */
+function directionWithTwoPoints(from_longitude, from_latitude, to_longitude, to_latitude) {
+
+	var DEGREE_TO_RADIAN = Math.PI / 180.0;
+	var RADIAN_TO_DEGREE = 180.0 / Math.PI;
+
+	from_latitude *= DEGREE_TO_RADIAN;
+	from_longitude *= DEGREE_TO_RADIAN;
+	to_latitude *= DEGREE_TO_RADIAN;
+	to_longitude *= DEGREE_TO_RADIAN;
+
+	var d = (to_longitude - from_longitude);
+
+	var y = Math.sin(d) * Math.cos(to_latitude);
+	var x = Math.cos(from_latitude) * Math.sin(to_latitude) - Math.sin(from_latitude) * Math.cos(to_latitude) * Math.cos(d);
+
+	var bearingAngle= Math.atan2(y, x);
+
+	bearingAngle *= RADIAN_TO_DEGREE ;
+	bearingAngle = (bearingAngle + 360) % 360;
+
+	return bearingAngle;
+}
+
+/* Calculate the tilt angle between two points */
+function tiltWithTwoPoints(from_longitude, from_latitude, from_altitude, to_longitude, to_latitude, to_altitude) {
+
+	var distance = Module.getMap().GetPointDistance(
+		new Module.JSVector3D(from_longitude, from_latitude, from_altitude),
+		new Module.JSVector3D(to_longitude, to_latitude, to_altitude),
+		false
+	);
+
+	var altitudeGap = to_altitude - from_altitude;
+	var tilt = Math.atan2(altitudeGap, distance);
+	tilt = -(tilt * (180.0 / Math.PI));
+
+	return tilt;
+}
+
+/* Convert latitude and longitude coordinate data list to JSVec3Array format */
+function transformJSVector3D(_array) {
+
+	var result = new Module.JSVec3Array();
+
+	for (var i=0; i<_array.length; i++) {
+
+		var lonLatAlt = _array[i];
+		result.push(new Module.JSVector3D(lonLatAlt.lon, lonLatAlt.lat, lonLatAlt.alt));
+	}
+
+	return result;
+}
+
+/* Create model object */
+function loadModel(_url, _callback) {
+
+	Module.getGhostSymbolMap().insert({
+		
+		id: "drone",	
+		url : _url,
+		callback: function(e) {
+			_callback(e);
+		}
+	});
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

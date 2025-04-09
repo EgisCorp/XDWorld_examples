@@ -20,39 +20,85 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" id="btViewLandscapeStart" value="Select Scenery Points" onclick="setViewLandscape(true);"></input>
+<input type="button" id="btViewLandscapeEnd" style="display:none;" value="End Scenery View" onclick="setViewLandscape(false);"></input>
+
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+    isReadyLandscapeView : false,
+	isLandscapeView : false
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Move camera
+		Module.getViewCamera().moveOval(new Module.JSVector3D(129.128265, 35.171834, 500.0), 90.0, 0.0, 10);
+		
+		// Add building layer
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+		
+		Module.canvas.onmousedown = function() {
+	    	if (GLOBAL.isReadyLandscapeView) {
+	        	GLOBAL.isLandscapeView = true;
+	            document.getElementById("btViewLandscapeStart").style.display = "none";
+	            document.getElementById("btViewLandscapeEnd").style.display = "block";
+	        }
+	    };
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set landscape view */
+function setViewLandsacpe(_bSet) {
+	
+    if (_bSet) {
+        GLOBAL.isReadyLandscapeView = true;
+    } else {
+    	GLOBAL.isReadyLandscapeView = false;
+        GLOBAL.isLandscapeView = false;
+        document.getElementById("btViewLandscapeStart").style.display = "block";
+        document.getElementById("btViewLandscapeEnd").style.display = "none";
+    }
+  
+	Module.XDSetViewPoint(_bSet);
+}
   </script>
 </body>
 </html>

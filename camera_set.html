@@ -20,39 +20,272 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <table style="width: 270px;">
+        <tr>
+            <td>TILT</td>
+            <td><input id="u_rag_nowTilt" type="range" class="slider" min=10.0 max=90.0 step=1 style="width:90%"
+                    onChange="setTilt(this.value);" oninput="setTilt(this.value);">
+            </td>
+            <td align="center"><label id="u_lab_nowTilt"> &nbsp 180</label></td>
+        </tr>
+        <tr>
+            <td>DIRECT</td>
+            <td><input id="u_rag_nowDirect" type="range" min=-180.0 max=180.0 step=1 style="width:90%"
+                    onChange="setDirect(this.value);" oninput="setDirect(this.value);">
+            </td>
+            <td align="center"><label id="u_lab_nowDirect"> &nbsp 180</label></td>
+        </tr>
+        <tr>
+            <td>ALTITUDE </td>
+            <td><input id="u_rag_nowAltitude" type="range" min=500.0 max=100000 step=100 style="width:90%"
+                    onChange="setAltitude(this.value);" oninput="setAltitude(this.value);">
+            </td>
+            <td align="center"><label id="u_lab_nowAltitude"> &nbsp 48600</label></td>
+        </tr>
+        <tr>
+            <td>FOV</td>
+            <td><input id="u_rag_nowFOV" type="range" min=10.0 max=90.0 step=1 style="width:90%" value=45
+                    onChange="setFOV(this.value);" oninput="setFOV(this.value);"></td>
+            <td align="center"><label id="u_lab_nowFOV"> &nbsp 45</label></td>
+        </tr>
+    </table>
+    <label> ============================ </label><br />
+    <label> Camera Movement </label>
+    <table style="width: 270px;">
+        <tr>
+            <td align="center" style="width: 50px;">Longitude</td>
+            <td align="center"><input id="u_txt_lon" type="text" style="width: 90%; height: 90%;" value="126.926464"></td>
+            <td rowspan="3" align="center"><input type="button" style="width: 90%; height: 70px;" value="MOVE"
+                    onclick="setMove()"></td>
+        </tr>
+        <tr>
+            <td align="center">Latitude</td>
+            <td align="center"><input id="u_txt_lat" type="text" style="width: 90%; height: 90%;" value="37.524635"></td>
+        </tr>
+        <tr>
+            <td align="center">Altitude</td>
+            <td align="center"><input id="u_txt_alt" type="text" style="width: 90%; height: 90%;" value="500"></td>
+        </tr>
+    </table>
+    <label> ------------------------------------------------- </label><br />
+    <label> Camera Position </label>
+    <table style="width: 270px;">
+        <tr>
+            <td>Longitude </td>
+            <td><label id="u_lab_nowLon"></label></td>
+        </tr>
+        <tr>
+            <td>Latitude </td>
+            <td><label id="u_lab_nowLat"></label></td>
+        </tr>
+        <tr>
+            <td>Altitude </td>
+            <td><label id="u_lab_nowAlt"></label></td>
+        </tr>
+    </table>
+    <label> ============================ </label><br />
+    <table style="width: 270px;">
+        <tr>
+            <td><input type="radio" name="chk_info" value="HTML" onChange="setPerson(1)">&nbsp First Person &nbsp</td>
+            <td><input type="radio" name="chk_info" value="CSS" onChange="setPerson(3)" checked="checked">&nbsp Third Person</td>
+        </tr>
+        <tr>
+            <td></td>
+        </tr>
+    </table>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  setinterface();
+  initMapCanvasEvent(Module.canvas);
+
+  let camera = Module.getViewCamera();
+  let tilt = camera.getTilt();
+  let direct = camera.getDirect();
+
+  tilt = Math.floor(tilt);
+  direct = Math.floor(direct);
+
+  console.log(tilt, direct)
+
+  setItemText("u_lab_nowTilt", "&nbsp;" + tilt);
+  setItemText("u_lab_nowDirect", "&nbsp;" + direct);
+  setItemValue("u_rag_nowTilt", tilt);
+  setItemValue("u_rag_nowDirect", direct);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function initMapCanvasEvent(canvas) {
+
+canvas.onmousemove = (e) => {
+  if (e.buttons == 1) {
+    // Left click (move processing)
+  } else if (e.buttons == 2) {
+    // Right click (camera rotation)
+    let camera = Module.getViewCamera();
+    let tile = camera.getTilt();			// Camera tile (up and down) angle (10~90)
+    let direct = camera.getDirect();		// Camera direction angle (left and right) (-180 ~ 180)	North: 0 East: -90 South: -180 or 180 West: 90
+
+    tile = Math.floor(tile);
+    direct = Math.floor(direct);
+
+    setItemText("u_lab_nowTilt", "&nbsp;" + tile);
+    setItemText("u_lab_nowDirect", "&nbsp;" + direct);
+    setItemValue("u_rag_nowTilt", tile);
+    setItemValue("u_rag_nowDirect", direct);
+  }
+}
+canvas.onmouseup = (e) => {
+  let camera = Module.getViewCamera();
+  let pos = camera.getLocation();
+  setItemText("u_lab_nowLon", pos.Longitude);
+  setItemText("u_lab_nowLat", pos.Latitude);
+  setItemText("u_lab_nowAlt", pos.Altitude);
+}
+canvas.onmousewheel = (e) => {
+  let camera = Module.getViewCamera();
+  let alt = camera.getAltitude();
+  alt = Math.floor(alt);
+  setItemText("u_lab_nowAltitude", "&nbsp;" + alt);	// Display label value
+  setItemValue("u_rag_nowAltitude", alt);
+}
+}
+
+// Definition of tilt
+// Camera up and down rotation
+// Minimum maximum angle: 10~90 degrees
+// Sample for tilt return is referenced in canvas.onmousemove
+function setTilt(_value) {
+_value *= 1;							// Convert string data to number
+let camera = Module.getViewCamera();	// Load camera class
+camera.setTilt(_value);					// Apply tilt value (getTilt returns the current value)
+setItemText("u_lab_nowTilt", "&nbsp;" + _value);	// Display label value
+}
+
+// Definition of Direct
+// Camera left and right rotation
+// Minimum maximum angle: -180~180 degrees
+// North: 0 degrees East: -90 degrees South: -180~180 degrees West: 90 degrees
+// Sample for Direct return is referenced in canvas.onmousemove
+function setDirect(_value) {
+_value *= 1;							// Convert string data to number
+let camera = Module.getViewCamera();	// Load camera class
+camera.setDirect(_value);				// Apply Direct value (getDirect returns the current value)
+setItemText("u_lab_nowDirect", "&nbsp;" + _value);	// Display label value
+}
+
+// Definition of Altitude
+// Camera altitude adjustment
+// Minimum maximum angle: -180~180 degrees
+// North: 0 degrees East: -90 degrees South: -180~180 degrees West: 90 degrees
+// Sample for Altitude return is referenced in canvas.onmousewheel
+function setAltitude(_value) {
+_value *= 1;							// Convert string data to number
+let camera = Module.getViewCamera();	// Load camera class
+camera.setAltitude(_value);				// Apply Altitude value (getAltitude returns the current value)
+setItemText("u_lab_nowAltitude", "&nbsp;" + _value);	// Display label value
+}
+
+// Definition of move
+// Move the camera view to the input coordinates
+// Camera position coordinate return is referenced in canvas.onmouseup
+function setMove() {
+let camera = Module.getViewCamera();	// Load camera class
+let lon, lat, alt;
+
+lon = getItemValue("u_txt_lon");		// Return HTML Lon value
+lat = getItemValue("u_txt_lat");		// Return HTML Lat value
+alt = getItemValue("u_txt_alt");		// Return HTML alt value
+
+lon *= 1;								// Convert string to number
+lat *= 1;								// Convert string to number
+alt *= 1;								// Convert string to number
+
+let pos = new Module.JSVector3D(lon, lat, alt);		// Convert longitude and latitude to JSVector3D format
+camera.setLocation(pos);							// Move the camera (getLocation returns the current value)
+// Additional APIs related to camera movement can be found at the link below (to be added)
+}
+
+// Definition of FOV
+// Set the field of view
+// Camera position coordinate return is referenced in canvas.onmouseup
+// The field of view is set to 45 by default
+function setFOV(_value) {
+_value *= 1;							// Convert string data to number
+let camera = Module.getViewCamera();	// Load camera class
+camera.setFov(_value)
+setItemText("u_lab_nowFOV", "&nbsp;" + _value);	// Display label value
+}
+
+// Definition of 1st and 3rd person
+// Change the camera rotation mode
+// 1st person: Rotate the camera in place
+// 3rd person: Rotate the camera relative to the viewpoint it is looking at (Default)
+function setPerson(_type) {
+_type *= 1;
+let camera = Module.getViewCamera();	// Load camera class
+if (_type == 1) {
+  camera.setMoveMode(true);
+} else if (_type == 3) {
+  camera.setMoveMode(false);
+}
+}
+
+function setinterface() {
+setDivSizeHeight("interface", 300, 360)
+}
+
+function setDivSizeHeight(_div, _width, _height) {
+let div = document.getElementById(_div);
+div.style.width = _width + "px";
+div.style.height = _height + "px";
+}
+
+function setItemText(_div, _value) {
+let div = document.getElementById(_div);
+div.innerHTML = _value;
+}
+
+function setItemValue(_div, _value) {
+let div = document.getElementById(_div);
+div.value = "" + _value;
+}
+
+function getItemValue(_div) {
+let div = document.getElementById(_div);
+return div.value;
+}
   </script>
 </body>
 </html>

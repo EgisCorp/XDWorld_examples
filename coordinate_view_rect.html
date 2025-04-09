@@ -20,39 +20,144 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        #map {
+          position: absolute;
+          width: calc(100%);
+          height: calc(100%);
+          left: 0px;
+          top: 0px;
+        }
+        .corner {
+          background-color: #FFFFFF;
+          font-size: 22px;
+            padding: 5px;
+            margin: 1px;
+        }
+        #corner_left_top {
+          position: fixed;
+          top: 0px;
+          left: 0px;
+        }
+        #corner_right_top {
+          position: fixed;
+          top: 0px;
+          right: 0px;
+        }
+        #corner_left_bottom {
+          position: fixed;
+          bottom: 0px;
+          left: 0px;
+        }
+        #corner_right_bottom {
+          position: fixed;
+          bottom: 0px;
+          right: 0px;
+        }
+        </style>
+        <div id="corner_left_top" class="corner">-</div>
+        <div id="corner_right_top" class="corner">-</div>
+        <div id="corner_left_bottom" class="corner">-</div>
+        <div id="corner_right_bottom" class="corner">-</div>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    
+var GLOBAL = {
+	screenCorner : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		initScreenCorner();
+		Module.getViewCamera().setLocation(new Module.JSVector3D(128.32261967028936, 36.00109672738654, 120000.0));
+
+		// Print screen corner coordinate when camera move end event is fired
+		Module.canvas.addEventListener("Fire_EventCameraMoveEnd", function(e) {
+			printScreenCornerCoordinate();
+		});
+	}
+};
+
+function initScreenCorner() {
+			
+	GLOBAL.screenCorner = {
+		leftTop : new Module.JSVector2D(0, 0),
+		rightTop : new Module.JSVector2D(window.innerWidth, 0),
+		rightBottom : new Module.JSVector2D(window.innerWidth, window.innerHeight),
+		leftBottom : new Module.JSVector2D(0, window.innerHeight)
+	};
+}
+
+function printScreenCornerCoordinate() {
+
+	if (GLOBAL.screenCorner == null) {
+		return;
+	}
+
+	var map = Module.getMap();
+
+	var leftTop = map.ScreenToMapPointEX(GLOBAL.screenCorner.leftTop);
+	if (leftTop == null) {
+		document.getElementById("corner_left_top").innerHTML = "No ground collision";
+	} else {
+		document.getElementById("corner_left_top").innerHTML = leftTop.Longitude.toFixed(6) + ", " + leftTop.Latitude.toFixed(6);
+	}
+
+	var rightTop = map.ScreenToMapPointEX(GLOBAL.screenCorner.rightTop);
+	if (rightTop == null) {
+		document.getElementById("corner_right_top").innerHTML = "No ground collision";
+	} else {
+		document.getElementById("corner_right_top").innerHTML = rightTop.Longitude.toFixed(6) + ", " + rightTop.Latitude.toFixed(6);
+	}
+
+	var rightBottom = map.ScreenToMapPointEX(GLOBAL.screenCorner.rightBottom);
+	if (rightBottom == null) {
+		document.getElementById("corner_right_bottom").innerHTML = "No ground collision";
+	} else {
+		document.getElementById("corner_right_bottom").innerHTML = rightBottom.Longitude.toFixed(6) + ", " + rightBottom.Latitude.toFixed(6);
+	}
+
+	var leftBottom = map.ScreenToMapPointEX(GLOBAL.screenCorner.leftBottom);
+	if (leftBottom == null) {
+		document.getElementById("corner_left_bottom").innerHTML = "No ground collision";
+	} else {
+		document.getElementById("corner_left_bottom").innerHTML = leftBottom.Longitude.toFixed(6) + ", " + leftBottom.Latitude.toFixed(6);
+	}
+}
+
+window.resize = function() {
+	initScreenCorner();
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

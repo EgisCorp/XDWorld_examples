@@ -20,39 +20,90 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>[Mouse Screen Coordinate] </span>
+<table style="text-align:right">
+	<tr>
+		<td>X</td>
+		<td style="width:80px;" id="screenX">0</td>
+	</tr>
+	<tr>
+		<td>Y</td>
+		<td style="width:80px;" id="screenY">0</td>
+	</tr>
+</table>
+<br>
+<span>[Mouse map coordinates] </span>
+<table style="text-align:right">
+	<tr>
+		<td>Longitude</td>
+		<td style="color:blue; width:80px;" id="mapLon">-</td>
+	</tr>
+	<tr>
+		<td>Latitude</td>
+		<td style="color:blue; width:80px;" id="mapLat">-</td>
+	</tr>
+	<tr>
+		<td>Altitude</td>
+		<td style="color:blue; width:80px;" id="mapAlt">-</td>
+	</tr>
+</table>
+
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
+
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
       },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+    Module.canvas.onmousemove = function(e) {
+      
+      var screenPosition = new Module.JSVector2D(e.x, e.y);
+      
+      // Convert screen to map coordinate
+      var mapPosition = Module.getMap().ScreenToMapPointEX(screenPosition);
+      
+      document.getElementById("screenX").innerHTML = e.x;
+      document.getElementById("screenY").innerHTML = e.y;
+      
+      if (mapPosition == null) {
+        document.getElementById("mapLon").innerHTML = "-";
+        document.getElementById("mapLat").innerHTML = "-";
+        document.getElementById("mapAlt").innerHTML = "-";
+      } else {
+        document.getElementById("mapLon").innerHTML = parseFloat(mapPosition.Longitude).toFixed(6);
+        document.getElementById("mapLat").innerHTML = parseFloat(mapPosition.Latitude).toFixed(6);
+        document.getElementById("mapAlt").innerHTML = parseFloat(mapPosition.Altitude).toFixed(6);
       }
     };
+}
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

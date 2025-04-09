@@ -20,39 +20,123 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <label>Camera View</label>
+<br>
+<input type="radio" id ="first" name="view_mode" value="HTML" onChange="setViewmode(true);"> First Person
+<input type="radio" id ="third" name="view_mode" value="CSS" onChange="setViewmode(false);" checked="checked"> Third Person
+<br><label> ============================== </label><br/>
+<label>Terrain Union</label>
+<br>
+<input type="radio" id ="union_true" name="terrain_mode" value="HTML" disabled = "disabled" onChange="setUnionmode(true);"> on
+<input type="radio" id ="union_false" name="terrain_mode" value="CSS" disabled = "disabled" onChange="setUnionmode(false);" checked="checked"> off
+<br><label> ============================== </label><br/>
+<label>Move Speed</label>
+<br>
+<input type="button" value="0.8" onclick="setSpeed(0.8);">
+<input type="button" value="0.5" onclick="setSpeed(0.5);">
+<input type="button" value="0.3" onclick="setSpeed(0.3);">
+<input type="button" value="1.0" onclick="setSpeed(1.0);">
+<input type="button" value="3.0" onclick="setSpeed(3.0);">
+<input type="button" value="5.0" onclick="setSpeed(5.0);">
+<input type="button" value="8.0" onclick="setSpeed(8.0);">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Not use key events provided by the engine
+  Module.getControl().setKeyRotMode(false);
+   
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.92836647767662, 37.52439503321471, 1000.0));
+  
+  Module.getTileLayerList().createXDServerLayer({
+    url : "https://xdworld.vworld.kr",
+    servername : "XDServer3d",
+    name : "facility_build",
+    type : 9,
+    minLevel : 0,
+    maxLevel : 15
+  });
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+// Define camera movement speed
+// default: 1.0
+function setSpeed(_value) {
+  Module.getControl().keyboard_sensitivity = _value;
+}
+
+// Define terrain coupling
+// Change camera terrain coupling mode
+// Terrain coupling: Camera moves along the terrain.
+function setUnionmode(_type) {
+  Module.getViewCamera().setUnionMode(_type);
+}
+
+// First-person and third-person definitions
+// Change the camera rotation mode
+// First-person: The camera rotates in place
+// Third-person: The camera rotates based on the viewpoint (Default)
+function setViewmode(_type) {
+
+Module.getViewCamera().setMoveMode(_type);
+
+if(_type == false) {
+      Module.getViewCamera().setUnionMode(false);	// Disable terrain height alignment when switching to third-person mode
+  
+    document.getElementById("union_true").disabled = true;
+      document.getElementById("union_false").disabled = true;
+      document.getElementById("union_false").checked = true;
+  }
+  else {
+    document.getElementById("union_true").disabled = false;
+      document.getElementById("union_false").disabled = false;
+  }
+}
+
+// Keyboard event handling
+window.addEventListener("keydown", (e) => {
+  if (e.key == "w") Module.getViewCamera().moveFront();      // Move forward
+  else if (e.key == "s") Module.getViewCamera().moveBack();  // Move backward
+  else if (e.key == "a") Module.getViewCamera().moveLeft();  // Move left
+  else if (e.key == "d") Module.getViewCamera().moveRight(); // Move right
+  else if (e.key == "q") Module.getViewCamera().rotateLeft(); // Rotate left
+  else if (e.key == "e") Module.getViewCamera().rotateRight(); // Rotate right
+  else if (e.key == "t") Module.getViewCamera().rotateUp();    // Rotate up
+  else if (e.key == "g") Module.getViewCamera().rotateDown();  // Rotate down
+  else if (e.key == "r") Module.getViewCamera().moveUp();      // Move up
+  else if (e.key == "f") Module.getViewCamera().moveDown();    // Move down
+});
   </script>
 </body>
 </html>

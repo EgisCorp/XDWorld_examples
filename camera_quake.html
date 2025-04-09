@@ -20,39 +20,60 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Strength</span>
+<input type="range" min="0.0" max="100.0" step="0.1" value="50.0" onChange="SetShakeEffectStrength(parseFloat(this.value));">
+<input type="button" value="On" onclick="ShakeCamera(true);">
+<input type="button" value="Off" onclick="ShakeCamera(false);">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
+
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
               url : "https://xdworld.vworld.kr",
               name : "dem",
               servername : "XDServer3d",
               encoding : true
-            },
-            image : {
+          },
+          image : {
               url : "https://xdworld.vworld.kr",
               name : "tile",
               servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+          }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+    // Set camera position
+  let camera = Module.getViewCamera();
+      camera.setLocation(new Module.JSVector3D(129.128265, 35.171834, 1000.0));
+      camera.setTilt(30.0);
+}
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set camera shake effect */
+function ShakeCamera(_bSet) {
+Module.getViewCamera().SetCameraShakeEffect(_bSet);
+}
+
+/* Set camera shake effect strength */
+function SetShakeEffectStrength(_strength) {
+Module.getViewCamera().SetCameraShakeStrength(_strength);
+}
   </script>
 </body>
 </html>

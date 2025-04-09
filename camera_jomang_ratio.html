@@ -20,39 +20,115 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" id="btViewCoverage" value="Check ratio" onclick="getJomangRatio(4);"></input>
+
+<table>
+	<tr>
+		<td>
+			<span>Building</span>
+		</td>
+		<td>
+			<label id="building">0%</label>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>Mountain</span>
+		</td>
+		<td>
+			<label id="mount">0%</label>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>Terrain</span>
+		</td>
+		<td>
+			<label id="terrain">0%</label>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>Sky</span>
+		</td>
+		<td>
+			<label id="sky">0%</label>
+		</td>
+	</tr>
+</table>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  var layer = Module.getTileLayerList().createXDServerLayer({
+  url : "https://xdworld.vworld.kr",
+  servername : "XDServer3d",
+  name : "facility_build",
+  type : 9,
+  minLevel : 0,
+  maxLevel : 15
+});
+
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(129.128265, 35.171834, 1000.0));		
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+
+// Define getJomangRatio
+// Execute view ratio calculation
+// Calculate the view ratio of the current screen.
+function getJomangRatio()
+{
+var data = Module.getAnalysis().getJomangRatio(4); // Define how many meters above terrain to consider as mountain
+var buildArr = data.split("#");	// return value example) build#3.89#mount#47.73#terrain#40.45#sky#7.94
+
+// Building
+var building = document.getElementById("building");
+building.innerHTML = buildArr[1] + "%";
+
+// Mountain
+var mount = document.getElementById("mount");
+mount.innerHTML = buildArr[3] + "%";
+
+// Terrain
+var terrain = document.getElementById("terrain");
+terrain.innerHTML = buildArr[5] + "%";
+
+// Sky
+var sky = document.getElementById("sky");
+sky.innerHTML = buildArr[7] + "%";
+}
   </script>
 </body>
 </html>

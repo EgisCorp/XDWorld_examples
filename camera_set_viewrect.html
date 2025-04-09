@@ -20,39 +20,201 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        input[type="text"] {
+          width: 100px;
+          text-align: right
+        }
+        input[type="button"] {
+          height: 95px;
+        }
+      </style>
+      <span>Set View Rectangle</span>
+      <table>
+        <tr>
+          <td rowspan="2">
+            <span>Minimum</span>
+          </td>
+          <td>
+            <span>Longitude</span>
+          </td>
+          <td>
+            <input type="text" id="longitude_min" value="127.05008916368347">
+          </td>
+          <td rowspan="4">
+            <input type="button" value="move" onclick="moveTestArea();">
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span>Latitude</span>
+          </td>
+          <td>
+            <input type="text" id="latitude_min" value="37.47908194194946">
+          </td>
+        </tr>
+        <tr>
+          <td rowspan="2">
+            <span>Maximum</span>
+          </td>
+          <td>
+            <span>Longitude</span>
+          </td>
+          <td>
+            <input type="text" id="longitude_max" value="127.06488139128804">
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span>Latitude</span>
+          </td>
+          <td>
+            <input type="text" id="latitude_max" value="37.4884208071822">
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <span>Animation Effect</span>
+          </td>
+          <td>
+            <input type="radio" name="animation" onChange="setAnimation(true);" checked> ON 
+          </td>
+          <td>
+            <input type="radio" name="animation" onChange="setAnimation(false);" > OFF 
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var animation = true;	// Camera move animation effect
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Camera move animation effect */
+function setAnimation(type) {
+	
+	animation = type;
+}
+
+/* Move area */
+function moveTestArea() {
+	
+	// Return minimum and maximum longitude and latitude coordinates of the area
+	var area_min_lon = parseFloat(document.getElementById("longitude_min").value);
+	var area_min_lat = parseFloat(document.getElementById("latitude_min").value);
+	var area_max_lon = parseFloat(document.getElementById("longitude_max").value);
+	var area_max_lat = parseFloat(document.getElementById("latitude_max").value);
+		
+	// Adjust minimum and maximum values after comparison
+	if (area_min_lon > area_max_lon) {
+		var temp = area_min_lon;
+		area_min_lon = area_max_lon;
+		area_max_lon = temp;
+	}
+		
+	if (area_min_lat > area_max_lat) {
+		var temp = area_min_lat;
+		area_min_lat = area_max_lat;
+		area_max_lat = temp;
+	}	
+	
+	// Visualize the movement range
+	createTestBoundaryRect(area_min_lon, area_min_lat, area_max_lon, area_max_lat);
+	
+	// Execute movement and run callback function afterwards
+	let json = {
+		boundary: {														// Camera movement position
+			min: new Module.JSVector2D(area_min_lon, area_min_lat),		// Lower left
+			max: new Module.JSVector2D(area_max_lon, area_max_lat)		// Upper right
+		},			
+		animation: animation,
+		complete: complete,												// Callback after movement completion
+	};
+	
+	let result = Module.getViewCamera().moveLonLatBoundarybyJson(json);	// Returns 'success' if successful, error message otherwise
+	
+	// If you simply want to move without a callback function
+	// Module.getViewCamera().moveLonLatBoundary(new Module.JSVector2D(area_min_lon, area_min_lat), new Module.JSVector2D(area_max_lon, area_max_lat));
+}
+
+/* Event upon camera movement completion */
+function complete(...args) {
+	
+	// Handle variable arguments, args[0] data returns current longitude, latitude, and altitude of the camera
+	console.log(args);
+}
+
+/* Visualize movement range */
+function createTestBoundaryRect(_area_min_lon, _area_min_lat, _area_max_lon, _area_max_lat) {
+	
+	// Return the layer to store visualization objects
+	var layerList = new Module.JSLayerList(true);
+	var layer = layerList.nameAtLayer("TEST_POLYGON_LAYER");
+	if (layer == null) {
+		layer = layerList.createLayer("TEST_POLYGON_LAYER", 1);
+	} else {
+		layer.removeAll();
+	}
+	
+	// Create a polygon object
+	var polygon = new Module.createPolygon("TEST_POLYGON");
+	
+	// Set polygon style
+	var polygonStyle = new Module.JSPolygonStyle();
+	
+	polygonStyle.setFill(true);
+	polygonStyle.setFillColor(new Module.JSColor(100, 255, 255, 0));
+	
+	polygon.setStyle(polygonStyle);
+	
+	// Create a vertex list for the polygon
+	var vertices = new Module.Collection();
+	vertices.add(new Module.JSVector3D(_area_min_lon, _area_min_lat, 0.0));
+	vertices.add(new Module.JSVector3D(_area_min_lon, _area_max_lat, 0.0));
+	vertices.add(new Module.JSVector3D(_area_max_lon, _area_max_lat, 0.0));
+	vertices.add(new Module.JSVector3D(_area_max_lon, _area_min_lat, 0.0));
+	
+	// Apply vertices
+	polygon.setCoordinates(vertices);
+	
+	// Add object to the layer
+	layer.addObject(polygon, 0);
+	layer.setMaxDistance(50000000);
+	
+	Module.XDRenderData();
+}
   </script>
 </body>
 </html>

@@ -20,39 +20,281 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Distance</span>
+<input type="range" id="distance" min="10" max="200" value="200" step="1" onchange="updateRoundPointDistance(parseFloat(this.value));">
+<span id="distanceText">200</span>
+<br>
+<span>Angle</span>
+<input type="range" id="angle" min="0" max="360" value="0" step="1" onchange="updateRoundPointAngle(parseFloat(this.value));">
+<span id="angleText">0</span>
+<br>
+<br>
+<span>Round Point Position</span>
+<br>
+<span>- Longitude : </span>
+<span id="RoundPointLongitude">-</span>
+<br>
+<span>- Latitude : </span>
+<span id="RoundPointLatitude">-</span>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	CENTER_POSITION : {
+		LONGITUDE : 129.12489252555122,
+		LATITUDE : 35.17507580556564,
+		ALTITUDE : 50.0
+	}
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+		// Set camera location
+		Module.getViewCamera().setLocation(new Module.JSVector3D(GLOBAL.CENTER_POSITION.LONGITUDE, GLOBAL.CENTER_POSITION.LATITUDE, 1000.0));
+
+		// Center Point Position
+		var centerPosition = new Module.JSVector3D(
+			GLOBAL.CENTER_POSITION.LONGITUDE, 
+			GLOBAL.CENTER_POSITION.LATITUDE, 
+			GLOBAL.CENTER_POSITION.ALTITUDE
+		);
+
+		// Create Point for Position Indication
+		initCenterPoint(centerPosition);
+		initRoundPoint(centerPosition);
+	}
+};
+
+/* Initialize Center Point */
+function initCenterPoint(_centerPosition) {
+
+	// Create Point layer
+	var pointLayer = Module.getObjectLayerList().createObjectLayer({
+		name : "CENTER_POINT_LAYER",
+		type : Module.ELT_3DPOINT
+	});
+	
+	// Create Center Point
+	var centerPoint = createPoint(_centerPosition, 'rgba(255, 255, 255, 1)', 'rgba(255, 0, 0, 1)');	
+	pointLayer.addObject(centerPoint, 0);
+
+	// Create Line layer
+	var lineLayer = Module.getObjectLayerList().createObjectLayer({
+		name : "LINE_LAYER",
+		type : Module.ELT_3DLINE
+	});
+
+	// Create Vertical Line from Center Point
+	var centerVerticalLine = Module.createLineString("CENTER_LINE");
+	centerVerticalLine.createbyJson({
+		coordinates : {
+			coordinate : [
+				[_centerPosition.Longitude, _centerPosition.Latitude, _centerPosition.Altitude],
+				[_centerPosition.Longitude, _centerPosition.Latitude, 0.0],
+			],
+			style : "XYZ"
+		}
+	});
+	lineLayer.addObject(centerVerticalLine, 0);
+}
+
+/* Initialize Round Point */
+function initRoundPoint(_centerPosition) {
+
+	// Create Point layer
+	var pointLayer = Module.getObjectLayerList().createObjectLayer({
+		name : "ROUND_POINT_LAYER",
+		type : Module.ELT_3DPOINT
+	});
+
+	// Create Round Point
+	var roundPointPosition = Module.getMap().getPositionByAngleDistance3D(
+		_centerPosition,
+		parseFloat(document.getElementById("distance").value),
+		parseFloat(document.getElementById("angle").value)
+	);
+
+	var roundPoint = createPoint(roundPointPosition, 'rgba(255, 255, 255, 1)', 'rgba(0, 0, 255, 1)');
+	pointLayer.addObject(roundPoint, 0);	
+
+	// Create Line layer
+	var lineLayer = Module.getObjectLayerList().createObjectLayer({
+		name : "ROUND_PATH_LINE_LAYER",
+		type : Module.ELT_3DLINE
+	});
+
+	// Create Round Path coordinates
+	var roundPath = [];
+	var map = Module.getMap();
+	var distance = parseFloat(document.getElementById("distance").value);
+	for (var i=0; i<360; i++) {
+		var position = map.getPositionByAngleDistance3D(_centerPosition, distance, i);
+		roundPath.push([position.Longitude, position.Latitude, position.Altitude]);
+	}
+	
+	var roundPathLine = Module.createLineString("ROUND_PATH_LINE");
+	roundPathLine.createbyJson({
+		coordinates : {
+			coordinate : roundPath,
+			style : "XYZ"
+		}
+	});
+	lineLayer.addObject(roundPathLine, 0);
+}
+
+/* Get Round Point Position */
+function getRoundPointPosition(_position) {
+
+	return Module.getMap().getPositionByAngleDistance3D(
+		_position,
+		parseFloat(document.getElementById("distance").value),
+		parseFloat(document.getElementById("angle").value)
+	);
+}
+
+/* Create Round Marker Image for Point */
+function createRoundMarkerImage(_size, _outlineColor, _fillColor) {
+
+	// Create circular point on canvas and generate image icon
+	var canvas = document.createElement("canvas");
+	canvas.width = _size;
+	canvas.height = _size;
+
+	var ctx = canvas.getContext("2d");
+	ctx.beginPath();
+	ctx.arc(_size/2, _size/2, _size/2, 0, Math.PI * 2);
+	ctx.fillStyle = _fillColor;
+	ctx.fill();
+	
+	// Create circular outline
+	ctx.beginPath();
+	ctx.arc(_size/2, _size/2, _size/2, 0, Math.PI * 2);
+	ctx.lineWidth = 2;
+	ctx.strokeStyle = _outlineColor;
+	ctx.stroke();
+	
+	return {
+		pixels : ctx.getImageData(0, 0, _size, _size).data,
+		width : _size,
+		height : _size
+	};
+}
+
+/* Create Point */
+function createPoint(_position, _outlineColor, _fillColor) {
+
+	var point = Module.createPoint("POINT");
+	point.setPosition(_position);
+	
+	var pointImage = createRoundMarkerImage(16, _outlineColor, _fillColor);
+	point.setImage(pointImage.pixels, pointImage.width, pointImage.height);
+
+	return point;
+}
+
+/* Update Center Point Distance */
+function updateRoundPointDistance(_distance) {
+
+	var centerPosition = new Module.JSVector3D(
+		GLOBAL.CENTER_POSITION.LONGITUDE,
+		GLOBAL.CENTER_POSITION.LATITUDE,
+		GLOBAL.CENTER_POSITION.ALTITUDE
+	);
+
+	updateRoundPath(centerPosition, _distance);
+	updateRoundPoint(centerPosition, _distance, parseFloat(document.getElementById("angle").value));
+
+	document.getElementById("distanceText").innerHTML = _distance;
+}
+
+/* Update Round Path */
+function updateRoundPath(_centerPosition, _distance) {
+
+	// Remove path polygon
+	var roundPathLayer = Module.getObjectLayerList().nameAtLayer("ROUND_PATH_LINE_LAYER");
+	if (roundPathLayer != null) {
+		roundPathLayer.removeAll();
+	}
+
+	// Create path coordinates
+	var roundPath = [];
+	var map = Module.getMap();
+	for (var i=0; i<360; i++) {
+		var position = map.getPositionByAngleDistance3D(_centerPosition, _distance, i);
+		roundPath.push([position.Longitude, position.Latitude, position.Altitude]);
+	}
+	
+	var roundPathLine = Module.createLineString("CENTER_LINE");
+	roundPathLine.createbyJson({
+		coordinates : {
+			coordinate : roundPath,
+			style : "XYZ"
+		}
+	});
+	roundPathLayer.addObject(roundPathLine, 0);
+}
+
+/* Update Round Point Angle */
+function updateRoundPointAngle(_angle) {
+
+	var centerPosition = new Module.JSVector3D(
+		GLOBAL.CENTER_POSITION.LONGITUDE,
+		GLOBAL.CENTER_POSITION.LATITUDE,
+		GLOBAL.CENTER_POSITION.ALTITUDE
+	);
+
+	updateRoundPoint(centerPosition, parseFloat(document.getElementById("distance").value), _angle);
+
+	document.getElementById("angleText").innerHTML = _angle;
+}
+
+/* Update Round Point Position */
+function updateRoundPoint(_centerPosition, _distance, _angle) {
+
+	// Remove round point
+	var roundPointLayer = Module.getObjectLayerList().nameAtLayer("ROUND_POINT_LAYER");
+	if (roundPointLayer != null) {
+		roundPointLayer.removeAll();
+	}
+
+	// Create round point
+	var roundPointPosition = Module.getMap().getPositionByAngleDistance3D(_centerPosition, _distance, _angle);
+	var roundPoint = createPoint( roundPointPosition, 'rgba(255, 255, 255, 1)', 'rgba(0, 0, 255, 1)');
+
+	roundPointLayer.addObject(roundPoint, 0);
+
+	document.getElementById("RoundPointLongitude").innerHTML = roundPointPosition.Longitude.toFixed(6);
+	document.getElementById("RoundPointLatitude").innerHTML = roundPointPosition.Latitude.toFixed(6);
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

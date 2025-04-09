@@ -20,39 +20,400 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        #interface {
+          background-color: rgba(255, 255, 255, 0.0);
+        }
+      
+        .indicator {
+          display: none;
+          position: fixed;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          pointer-events: none;
+        }
+      
+        .arrow {
+          width: 0;
+          height: 0;
+          border-left: 10px solid transparent; 
+          border-right: 10px solid transparent;
+          border-bottom: 40px solid;
+          transform-origin: center;
+        }
+      
+        .label {
+          position: absolute;
+          white-space: nowrap;
+        }
+        
+        .red {
+          border-bottom-color: red;
+          color: red;
+          text-shadow:
+            -1px -1px 0 white,
+            1px -1px 0 white,
+            -1px  1px 0 white,
+            1px  1px 0 white;
+        }
+      
+        .blue {
+          border-bottom-color: blue;
+          color: blue;
+          text-shadow:
+            -1px -1px 0 white,
+            1px -1px 0 white,
+            -1px  1px 0 white,
+            1px  1px 0 white;
+        }
+      
+        .yellow {
+          border-bottom-color: yellow;
+          color: yellow;
+          text-shadow:
+            -1px -1px 0 black,
+            1px -1px 0 black,
+            -1px  1px 0 black,
+            1px  1px 0 black;
+        }
+      </style>
+      <div class="indicator" id="redPointIndicator">
+        <div class="arrow red"></div>
+        <span id="redPointIndicatorLabel" class="label red">RED</span>
+      </div>
+      <div class="indicator" id="yellowPointIndicator">
+        <div class="arrow yellow"></div>
+        <span id="yellowPointIndicatorLabel" class="label yellow">YELLOW</span>
+      </div>
+      <div class="indicator" id="bluePointIndicator">
+        <div class="arrow blue"></div>
+        <span id="bluePointIndicatorLabel" class="label blue">BLUE</span>
+      </div>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	mouseButtonPressed : false,
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+	redPoint : null,
+	yellowPoint : null,
+	bluePoint : null
+};
+
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set the camera location
+		Module.getViewCamera().setLocation(new Module.JSVector3D(129.128191, 35.180662, 1392.47));
+				
+		// Create point objects
+		createPoints(new Module.JSVector3D(129.128265, 35.171834, 200.0));
+
+		// Initialize the event for the map canvas
+		initMapCanvasMouseEvent();
+
+		// Indicate update after 1 second
+		setTimeout(function() {
+			renewIndicators();
+		}, 1000);
+	}
+};
+
+// Initialize the event for the map canvas
+function initMapCanvasMouseEvent() {
+
+	if (typeof Module.canvas == "undefined") {
+		return;
+	}
+
+	Module.canvas.addEventListener("mousedown", function(e) {
+		GLOBAL.mouseButtonPressed = true;
+	});
+
+	Module.canvas.addEventListener("mouseup", function(e) {
+		GLOBAL.mouseButtonPressed = false;
+	});
+
+	Module.canvas.addEventListener("mousemove", function(e) {
+		
+		if (GLOBAL.mouseButtonPressed) {
+			renewIndicators();
+		}
+	});
+
+	Module.canvas.addEventListener("wheel", function(e) {
+		renewIndicators();
+	});
+}
+
+function renewIndicators() {
+	displayIndicator(GLOBAL.redPoint, "redPointIndicator", getDistanceFromCamera(GLOBAL.redPoint));
+	displayIndicator(GLOBAL.yellowPoint, "yellowPointIndicator", getDistanceFromCamera(GLOBAL.yellowPoint));
+	displayIndicator(GLOBAL.bluePoint, "bluePointIndicator", getDistanceFromCamera(GLOBAL.bluePoint));
+}
+
+// Get the distance from the camera
+function getDistanceFromCamera(_object) {
+
+	if (_object == null) {
+		return 0.0;
+	}
+
+	var cameraLocation = Module.getViewCamera().getLocation();
+
+	return Module.getMap().GetPointDistance(
+		cameraLocation,
+		_object.getPosition(),
+		false	// Not considering the terrain
+	);
+}
+
+// Set the position of the indicator
+function setIndicatorPosition(_indicatorElement, _screenX, _screenY) {
+	
+	var screen_width = Module.canvas.width;
+	var screen_height = Module.canvas.height;
+
+	if (_screenX < screen_width*0.5 && _screenY < screen_height*0.5) {
+
+		// left_top
+		_indicatorElement.style.left = `${_screenX}px`;
+		_indicatorElement.style.right = '';
+		_indicatorElement.style.top = `${_screenY}px`;
+		_indicatorElement.style.bottom = '';
+
+	} else if (_screenX > screen_width*0.5 && _screenY < screen_height*0.5) {
+		
+		// right_top
+		_indicatorElement.style.left = ''; 
+		_indicatorElement.style.right = `${(screen_width - _screenX)}px`;
+		_indicatorElement.style.top = `${_screenY}px`;
+		_indicatorElement.style.bottom = '';
+		
+	} else if (_screenX > screen_width*0.5 && _screenY > screen_height*0.5) {
+
+		// right_bottom
+		_indicatorElement.style.left = '';
+		_indicatorElement.style.right = `${(screen_width - _screenX)}px`;
+		_indicatorElement.style.bottom = `${(screen_height - _screenY)}px`;
+		_indicatorElement.style.top = ''; 
+
+	} else {
+
+		// left_bottom
+		_indicatorElement.style.left = `${_screenX}px`;
+		_indicatorElement.style.bottom = `${(screen_height - _screenY)}px`;
+		_indicatorElement.style.right = ''; 
+		_indicatorElement.style.top = '';
+	}
+}
+
+// Set the position of the label
+function setLabelPosition(_labelElement, _angle, _distance) {
+
+	var offsetX = 0;
+	var offsetY = 0;
+
+	var distanceFromArrow = 40;
+
+	var radians = (_angle * Math.PI) / 180;
+
+	if (_angle < 90.0) {
+
+		var radians = ((_angle) * Math.PI) / 180;
+		offsetX = distanceFromArrow * Math.sin(radians);
+		offsetY = distanceFromArrow * Math.cos(radians);
+		
+		_labelElement.style.right = `${offsetX}px`;
+		_labelElement.style.top = `${offsetY}px`; 
+		_labelElement.style.left = '';
+		_labelElement.style.bottom = '';
+	
+	} else if (_angle < 180.0) {
+		
+		var radians = ((_angle - 90) * Math.PI) / 180;
+		offsetX = distanceFromArrow * Math.cos(radians);
+		offsetY = distanceFromArrow * Math.sin(radians);
+		
+		_labelElement.style.right = `${offsetX}px`;
+		_labelElement.style.bottom = `${offsetY}px`; 
+		_labelElement.style.left = '';
+		_labelElement.style.top = '';
+	
+	} else if (_angle < 270.0) {
+		
+		var radians = ((_angle - 180) * Math.PI) / 180;
+		offsetX = distanceFromArrow * Math.sin(radians);
+		offsetY = distanceFromArrow * Math.cos(radians);
+		
+		_labelElement.style.left = `${offsetX}px`;
+		_labelElement.style.bottom = `${offsetY}px`; 
+		_labelElement.style.right = '';
+		_labelElement.style.top = '';
+	
+	} else {
+		
+		var radians = ((_angle - 270) * Math.PI) / 180;
+		offsetX = distanceFromArrow * Math.cos(radians);
+		offsetY = distanceFromArrow * Math.sin(radians);
+
+		_labelElement.style.left = `${offsetX}px`;
+		_labelElement.style.top = `${offsetY}px`; 
+		_labelElement.style.right = '';
+		_labelElement.style.bottom = '';
+	}
+
+	// Larger than 1000m, display in km
+	var unit = "m";
+	if (_distance > 100000.0) {
+		unit = "km";
+		_distance = (_distance/1000);
+	}
+
+	// Set comma
+	var distanceText = _distance.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+	
+	_labelElement.innerHTML = distanceText + unit;
+}
+
+// Display the indicator
+function displayIndicator(_pointObject, _elementID, _distance) {
+
+	if (_pointObject == null) {
+		return;
+	}
+
+	var indicator = Module.getMath().getScreenEdgeIndicator(_pointObject.getPosition());
+
+	// Get the indicator element
+	var _indicatorElement = document.getElementById(_elementID);
+	if (_indicatorElement == null) {
+		return;
+	}
+
+	if (indicator == null) {
+		_indicatorElement.style.display = 'none';
+		return;
+	}
+
+	// Set the position of the indicator
+	_indicatorElement.style.display = 'block';
+	setIndicatorPosition(_indicatorElement, indicator.x, indicator.y);
+
+	// Set the angle of the arrow
+	var angle = getIndicatorAngle(indicator.x, indicator.y);
+	var arrow = _indicatorElement.querySelector('.arrow');
+	arrow.style.transform = `rotate(${angle}deg)`;
+
+	// Set the position of the label
+	setLabelPosition(document.getElementById(_elementID+"Label"), angle, _distance);
+}
+
+// Get the angle of the indicator
+function getIndicatorAngle(_screenX, _screenY) {
+
+	if (Module.canvas == null) {
+		return;
+	}
+
+	var width = Module.canvas.width;
+	var height = Module.canvas.height;
+
+	var x = _screenX - width/2;
+	var y = height/2 - _screenY;
+
+	var angle = Math.atan2(x, y) * (180.0 / Math.PI);
+	angle = (angle + 360) % 360;
+
+	return angle;
+}
+
+// Get the point image
+function getDotImage(_size, _color) {
+
+	var canvas = document.createElement("canvas");
+	canvas.width = _size;
+	canvas.height = _size;
+
+	var context = canvas.getContext("2d");
+	context.beginPath();
+	context.arc(_size / 2, _size / 2, _size / 2, 0, Math.PI * 2, true);
+	context.closePath();
+	context.fillStyle = _color;
+	context.fill();
+
+	return {
+		data: context.getImageData(0, 0, _size, _size).data,
+		width: _size,
+		height: _size
+	};
+}
+
+// Create a point object
+function createPoint(_position, _color, _text) {
+
+	var point = Module.createPoint("point_"+_color);
+
+	var image = getDotImage(10, _color);
+	point.setImage(image.data, image.width, image.height);
+	point.setText(_text);
+	point.setPosition(_position);
+
+	return point;
+}
+
+// Create 3 point objects(Red, Yellow, Blue)
+function createPoints(_center) {
+
+	var layer = Module.getObjectLayerList().createObjectLayer({
+		name : "cube_layer",
+		type : Module.ELT_3DPOINT,
+		maxDistance : 100000000.0
+	});
+
+	var map = Module.getMap();
+
+	var redPoint = createPoint(map.getPositionByAngleDistance3D(_center, 1000.0, 0.0), "rgba(255, 0, 0, 1.0)", "RED");
+	layer.addObject(redPoint, 0);
+	GLOBAL.redPoint = redPoint;
+
+	var yellowPoint = createPoint(map.getPositionByAngleDistance3D(_center, 1000.0, 120.0), "rgba(255, 255, 0, 1.0)", "YELLOW");
+	layer.addObject(yellowPoint, 0);
+	GLOBAL.yellowPoint = yellowPoint;
+
+	var bluePoint = createPoint(map.getPositionByAngleDistance3D(_center, 1000.0, 240.0), "rgba(0, 0, 255, 1.0)", "BLUE");
+	layer.addObject(bluePoint, 0);
+	GLOBAL.bluePoint = bluePoint;
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>
