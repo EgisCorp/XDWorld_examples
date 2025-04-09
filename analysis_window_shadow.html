@@ -20,39 +20,160 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span >Please proceed in the order below.</span></br>
+1. <input type="button" value="Select Windows (Bottom Left, Top Right)" onclick="inputArea()" /></br>
+2. <input type="button" value="Create Windows" onclick="inputWindow()" /></br></br>
+<span>Click the top left of where you want to paste the window you created.</span></br>
+3. <input type="button" value="Paste Windows (Click Top Left)" onclick="copyPasteWindow()" /></br>
+<span>Repeat number 3 to continue creating windows.</span></br></br>
+<span>Click the top left of where you want to paste the floor you created.</span></br>
+4. <input type="button" value="Paste Floors (Click Top Left)" onclick="copyPasteFloor()" /></br>
+<span>Repeat number 4 to continue creating floors.</span></br></br>
+<span>Once you have created a window</span></br>
+<span>You can select and analyze the building you want to analyze.</span></br>
+5. <input type="button" value="Select Buildings" onclick="selectBuild()" /></br>
+6. <input type="button" value="Start Analysis" onclick="analysis()" /><br>
+7. <input type="button" value="Get Results" onclick="getResult()" /></br><br>
+===============================================<br><br>
+<span>If you want to set options for each grid, set the items below.</span></br>
+<input type="button" value="Select Rejection Grid" onclick="selectGrid()" /></br>
+<input type="button" value="Reset Grid Settings" onclick="resetGrid()" /></br>
+<input type="button" value="Reset" onclick="clearGrid()" /><br>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
-
     var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+var GLOBAL = {
+	GRID : null,		// Grid class
+	ANALYSIS : null	// Analysis class
+};
+
+// Select window area
+function inputArea() {
+	
+	Module.XDSetMouseState(Module.MML_ANALYS_WINDOWSHADOW);	// Window area input mode
+}
+
+// Create window
+function inputWindow() {
+	
+	GLOBAL.GRID.createWindow("windowLayer");
+}
+
+// Paste window
+function copyPasteWindow() {
+	
+	GLOBAL.GRID.copyPasteWindow();
+}
+
+// Paste floor
+function copyPasteFloor() {
+	
+	GLOBAL.GRID.copyPasteFloor();
+}
+
+// Select reject grid
+function selectGrid() {
+	Module.XDSetMouseState(Module.MML_SELECT_POINT);	// Object selection mode
+	
+	Module.canvas.addEventListener("OnEventSelectedObject", function(e){
+		GLOBAL.GRID.setAnalysis(e.objkey, false);	// Set not to analyze
+	});
+}
+
+// Select building
+function selectBuild() {
+	Module.XDSetMouseState(Module.MML_SELECT_POINT);	// Object selection mode
+	
+	GLOBAL.ANALYSIS.clearShadow();	// Clear shadows
+	GLOBAL.ANALYSIS.setAllObjectRenderShadow(false);	// Generate shadows only for selected objects
+	GLOBAL.ANALYSIS.createShadow(2023, 4, 17, 9, 30);	// Create shadow (Year, Month, Day, Hour, Minute)
+}
+
+// Start analysis
+function analysis() {	
+	Module.XDSetMouseState(Module.MML_MOVE_GRAB);	// Restore mouse state
+	
+	GLOBAL.ANALYSIS.setShadowSimulTime(2023, 4, 17, 9, 30, 15, 30);	// Set shadow simulation time (Year, Month, Day, Start (Hour, Minute), End (Hour, Minute))
+	GLOBAL.ANALYSIS.setShadowSimulation(true);	// Start shadow simulation
+	
+	// Start window analysis (Start (Year, Month, Day, Hour, Minute, Second), End (Year, Month, Day, Hour, Minute, Second), Analysis time interval (minutes))
+	GLOBAL.GRID.startAnalysis(new Module.JSDateTime(2023, 4, 17, 9, 30, 0), new Module.JSDateTime(2023, 4, 17, 15, 30, 0), 10);
+}
+
+// Return analysis results and set grid colors
+function getResult() {
+	var result = GLOBAL.GRID.getResult();	// Return window analysis result
+	const json = JSON.parse(result);
+	
+	for(var i=0; i<json.length;i++) {
+		if(json[i].isanlaysis == false) continue;		// Skip if it's a reject grid
+		
+		// If continuous sunshine for 2 hours or total sunshine for 4 hours or more
+		if(json[i].continuevalue >= 120 || json[i].totalvalue >= 240) {
+			GLOBAL.GRID.setColor(json[i].id, new Module.JSColor(150, 0, 255, 0));
+		}
+		else {
+			GLOBAL.GRID.setColor(json[i].id, new Module.JSColor(150, 255, 0, 0));
+		}
+	}
+}
+
+// Reset grid settings
+function resetGrid() {
+	GLOBAL.GRID.reset();
+}
+
+// Clear all
+function clearGrid() {
+	GLOBAL.GRID.clear();
+}
+
+var Module = {
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		GLOBAL.GRID  = Module.getAnalysisGridShadow();
+		GLOBAL.ANALYSIS = Module.getAnalysis();
+		
+		// Set camera position
+		Module.getViewCamera().move(new Module.JSVector3D(126.93894180004459, 37.51971870672439, 132.60436276625842), 46, -37, 2);
+		
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+	}
+};
   </script>
 </body>
 </html>

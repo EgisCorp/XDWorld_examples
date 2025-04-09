@@ -20,39 +20,62 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="radio" name="mouseMode" onclick="setMouseState(Module.MML_MOVE_GRAB);" checked> Move map
+<input type="radio" name="mouseMode" onclick="setMouseState(Module.MML_ANALYS_VIEWSHED);"> Analysis viewshed(2D)
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+    // Set camera position
+  Module.getViewCamera().moveOval(new Module.JSVector3D(129.128265, 35.171834, 3000.0), 90.0, 0.0, 10);
+  
+  // Add building layer
+  var layer = Module.getTileLayerList().createXDServerLayer({
+  url : "https://xdworld.vworld.kr",
+  servername : "XDServer3d",
+  name : "facility_build",
+  type : 9,
+  minLevel : 0,
+  maxLevel : 15
+});
+    Module.setVisibleRange("facility_build", 3.0, 1000000.0);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set mouse mode */
+function setMouseState(_set) {
+Module.XDSetMouseState(_set);	
+}
   </script>
 </body>
 </html>

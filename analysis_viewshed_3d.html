@@ -20,35 +20,169 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" name="hVis" onclick="setMouseMoveMode();" value="Pan Mode">
+<input type="button" name="hVis" onclick="setViewshadeMode();" value="Viewshade Mouse Select"><br>
+<table>
+	<tr>
+		<td>
+			<span>Pan Control</span>
+		</td>
+		<td>
+			<input name="slider" id="slider1" type="range" min="0" max="360" value="0" step="5" onchange = "setViewShadeSetupPan(this)">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>Tilt Control</span>
+		</td>
+		<td>
+			<input name="slider" id="slider2" type="range" min="-88" max="88" value="0" step="5" onchange = "setViewShadeSetupTilt(this)">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>Fov X Control</span>
+		</td>
+		<td>
+			<input name="slider" id="slider3" type="range" min="30" max="130" value="45" step="5" onchange = "setViewShadeSetupFovX(this)">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>Fov Y Control</span>
+		</td>
+		<td>
+			<input name="slider" id="slider4" type="range" min="30" max="130" value="45" step="5" onchange = "setViewShadeSetupFovY(this)">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>View Distance Control</span>
+		</td>
+		<td>
+			<input name="slider" id="slider5" type="range" min="300" max="2000" value="1000" step="100" onchange = "setViewShadeSetupDist(this)">
+		</td>
+	</tr>
+</table>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
+
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
       },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
       }
-    };
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+    // Set camera position
+  Module.getViewCamera().moveOval(new Module.JSVector3D(129.128265, 35.171834, 3000.0), 90.0, 0.0, 10);
+  
+  // Add building layer
+  var layer = Module.getTileLayerList().createXDServerLayer({
+  url : "https://xdworld.vworld.kr",
+  servername : "XDServer3d",
+  name : "facility_build",
+  type : 9,
+  minLevel : 0,
+  maxLevel : 15
+});	// The building must be in a selectable state
+    
+    Module.XDSetMouseState(Module.MML_SELECT_POINT);
+    
+    canvas.addEventListener("Fire_EventSelectedObject", function(e){
+      var pAnal = Module.getAnalysis();
+      pAnal.setVFCreateClickMode(false);	// If a building is selected, it will not recognize visibility on subsequent clicks
+      Module.getMap().clearSelectObj();	// Remove the effect of building selection
+      Module.getMap().MapRender();		 // Refresh screen rendering
+      
+      var vfov2D = pAnal.getVFFov();
+      
+      document.getElementById("slider1").value = pAnal.getVFPan();
+      document.getElementById("slider2").value = pAnal.getVFTilt();
+      document.getElementById("slider3").value = vfov2D.x;
+      document.getElementById("slider4").value = vfov2D.y;
+      document.getElementById("slider5").value = pAnal.getVFDistance();
+    });
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+// Apply viewshed analysis mode
+function setViewshadeMode()
+{
+
+Module.getAnalysis().setVFMode(true);					// Set visibility analysis 3D representation
+Module.getAnalysis().setVFCreateClickMode(true);		// Set visibility recognition on mouse click
+}
+
+// Control viewshed properties - viewshed 3D setup, initialization, and runtime configuration
+// Each argument is a delta value.
+function setViewShadeSetupPan(silidervalue)
+{
+
+var pAnal = Module.getAnalysis();
+pAnal.setVFPan(parseInt(silidervalue.value));		// Pan (Azimuth setting)
+Module.XDRenderData();
+}
+
+function setViewShadeSetupTilt(silidervalue)
+{
+
+var pAnal = Module.getAnalysis();
+pAnal.setVFTilt(parseInt(silidervalue.value));	// Tilt (Vertical angle, 0 is horizontal, - up, + down)
+Module.XDRenderData();
+}
+
+function setViewShadeSetupFovX(silidervalue)
+{
+
+var pAnal = Module.getAnalysis();
+var vfov2D = pAnal.getVFFov();
+vfov2D.x = parseFloat(silidervalue.value);
+pAnal.setVFFov(vfov2D);		// Set horizontal Fov
+Module.XDRenderData();
+}
+
+function setViewShadeSetupFovY(silidervalue)
+{
+
+var pAnal = Module.getAnalysis();
+var vfov2D = pAnal.getVFFov();
+vfov2D.y = parseFloat(silidervalue.value);
+pAnal.setVFFov(vfov2D);		// Set vertical Fov
+Module.XDRenderData();
+}
+
+function setViewShadeSetupDist(silidervalue)
+{
+
+var pAnal = Module.getAnalysis();
+pAnal.setVFDistance(parseInt(silidervalue.value));	// Set maximum distance for viewshed 3D analysis
+Module.XDRenderData();
+}
 
     var script = document.createElement('script');
     script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";

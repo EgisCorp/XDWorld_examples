@@ -20,39 +20,705 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <div id="season_pv">
+        <h3>Season Selection</h3>
+        <span>
+          <button id="option_spring" onclick="setSeason('spring')" >Spring</button>
+          <button id="option_summer" onclick="setSeason('summer')" >Summer</button>
+          <button id="option_fall" onclick="setSeason('fall')">Fall</button>
+          <button id="option_winter" onclick="setSeason('winter')">Winter</button>
+        </span>
+      </div>		
+      <div id="solar_option_terrain">
+        <h5>Panel Placement Information</h5>
+        <ul>
+          <li><span>Horizontal Panels</span><strong>
+            <select id="groundPanel_WNum">
+              <option value="1" selected>1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+            </select>
+          </strong></li>
+          <li><span>Number of Rows</span><strong>
+            <select id="groundPanel_HNum">
+              <option value="1" selected>1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </strong></li>
+          <li><span>Horizontal Spacing (m)</span><strong>
+            <input type="text" class="angle" id="groundPanel_WTerm" style="width:30px;" value="2.0" disabled="">
+            <button onclick="modifyGroundPanelTerm(0,0.1)"> +0.1m </button>
+            <button onclick="modifyGroundPanelTerm(0,-0.1)"> -0.1m </button>
+          </strong></li>
+          <li><span>Vertical Spacing (m)</span><strong>
+            <input type="text" class="angle" id="groundPanel_HTerm" style="width:30px;" value="2.0" disabled="">
+            <button onclick="modifyGroundPanelTerm(1,0.1)"> +0.1m </button>
+            <button onclick="modifyGroundPanelTerm(1,-0.1)"> -0.1m </button>
+          </strong></li>
+          <li><span>Panel Direction (º)</span> <strong>
+            <input type="text" class="angle" id="groundPanel_Direction" style="width:30px;" value="180" disabled="">
+            <button onclick="setPanelDirection(5)"> +5° </button>
+            <button onclick="setPanelDirection(-5)"> -5° </button>
+          </strong></li>
+          <li><span>Panel Angle (º)</span><strong>
+            <select	class="num" id="groundPanel_Angle">
+              <option value="30">30</option>
+              <option value="35">35</option>
+              <option value="40" selected>40</option>
+              <option value="45">45</option>
+              <option value="50">50</option>
+              <option value="55">55</option>
+              <option value="60">60</option>
+              <option value="65">65</option>
+              <option value="70">70</option>
+            </select>
+          </strong></li>
+          <li><span>Installed Area</span><strong id="groundPanel_Area">-</strong></li>
+          <li><span>Number of Installed Panels</span><strong id="groundPanel_Num">0</strong></li>
+        </ul>
+        <h5>Select and Edit Installation Points<br>(Right-click to complete in area selection)</h5>
+        <span>
+          <button onclick="setGroundPanelMouseMode()">Area Selection</button> 
+          <button onclick="groundPanelModify()" id="groundPanel_Modify">Edit Panel</button>
+          <button onclick="BuildModuleOnTerrain(1)">Reset</button>
+        </span>
+      </div>
+      <br>			
+      <span>
+        <button id='startPvSim' onclick="sunshineAnalysisByJSON()">Start Analysis</button>
+      </span>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
+    var GLOBAL = {
+	Camera: null,
+	buildingLayer: "facility_build", // Name of the layer containing buildings in service (subject to shadow analysis)
+
+	panelKey: 0, // Accumulated panel count
+	curPanelKey: "", // Key value of the currently selected panel
+
+	// Shadow analysis option information
+	pvRange: 300, // Building recognition range within the radius of PV (300m)
+	dateArr: [2023, 04, 15], // Analysis date
+	timeArr: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], // Array of analysis times
+	monthArr: [01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12], // Array of analysis months
+
+	// PV panel installation option information
+	horizontalTerm: 0, // Horizontal interval
+	verticalTerm: 0, // Vertical interval
+	horizontalNum: 0, // Number of panels horizontally
+	verticalNum: 0, // Number of panels vertically
+	panelAngle: 0, // Vertical angle of panels
+	installedDirect: 0, // Panel installation angle (azimuth)
+	pvDimension: { // Panel dimensions
+		width: 1.48, // Width
+		height: 1, // Height
+		thick: 0.1, // Thickness
+	},
+
+	// Texture image management
+	pannelImage: null, // Panel texture image
+	pannelImageSize: { x: 0, y: 0 }, // Panel texture image size
+	gPannelID: 0, // Panel ID when selected with the mouse
+	// Panel texture image loader (required initially)
+	loadImage: (imgSrc) => {
+		var img = new Image();
+		img.src = imgSrc;
+		img.onload = function () {
+			var canvas = document.createElement('canvas');
+			canvas.width = img.width,
+				canvas.height = img.height;
+
+			var ctx = canvas.getContext('2d');
+			ctx.drawImage(img, 0, 0);
+			GLOBAL.pannelImageSize.x = canvas.width;
+			GLOBAL.pannelImageSize.y = canvas.height;
+			GLOBAL.pannelImage = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+		}
+	},
+
+	// Initialization of settings
+	init: () => {
+		this.horizontalTerm = 1;
+		this.verticalTerm = 1;
+		this.horizontalNum = 1;
+		this.verticalNum = 1;
+		this.panelAngle = 40;
+		this.installedDirect = 180;
+	},
+
+	// Ground PV panel layout configuration information
+	getInfoPvGround: () => {
+		this.horizontalTerm = parseFloat($('#groundPanel_WTerm').val());   // Installation horizontal spacing
+		this.verticalTerm = parseFloat($('#groundPanel_HTerm').val());      // Installation vertical spacing
+		this.horizontalNum = parseInt($('#groundPanel_WNum').val());        // Number of panels horizontally installed
+		this.verticalNum = parseInt($('#groundPanel_HNum').val());          // Number of panels vertically installed
+		this.panelAngle = parseFloat($('#groundPanel_Angle').val());        // Installation vertical angle
+		var gSolar = Module.GetSolarManager();
+		this.installedDirect = -gSolar.GetAlignAreaAngleOnTerrain();
+
+		return {
+			horizontalTerm : this.horizontalTerm,
+			verticalTerm : this.verticalTerm,
+			horizontalNum : this.horizontalNum,
+			verticalNum : this.verticalNum,
+			panelAngle : this.panelAngle,
+			installedDirect : this.installedDirect
+		}
+	},	
+
+	// Collect ground panels
+	getPvGround: (panelWidth, panelHeight, panelThick) => {
+		const list = Module.GetSolarManager().GetModulesPositionOnTerrain(); // Ground panels are once collected
+		const len = list.count();
+		var obj = list.get(0);
+		var pvs = [];
+		for (i = 0; i < len; i++) {
+			obj = list.get(i);
+			pvs[i] = { x: obj.Longitude, y: obj.Latitude, z: obj.Altitude };
+		}
+
+		return {
+			count: len,
+			wterm: this.horizontalTerm,
+			hterm: this.verticalTerm,
+			wnum: this.horizontalNum,
+			hnum: this.verticalNum,
+			width: 1.48,
+			height: 1,
+			thick: 0.1,
+			angle: this.panelAngle,
+			direct: this.installedDirect,
+			ptr: pvs
+		};
+	},
+
+	// Place all PV panels on the map
+	setPvByList: (layerName, pvlist) => {
+		var LayerList = new Module.JSLayerList(true);
+		var pLayerPanel;
+		if (LayerList.nameAtLayer(layerName) == null) {
+			pLayerPanel = LayerList.createLayer(layerName, Module.ELT_POLYHEDRON);
+		} else {
+			pLayerPanel = LayerList.nameAtLayer(layerName);
+		}
+
+		pLayerPanel.setSelectable(false);
+
+		GLOBAL.horizontalTerm = pvlist.wterm;
+		GLOBAL.verticalTerm = pvlist.hterm;
+		GLOBAL.horizontalNum = pvlist.wnum;
+		GLOBAL.verticalNum = pvlist.hnum;
+		GLOBAL.panelAngle = pvlist.angle;
+		GLOBAL.installedDirect = pvlist.direct;
+
+		var panelWidth = pvlist.width;
+		var panelHeight = pvlist.height;
+		var panelThick = pvlist.thick;
+
+		if (GLOBAL.pannelImage != null) {
+			for (var i = 0, len = pvlist.ptr.length; i < len; i++) {
+				GLOBAL_NL.gPannelID++;
+				var pPanel = Module.createSolarPanel("pv_panel_" + GLOBAL.gPannelID); // Unique ID needs to continue to increase
+				pPanel.setTexture(GLOBAL.pannelImage, GLOBAL.pannelImageSize.x, GLOBAL.pannelImageSize.y);
+				var bCheck = pPanel.create(new Module.JSVector3D(pvlist.ptr[i].x, pvlist.ptr[i].y, pvlist.ptr[i].z),
+					panelWidth, panelHeight, panelThick, GLOBAL.panelAngle, GLOBAL.installedDirect);
+				if (bCheck == true) pLayerPanel.addObject(pPanel, 0);
+			}
+			console.log("installed PV : " + pvlist.length);
+		}
+	},
+
+	pvItems: null, // Panel data
+};
+
+/**
+**Set Season
+**/
+function setSeason(season) {
+    if (season == 'spring') {
+        GLOBAL.dateArr = [2021, 04, 15]; // The date is more important than the year, so it doesn't necessarily have to be this year
+    } else if (season == 'summer') {
+        GLOBAL.dateArr = [2021, 07, 15];
+    } else if (season == 'fall') {
+        GLOBAL.dateArr = [2021, 10, 15];
+    } else if (season == 'winter') {
+        GLOBAL.dateArr = [2021, 01, 15];
+    }
+}
+
+function addLandPV() {
+    var gSolar = Module.GetSolarManager();
+    // Set PV meta information
+    var pvData = getPANELINFO();
+    pvData.TNAME = "pannel_Land";
+    pvData.INST_LOCATION = 5;
+
+    var vResult = gSolar.GetCenterOfMassOnTerrain();
+    pvData.LONGITUDE = vResult.Longitude;
+    pvData.LATITUDE = vResult.Latitude;
+    pvData.ALTITUDE = vResult.Altitude;
+
+    // Set PV attribute information
+    pvData.TILT = parseFloat($('#groundPanel_Angle').val()); // Installation angle
+    pvData.AZIMUTH = Math.floor(parseFloat($('#groundPanel_Direction').val())); // Installation direction
+    pvData.WNUM = parseInt($('#groundPanel_WNum').val()); // Number of panels installed horizontally
+    pvData.HNUM = parseInt($('#groundPanel_HNum').val()); // Number of panels installed vertically
+    pvData.WTERM = parseFloat($('#groundPanel_WTerm').val()); // Horizontal spacing of installation
+    pvData.HTERM = parseFloat($('#groundPanel_HTerm').val()); // Vertical spacing of installation
+    pvData.PVCNT = gSolar.GetTerrainModuleCount();
+
+    // Set PV placement information
+    var vlist = gSolar.GetAreaPointsOnTerrain();
+    var v2d = [];
+    for (var i = 0; i < vlist.count(); i++) {
+        v2d[i] = [vlist.get(i).Longitude, vlist.get(i).Latitude]; // Polygon information specified when creating the object
+    }
+
+    GLOBAL.init();
+    GLOBAL.getInfoPvGround();
+    pvData.PVS = {
+        pvkind: 3,
+        pvData: v2d,
+        pvList: GLOBAL.getPvGround()
+    };
+    GLOBAL.pvItems = pvData;
+}
+
+// Add commas to numbers
+function gfn_numberWithCommas(x) {
+    var retVal = '', val = x.toString().split('.');
+    if (val[1] == null) {
+        retVal = x == null ? '' : x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    } else {
+        retVal = x == null ? '' : x.toString().replace(/\B(?=(\d{3})+(?!\d)\.)/g, ",");
+    }
+    return retVal;
+}
+
+// Modify panel spacing
+function modifyGroundPanelTerm(_type, _term) {
+    var gSolar = Module.GetSolarManager();
+    var mTerm;
+    if (GLOBAL.posLand != null) {
+        if (_type == 0) {
+            mTerm = parseFloat((gSolar.GetModuleSetWidthGapOnTerrain() + _term).toFixed(1));
+            if (parseFloat(mTerm) <= 0) {
+                alert('The gap cannot be less than 0.');
+            } else {
+                gSolar.SetModuleSetWidthGapOnTerrain(mTerm);
+                $('#groundPanel_WTerm').val(mTerm);
             }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
+        } else {
+            mTerm = parseFloat((gSolar.GetModuleSetHeightGapOnTerrain() + _term).toFixed(1));
+            if (parseFloat(mTerm) <= 0) {
+                alert('The gap cannot be less than 0.');
+            } else {
+                gSolar.SetModuleSetHeightGapOnTerrain(mTerm);
+                $('#groundPanel_HTerm').val(mTerm);
+            }
+        }
+        gSolar.RebuildModuleOnTerrain();
+
+        $('#groundPanel_Num').text(gfn_numberWithCommas(gSolar.GetTerrainModuleCount()));
+    } else {
+        if (_type == 0) {
+            mTerm = (parseFloat($('#groundPanel_WTerm').val()) + _term).toFixed(1);
+            if (parseFloat(mTerm) <= 0) {
+                alert('The gap cannot be less than 0.');
+            } else {
+                $('#groundPanel_WTerm').val(mTerm);
+            }
+        } else {
+            mTerm = (parseFloat($('#groundPanel_HTerm').val()) + _term).toFixed(1);
+            if (parseFloat(mTerm) <= 0) {
+                alert('The gap cannot be less than 0.');
+            } else {
+                $('#groundPanel_HTerm').val(mTerm);
+            }
+        }
+    }
+}
+
+// Set panel direction
+function setPanelDirection(_term) {
+    var gSolar = Module.GetSolarManager();
+    var groundDirection = parseInt($('#groundPanel_Direction').val()); // Installation horizontal spacing
+    groundDirection = parseInt(groundDirection + _term);
+    // Modification for panel direction and angle adjustment 
+    var realDirection = groundDirection > 180 ? groundDirection - 180 : groundDirection + 180;
+    realDirection = Math.abs(realDirection - 360);
+    if (groundDirection <= 0) {
+        alert("The direction angle cannot be less than 0.");
+    } else if (groundDirection > 360) {
+        alert("The direction angle cannot be greater than 360.");
+    } else {
+        $('#groundPanel_Direction').val(groundDirection);
+        gSolar.SetDirectionOfModuleOnTerrain(true, realDirection);
+        gSolar.RebuildModuleOnTerrain();
+    }
+}
+
+// Ground area selection mode
+function setGroundPanelMouseMode() {
+    Module.XDSetMouseState(15);
+}
+
+// Ground panel editing module
+function groundPanelModify() {
+    var gSolar = Module.GetSolarManager();
+    if (gSolar.GetTerrainModuleCount()) { // If there are panels
+        if ($('#groundPanel_Modify').text() == "Edit Panel") {
+            $('#groundPanel_Modify').text("Exit Edit");
+            Module.XDSetMouseState(202); // Mouse edit mode
+        } else {
+            $('#groundPanel_Modify').text("Edit Panel");
+            gSolar.ClearPreview();
+            Module.XDSetMouseState(1); // Back to default mode
+        }
+    }
+}
+
+// Install/Initialize ground solar panels
+function BuildModuleOnTerrain(_bStatus) {
+    var gSolar = Module.GetSolarManager();
+    var _groundPanel_WNum = parseInt($('#groundPanel_WNum').val());
+    var _groundPanel_HNum = parseInt($('#groundPanel_HNum').val());
+    var _groundPanel_WTerm = parseFloat($('#groundPanel_WTerm').val());
+    var _groundPanel_HTerm = parseFloat($('#groundPanel_HTerm').val());
+    var _groundPanel_Angle = parseFloat($('#groundPanel_Angle').val());
+    if (_bStatus == 0) { // Install
+        GLOBAL.posLand = null;
+        $('#groundPanel_Num').text("count: " + "0");
+        gSolar.BuildModuleOnTerrain(_groundPanel_HNum, _groundPanel_WNum, 0, _groundPanel_Angle, 0.0);
+        gSolar.SetModuleSetWidthGapOnTerrain(_groundPanel_WTerm);
+        gSolar.SetModuleSetHeightGapOnTerrain(_groundPanel_HTerm);
+        var dAlignAngle = gSolar.GetAlignAreaAngleOnTerrain();
+
+        // Modification for panel direction and angle adjustment
+        var realAngle = dAlignAngle > 180 ? dAlignAngle - 180 : dAlignAngle + 180;
+        realAngle = Math.abs(realAngle - 360);
+        $('#groundPanel_Direction').val(parseInt(realAngle));
+        gSolar.SetDirectionOfModuleOnTerrain(true, dAlignAngle);
+        gSolar.RebuildModuleOnTerrain();
+
+        $('#groundPanel_Num').text("count: " + gfn_numberWithCommas(gSolar.GetTerrainModuleCount()));
+        $('#groundPanel_Area').text(gfn_numberWithCommas(Math.round(gSolar.GetAreaOnTerrain())) + "㎡");
+
+        var vResult = gSolar.GetCenterOfMassOnTerrain();
+
+        var posArr = [];
+        posArr[0] = vResult.Longitude;
+        posArr[1] = vResult.Latitude;
+        posArr[2] = vResult.Altitude;
+
+        GLOBAL.posLand = posArr;
+
+        if (gSolar.GetTerrainModuleCount() == 0) {
+            alert("The configured area is larger than the ground area. \nPlease adjust the panel width and installation quantity.");
+        }
+    } else if (_bStatus == 1) { // Initialize
+        GLOBAL.posLand = null;
+        GLOBAL.PV_AREA_FALG = 0;
+        $('#groundPanel_Num').text("count: " + "0");
+        $('#groundPanel_Area').text("0" + "㎡");
+        gSolar.ClearModuleOnTerrain();
+    }
+}
+
+// Set up default PV information
+function getPANELINFO() {
+    var pvInfo = {
+        TNAME: "", // Identifier name
+        INST_LOCATION: "1", // Installation location (1-Veranda, 2-Building Rooftop, 3-Ground, 4-Wall)
+        LONGITUDE: 0, // Longitude of the analysis target
+        LATITUDE: 0, // Latitude of the analysis target
+        ALTITUDE: 0, // Altitude of the analysis target
+        PVCNT: 0, // Total number of installed PVs
+        TILT: 0, // Tilt angle of installed PVs
+        AZIMUTH: 0, // Azimuth angle of installed PVs
+        WNUM: 1, // Number of PVs horizontally
+        HNUM: 1, // Number of PVs vertically
+        WTERM: 1.8, // Number of horizontal placements of PVs
+        HTERM: 1.8, // Number of vertical placements of PVs
+        PVS: null, // Information for playback
+        allMonth: null // Insolation result
+    };
+    return pvInfo;
+}
+
+// Analyze building key values within range
+function getKeyList(x, y, z) {
+    var pointx = x;
+    var pointy = y;
+    var pointz = z;
+
+    var layerList = new Module.JSLayerList(false); // Specify the building that serves PV
+    var buildingLayer = layerList.nameAtLayer(GLOBAL.buildingLayer);
+    // Attention: Function to get building key values within a radius, parameters are coordinate objects and range
+    var result = "";
+    if (buildingLayer != null) {
+        result = buildingLayer.findInsideObject(new Module.JSVector3D(pointx, pointy, pointz), GLOBAL.pvRange);
+    }
+    console.log("Building Key Value:" + result);
+    return result;
+}
+
+function GetSunsetForTimePanel() {
+    var day = new Date();
+
+    var pAnalysis = Module.getAnalysis();
+    var dSunset = pAnalysis.GetSunset(GLOBAL.dateArr[0], GLOBAL.dateArr[1], GLOBAL.dateArr[2]);
+    var nHour = Math.floor(dSunset);
+    var fMinute = Math.floor(60.0 * (dSunset - nHour));
+
+    if ((fMinute - 30) < 0) {
+        nHour = nHour - 1;
+    }
+    return addZeroTime(nHour);
+}
+
+function GetSunset() {
+    var day = new Date();
+
+    var pAnalysis = Module.getAnalysis();
+    var dSunset = pAnalysis.GetSunset(GLOBAL.dateArr[0], GLOBAL.dateArr[1], GLOBAL.dateArr[2]);
+    var nHour = Math.floor(dSunset);
+    var fMinute = Math.floor(60.0 * (dSunset - nHour));
+    var sunsetStr = "Sunset: " + addZeroTime(nHour) + "h " + addZeroTime(fMinute) + "m";
+    console.log(sunsetStr);
+
+    return sunsetStr;
+}
+
+function GetSunrise() {
+    var day = new Date();
+
+    var pAnalysis = Module.getAnalysis();
+    var dSunrise = pAnalysis.GetSunrise(GLOBAL.dateArr[0], GLOBAL.dateArr[1], GLOBAL.dateArr[2]);
+    var nHour = Math.floor(dSunrise);
+    var fMinute = Math.floor(60.0 * (dSunrise - nHour));
+    var sunriseStr = "Sunrise: " + addZeroTime(nHour) + "h " + addZeroTime(fMinute) + "m";
+    console.log(sunriseStr);
+
+    return sunriseStr;
+}
+
+function addZeroTime(pTime) {
+    return (pTime + "").length == 1 ? "0" + (pTime + "") : pTime;
+}
+
+var SUNRISETIME;
+var SUNSETTIME;
+var PSUNSETTIME; // For comparison of panel time display
+var PSUNSETMIN; // For comparison of panel time display
+function playShadowSim() {
+    SUNRISETIME = GetSunrise();
+    SUNSETTIME = GetSunset();
+    PSUNSETTIME = GetSunsetForTimePanel();
+
+    var pAnalysis = Module.getAnalysis();
+    pAnalysis.SetRenderTerrainShadow(false); // Generate terrain shadows
+    pAnalysis.SetShadowMapSize(2048); // Shadow size default 4096
+    pAnalysis.SetLimitSunAngle(true, 3);
+
+    var suc = pAnalysis.setShadowSimulTime(parseInt(GLOBAL.dateArr[0]), parseInt(GLOBAL.dateArr[1]), parseInt(GLOBAL.dateArr[2]), GLOBAL.timeArr[0], 0, GLOBAL.timeArr[GLOBAL.timeArr.length - 1], 0); // Analyze from 8 a.m. to 6 p.m.
+    pAnalysis.setShadowSimulTerm(200); // Similar to insolation display and time consumption
+    pAnalysis.setShadowSimulation(true);
+}
+
+// Precise to 15 minutes in the morning and 20 minutes in the afternoon
+var ANAL_TERM_AM = 15;
+var ANAL_TERM_PM = 20;
+// Calculate insolation based on PV placement information
+function sunshineAnalysisByJSON() {
+    addLandPV();
+    if (GLOBAL.pvItems == null) {
+        alert("Panel installation is not done.")
+        return;
+    } else if (GLOBAL.pvItems.PVS == undefined || GLOBAL.pvItems.PVS == null) {
+        alert("Panel installation is not done.")
+        return;
+    }
+    var _pvList = GLOBAL.pvItems.PVS.pvList;
+
+    var rst = {
+        allMonth: [] // Collect insolation for each month
     };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+    var i = 0;
+    for (i = 0; i < 12; i++) { // Initialize data for 12 months
+        rst.allMonth[i] = [];
+    }
+
+    var panelCnt = _pvList.ptr.length;
+    var bx = _pvList.ptr[0].x;
+    var by = _pvList.ptr[0].y;
+    var bz = _pvList.ptr[0].z;
+
+    // Get surrounding building key values for insolation analysis
+    var BuildingkeyList = getKeyList(bx, by, bz);
+
+    // Collect PV coordinate list for analysis
+    var pvList = [];
+    for (i = 0; i < panelCnt; i++) {
+        pvList.push([_pvList.ptr[i].x, _pvList.ptr[i].y, _pvList.ptr[i].z]);
+    }
+
+    // Set shadow analysis options
+    var anlOption = {
+        positions: pvList, // PV coordinate list for analysis
+        timerange: { // Shadow analysis time settings
+            year: GLOBAL.dateArr[0], // Year
+            mounth: GLOBAL.dateArr[1], // Month
+            day: GLOBAL.dateArr[2], // Day
+            starthour: 5, // Start time for shadow analysis
+            startminute: 0, // Start minute for shadow analysis
+            startsecond: 0, // Start second for shadow analysis
+            endhour: 22, // End time for shadow analysis
+            endminute: 0, // End minute for shadow analysis
+            endsecond: 0 // End second for shadow analysis
+        },
+        interval: 15, // Shadow analysis interval (minutes)
+        analysistype: 1
+    };
+    // Assign solar simulation analysis function variable
+    var pAnalysis = Module.getAnalysis();
+    // Assign solar simulation analysis function variable
+    if (BuildingkeyList != "") pAnalysis.SetSunshineObject(BuildingkeyList);
+
+    for (var _mm = 0; _mm < GLOBAL.monthArr.length; _mm++) {
+        chartDataSun = []; // Store monthly average data
+        chartDataSun[0] = GLOBAL.monthArr[_mm];
+        var tIndex = 0;
+        var sunAmt = 0;
+        anlOption.timerange.mounth = GLOBAL.monthArr[_mm];
+        // Perform shadow analysis based on 15th of each month
+        for (t = (GLOBAL.timeArr[0]); t < GLOBAL.timeArr[GLOBAL.timeArr.length - 1] + 1; t++) {
+            // Start time of analysis
+            anlOption.timerange.starthour = t;
+            // End time of analysis
+            anlOption.timerange.endhour = t + 1;
+            anlOption.interval = ANAL_TERM_PM;
+            // If the time range where shadows are long, analyze in 15-minute intervals; otherwise, analyze in 20-minute intervals
+            if (anlOption.timerange.starthour < 11 || anlOption.timerange.starthour > 16) anlOption.interval = ANAL_TERM_AM;
+            var result = pAnalysis.CalculateSunshineJson(anlOption);
+
+            // Calculate cumulative insolation
+            sunAmt = 0;
+            result.forEach(function (el) { sunAmt += el; });
+
+            chartDataSun[tIndex + 1] = Math.round(sunAmt / panelCnt); // Represented as average insolation time for all panels
+            tIndex++;
+        }
+        rst.allMonth[_mm] = chartDataSun; // Insolation for 12 months
+    }
+
+    // Apply average insolation for all panels from 5 a.m. to 20 (16 hours) for each month from January to December
+	/*
+		0: [1, 0, 0, 0, 30, 60, 53, 40, 60, 60, 60, 60, 60, 30, 0, 0, 0]
+		1: [2, 0, 0, 0, 0, 60, 60, 60, 60, 60, 60, 60, 60, 60, 0, 0, 0]
+		2: [3, 0, 0, 0, 0, 15, 60, 60, 60, 60, 60, 60, 60, 60, 30, 0, 0]
+		3: [4, 0, 0, 0, 0, 0, 30, 60, 60, 60, 60, 60, 60, 60, 60, 0, 0]
+		4: [5, 0, 0, 0, 0, 0, 0, 60, 60, 60, 60, 60, 60, 60, 60, 30, 0]
+		5: [6, 0, 0, 0, 0, 0, 0, 40, 60, 60, 60, 60, 60, 60, 60, 0, 0]
+		6: [7, 0, 0, 0, 0, 0, 0, 40, 60, 60, 60, 60, 60, 60, 60, 15, 0]
+		7: [8, 0, 0, 0, 0, 0, 15, 60, 60, 60, 60, 60, 60, 60, 60, 15, 0]
+		8: [9, 0, 0, 0, 0, 0, 60, 60, 60, 60, 60, 60, 60, 60, 30, 0, 0]
+		9: [10, 0, 0, 0, 0, 30, 60, 60, 60, 60, 60, 60, 60, 60, 0, 0, 0]
+		10: [11, 0, 0, 0, 15, 60, 58, 50, 60, 60, 60, 60, 60, 30, 0, 0, 0]
+		11: [12, 0, 0, 0, 30, 60, 45, 33, 60, 60, 60, 60, 60, 15, 0, 0, 0]
+	*/
+
+	console.log(rst);	
+	playShadowSim();		// Perform shadow simulation based on the target season for visual representation on the screen
+	return rst;
+}
+
+function initPVEvent( _canvas) {
+
+	// Mouse up related to placement options
+	_canvas.onmouseup = function(e) {	
+		var mouseState = Module.XDGetMouseState();	
+		if (mouseState == 15) {		
+			if(e.button == 0)  GLOBAL.PV_AREA_FALG++;
+		}
+		if(GLOBAL.PV_AREA_FALG>2 && e.button == 2) {
+			BuildModuleOnTerrain(0);
+			GLOBAL.PV_AREA_FALG = 0;
+		}
+	};
+	_canvas.addEventListener("Fire_EventChangeModuleState", function(e){
+		var gSolar = Module.GetSolarManager();
+		if(e.bAlive==true) { 
+			$('#roofPanel_Num').text(gSolar.GetModuleCount());
+		}
+		else{
+			$('#roofPanel_Num').text(gSolar.GetModuleCount());
+		}
+	});
+}
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Return camera API object
+		GLOBAL.Camera = Module.getViewCamera();
+		
+		// Set initial camera position
+		GLOBAL.Camera.move(new Module.JSVector3D(129.128265, 35.171834, 1000.0), 30.0, 0.0, 10);
+
+		initPVEvent(Module.canvas);
+
+		var layer = Module.getTileLayerList().createXDServerLayer({
+			url : "https://xdworld.vworld.kr",
+			servername : "XDServer3d",
+			name : "facility_build",
+			type : 9,
+			minLevel : 0,
+			maxLevel : 15
+		});
+
+		GLOBAL.loadImage("./data/panal1.jpg");
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

@@ -20,35 +20,285 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <form>
+        <input type="radio" name="measureMode" onclick="setMouseState('move');" checked>Move map
+        <input type="radio" name="measureMode" onclick="setMouseState('measure');">Measure distance
+        <ul id='objList'></ul>
+      </form>
+      <input type="button" value="Clear" onclick="clearAnalysis();">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
+
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
               url : "https://xdworld.vworld.kr",
               name : "dem",
               servername : "XDServer3d",
               encoding : true
-            },
-            image : {
+          },
+          image : {
               url : "https://xdworld.vworld.kr",
               name : "tile",
               servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+          }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+   // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(129.128265, 35.171834, 1000.0));
+
+  // Creating the analysis output POI layer
+  let layerList = new Module.JSLayerList(true);
+  let layer = layerList.createLayer("MEASURE_POI", Module.ELT_3DPOINT);
+  layer.setMaxDistance(20000.0);
+  layer.setSelectable(false);
+
+  // Setting options for distance measurement line rendering
+  Module.getOption().SetDistanceMeasureLineDepthBuffer(false); // Set WEBGL GL_DEPTH_TEST configuration
+  //Module.getOption().SetDistanceMeasureLineDepthBuffer(true); // Set WEBGL GL_DEPTH_TEST configuration (for overlapping objects)
+
+  // Continuously setting callback functions for ongoing use
+  Module.getOption().callBackAddPoint(addPoint); // Callback triggered on mouse input; returns success on success, error on failure
+  Module.getOption().callBackCompletePoint(endPoint); // Callback triggered on measurement completion (double-click); returns success on success, error on failure
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Change mouse state */
+function setMouseState(_type){
+
+if (_type == "move") {
+  // Change mouse mode to move map
+  Module.XDSetMouseState(Module.MML_MOVE_GRAB);	
+}
+else if (_type == "measure") {
+  // Change mouse mode to measure distance
+  Module.XDSetMouseState(Module.MML_ANALYS_DISTANCE_STRAIGHT);
+}
+}
+
+let m_mercount = 0; // Number of measurement objects
+let m_objcount = 0; // Number of POIs displaying measurement objects
+
+/* Function specified in callBackAddPoint [Triggered when left mouse button clicked] */
+function addPoint(e) {
+// e components
+// dMidLon, dMidLat, dMidAlt: Center point (longitude, latitude, altitude) between the previous and current points
+// dLon, dLat, dAlt: Current point (longitude, latitude, altitude)
+// dDistance: Length between the current and previous points
+// dTotalDistance: Length between all points
+
+let partDistance = e.dDistance,
+  totalDistance = e.dTotalDistance;
+
+if (partDistance == 0 && totalDistance == 0) {
+  m_objcount = 0;	// Reset POI count
+  createPOI(new Module.JSVector3D(e.dLon, e.dLat, e.dAlt), "rgba(255, 204, 198, 0.8)", "Start", true);
+} else {
+  if (e.dDistance > 0.01) {
+    createPOI(new Module.JSVector3D(e.dMidLon, e.dMidLat, e.dMidAlt), "rgba(255, 255, 0, 0.8)", e.dDistance, false);
+  }
+  createPOI(new Module.JSVector3D(e.dLon, e.dLat, e.dAlt), "rgba(255, 204, 198, 0.8)", e.dTotalDistance, true);
+}
+}
+
+/* Function specified in callBackCompletePoint [Triggered when mouse double-clicked] */
+function endPoint(e) {
+viewListOBjKey(e);
+m_mercount++;
+}
+
+// =============================================== POI creation process
+/* Information display POI */
+function createPOI(_position, _color, _value, _balloonType) {
+// Parameters
+// _position: Position where POI is created
+// _color: Color configuration for drawIcon
+// _value: Text displayed by drawIcon
+// _balloonType: Corner option for drawIcon display (true: angular corner, false: rounded corner)
+
+// Create a canvas to draw the POI icon image
+var drawCanvas = document.createElement('canvas');
+// Canvas size (image size)
+drawCanvas.width = 100;
+drawCanvas.height = 100;
+
+// Get the icon image data
+let imageData = drawIcon(drawCanvas, _color, _value, _balloonType);
+
+let Symbol = Module.getSymbol();
+
+let layerList = new Module.JSLayerList(true);
+let layer = layerList.nameAtLayer("MEASURE_POI");
+
+poi = Module.createPoint(m_mercount + "_POI_" + m_objcount);
+poi.setPosition(_position);												// Set position
+poi.setImage(imageData, drawCanvas.width, drawCanvas.height);			// Set icon
+layer.addObject(poi, 0); // Register POI layer
+m_objcount++;
+}
+
+/* Get icon image data */
+function drawIcon(_canvas, _color, _value, _balloonType) {
+// Get context and clear background
+var ctx = _canvas.getContext('2d'),
+  width = _canvas.width,
+  height = _canvas.height;
+ctx.clearRect(0, 0, width, height);
+
+// Set background Draw Path and draw text
+if (_balloonType) {
+  drawBalloon(ctx, height * 0.5, width, height, 5, height * 0.25, _color);
+  setText(ctx, width * 0.5, height * 0.2, _value);
+} else {
+  drawRoundRect(ctx, 0, height * 0.3, width, height * 0.25, 5, _color);
+  setText(ctx, width * 0.5, height * 0.5, _value);
+}
+
+return ctx.getImageData(0, 0, _canvas.width, _canvas.height).data;
+}
+
+/* Draw balloon background */
+function drawBalloon(ctx, marginBottom, width, height, barWidth, barHeight, color) {
+var wCenter = width * 0.5,
+  hCenter = height * 0.5;
+
+// Set Draw Path for balloon shape
+ctx.beginPath();
+ctx.moveTo(0, 0);
+ctx.lineTo(0, height - barHeight - marginBottom);
+ctx.lineTo(wCenter - barWidth, height - barHeight - marginBottom);
+ctx.lineTo(wCenter, height - marginBottom);
+ctx.lineTo(wCenter + barWidth, height - barHeight - marginBottom);
+ctx.lineTo(width, height - barHeight - marginBottom);
+ctx.lineTo(width, 0);
+ctx.closePath();
+
+// Draw balloon
+ctx.fillStyle = color;
+ctx.fill();
+}
+
+/* Draw rounded rectangle background */
+function drawRoundRect(ctx, x, y, width, height, radius, color) {
+if (width < 2 * radius) radius = width * 0.5;
+if (height < 2 * radius) radius = height * 0.5;
+
+ctx.beginPath();
+ctx.moveTo(x + radius, y);
+ctx.arcTo(x + width, y, x + width, y + height, radius);
+ctx.arcTo(x + width, y + height, x, y + height, radius);
+ctx.arcTo(x, y + height, x, y, radius);
+ctx.arcTo(x, y, x + width, y, radius);
+ctx.closePath();
+
+// Draw rectangle
+ctx.fillStyle = color;
+ctx.fill();
+
+return ctx;
+}
+
+/* Draw text */
+function setText(_ctx, _posX, _posY, _value) {
+var strText = "";
+
+// Set text string
+if (typeof _value == 'number') {
+  strText = setKilloUnit(_value, 0.001, 0);
+} else {
+  strText = _value;
+}
+
+// Set text style
+_ctx.font = "bold 16px sans-serif";
+_ctx.textAlign = "center";
+_ctx.fillStyle = "rgb(0, 0, 0)";
+
+// Draw text
+_ctx.fillText(strText, _posX, _posY);
+}
+
+/* Convert m/km text */
+function setKilloUnit(_text, _meterToKilloRate, _decimalSize) {
+if (_decimalSize < 0) {
+  _decimalSize = 0;
+}
+if (typeof _text == "number") {
+  if (_text < 1.0 / (_meterToKilloRate * Math.pow(10, _decimalSize))) {
+    _text = _text.toFixed(1).toString() + 'm';
+  } else {
+    _text = (_text * _meterToKilloRate).toFixed(2).toString() + '㎞';
+  }
+}
+return _text;
+}
+
+// =============================================== Measurement list and deletion related
+function viewListOBjKey(_key) {
+let cell = document.getElementById("objList");
+let li = document.createElement('li');
+
+// Add measurement object list (ui)
+li.id = _key
+li.innerHTML = "<a href='#' onclick=\"deleteObject('" + _key + "');\">" + _key + "</a>"
+cell.appendChild(li);
+}
+
+function deleteObject(_key) {
+Module.XDClearDistanceObject(_key);
+let li = document.getElementById(_key);
+li.remove(); // Remove selected <a> controller
+
+// Remove objects
+let layerList = new Module.JSLayerList(true);
+let layer = layerList.nameAtLayer("MEASURE_POI");
+let list = layer.getObjectKeyList();
+
+let key = _key.replace(/[^0-9]/g, '') + "_POI_"; // [Creation order]_POI_ format for object creation
+let strlist = list.split(",");
+strlist.forEach((item, index) => {
+  if (item.indexOf(key) !== -1) {
+    layer.removeAtKey(item) // Remove objects entered in the layer with the key value
+  }
+});
+// Refresh the screen
+Module.XDRenderData();
+}
+
+/* Reset analysis content */
+function clearAnalysis() {
+
+// Reset ongoing analysis content
+Module.XDClearDistanceMeasurement();
+m_mercount = 0;
+
+// Delete layers
+let layerList = new Module.JSLayerList(true);
+let layer = layerList.nameAtLayer("MEASURE_POI");
+layer.removeAll();
+
+// Delete all nodes in <ui>
+let cell = document.getElementById("objList");
+while ( cell.hasChildNodes() ) { 
+  cell.removeChild( cell.firstChild ); 
+}
+}
 
     var script = document.createElement('script');
     script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";

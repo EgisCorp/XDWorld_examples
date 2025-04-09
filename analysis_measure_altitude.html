@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>XDWorld 샘플 - analysis_measure_altitude</title>
+  <title>XDWorld 고도 측정</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
     #map { width: 100%; height: 100%; position: relative; }
@@ -20,19 +20,29 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <form>
+        <input type="radio" name="measureMode" onclick="setMouseState(Module.MML_MOVE_GRAB);" checked>Move map
+        <input type="radio" name="measureMode" onclick="setMouseState(Module.MML_ANALYS_ALTITUDE);">Measure altitude
+      </form>
+      <input type="button" value="Clear" onclick="clearAnalysis();">
     </div>
   </div>
 
   <script>
+    var GLOBAL = {
+      Symbol : null,
+      Layer : null,
+      nIndex : 0
+    };
+
     var Module = {
       locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
+        return "https://cdn.xdworld.kr/latest/" + s;
       },
       postRun: function() {
         Module.initialize({
           container: document.getElementById("map"),
-          terrain: {
+          terrain : {
             dem : {
               url : "https://xdworld.vworld.kr",
               name : "dem",
@@ -45,7 +55,35 @@
               servername : "XDServer3d"
             }
           },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+          defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+        });
+
+        Module.getViewCamera().look(
+          new Module.JSVector3D(126.93831646026437, 37.517164463389214, 629.4693173738196),
+          new Module.JSVector3D(126.93866761878483, 37.52295801173619, 10.460245016030967)
+        );
+
+        Module.setVisibleRange("facility_build", 5, 300000);
+
+        GLOBAL.Symbol = Module.getSymbol();
+        var layerList = new Module.JSLayerList(true);
+        GLOBAL.Layer = layerList.createLayer("MEASURE_POI", Module.ELT_3DPOINT);
+        GLOBAL.Layer.setMaxDistance(20000.0);
+        GLOBAL.Layer.setSelectable(false);
+
+        Module.getTileLayerList().createXDServerLayer({
+          url : "https://xdworld.vworld.kr",
+          servername : "XDServer3d",
+          name : "facility_build",
+          type : 9,
+          minLevel : 0,
+          maxLevel : 15
+        });
+
+        Module.canvas.addEventListener("Fire_EventAddAltitudePoint", function(e){
+          createPOI(new Module.JSVector3D(e.dLon, e.dLat, e.dAlt),
+                    "rgba(10, 10, 0, 0.5)",
+                    e.dGroundAltitude, e.dObjectAltitude);
         });
       }
     };
@@ -53,6 +91,103 @@
     var script = document.createElement('script');
     script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
     document.body.appendChild(script);
+
+    function setMouseState(_option){
+      Module.XDSetMouseState(_option);
+    }
+
+    function createPOI(_position, _color, _value, _subValue) {
+      var drawCanvas = document.createElement('canvas');
+      drawCanvas.width = 200;
+      drawCanvas.height = 100;
+      var imageData = drawIcon(drawCanvas, _color, _value, _subValue);
+      var nIndex = GLOBAL.nIndex;
+
+      if (GLOBAL.Symbol.insertIcon("Icon"+nIndex, imageData, drawCanvas.width, drawCanvas.height)) {
+        var icon = GLOBAL.Symbol.getIcon("Icon"+nIndex);
+        var poi = Module.createPoint("POI"+nIndex);
+        poi.setPosition(_position);
+        poi.setIcon(icon);
+        GLOBAL.Layer.addObject(poi, 0);
+        GLOBAL.nIndex++;
+      }
+    }
+
+    function drawIcon(_canvas, _color, _value, _subValue) {
+      var ctx = _canvas.getContext('2d');
+      var width = _canvas.width;
+      var height = _canvas.height;
+      ctx.clearRect(0, 0, width, height);
+
+      if (_subValue == -1) {
+        drawRoundRect(ctx, 50, 20, 100, 20, 5, _color);
+      } else {
+        drawRoundRect(ctx, 50, 5, 100, 35, 5, _color);
+        setText(ctx, width*0.5, height*0.2, 'Ground Altitude : ' + setKilloUnit(_subValue, 0.001, 0));
+      }
+      setText(ctx, width*0.5, height*0.2+15, 'Elevation : '+ setKilloUnit(_value, 0.001, 0));
+      drawDot(ctx, width, height);
+      return ctx.getImageData(0, 0, _canvas.width, _canvas.height).data;
+    }
+
+    function drawDot(ctx, width, height) {
+      ctx.beginPath();
+      ctx.lineWidth = 6;
+      ctx.arc(width*0.5, height*0.5, 2, 0, 2*Math.PI, false);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+      ctx.fill();
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = "rgba(255, 255, 0, 0.8)";
+      ctx.stroke();
+    }
+
+    function drawRoundRect(ctx, x, y, width, height, radius, color) {
+      if (width < 2 * radius) radius = width * 0.5;
+      if (height < 2 * radius) radius = height * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x+radius, y);
+      ctx.arcTo(x+width, y, x+width, y+height, radius);
+      ctx.arcTo(x+width, y+height, x, y+height, radius);
+      ctx.arcTo(x, y+height, x, y, radius);
+      ctx.arcTo(x, y, x+width, y, radius);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      return ctx;
+    }
+
+    function setText(ctx, posX, posY, strText) {
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgb(255, 255, 255)";
+      ctx.fillText(strText, posX, posY);
+    }
+
+    function setKilloUnit(text, meterToKilloRate, decimalSize) {
+      if (decimalSize < 0) decimalSize = 0;
+      if (typeof text === "number") {
+        if (text < 1.0/(meterToKilloRate*Math.pow(10, decimalSize))) {
+          text = text.toFixed(1) + 'm';
+        } else {
+          text = (text * meterToKilloRate).toFixed(2) + '㎞';
+        }
+      }
+      return text;
+    }
+
+    function clearAnalysis() {
+      var layer = GLOBAL.Layer;
+      var symbol = GLOBAL.Symbol;
+      if (!layer) return;
+      for (let i = 0; i < layer.getObjectCount(); i++) {
+        var poi = layer.keyAtObject("POI" + i);
+        var icon = poi.getIcon();
+        layer.removeAtKey("POI" + i);
+        symbol.deleteIcon(icon.getId());
+      }
+      GLOBAL.nIndex = 0;
+    }
   </script>
 </body>
 </html>

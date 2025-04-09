@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>XDWorld 샘플 - analysis_building_width</title>
+  <title>XDWorld 주동길이 분석 샘플</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
     #map { width: 100%; height: 100%; position: relative; }
@@ -20,39 +20,102 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <form>
+        <input type="radio" name="measureMode" onclick="setMouseMove();" checked>Move map
+        <input type="radio" name="measureMode" onclick="setMouseSelect();">Select buildings(select multiple: shift)
+        <input type="radio" name="measureMode" onclick="setMouseAnlaysis();">Input start and end points
+      </form>
+      <input type="button" value="Analyze Main Length" onclick="getJudong(60);">
+      <input type="button" value="Clear" onclick="clearJudong();">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
+        locateFile: function (s) {
+            return "https://cdn.xdworld.kr/latest/" + s;
+        },
+        postRun: function () {
+            Module.initialize({
+                container: document.getElementById("map"),
+                terrain: {
+                    dem : {
+                        url : "https://xdworld.vworld.kr",
+                        name : "dem",
+                        servername : "XDServer3d",
+                        encoding : true
+                    },
+                    image : {
+                        url : "https://xdworld.vworld.kr",
+                        name : "tile",
+                        servername : "XDServer3d"
+                    }
+                },
+                defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
+            });
+
+            Module.getViewCamera().setLocation(
+                new Module.JSVector3D(129.128265, 35.171834, 1000.0)
+            );
+
+            var layer = Module.getTileLayerList().createXDServerLayer({
+                url: "https://xdworld.vworld.kr",
+                servername: "XDServer3d",
+                name: "facility_build",
+                type: 9,
+                minLevel: 0,
+                maxLevel: 15,
+            });
+
+            Module.setVisibleRange("facility_build", parseFloat(5), 300000);
+        },
     };
 
     var script = document.createElement('script');
     script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
     document.body.appendChild(script);
+
+    function getJudong(angle) {
+        var layerList = new Module.JSLayerList(true);
+        var data = Module.getAnalysis().getJudong(angle);
+        var buildArr = data.split(",");
+        var buildLength = buildArr.length;
+        layerList.createLayer("objHeight", 1);
+
+        for(var i = 0; i < buildLength - 1; i++) {
+            var dataArr = buildArr[i].split("#");
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            canvas.width = 20;
+            canvas.height = 20;
+            var buildingLon = parseFloat(dataArr[3]);
+            var buildingLat = parseFloat(dataArr[4]);
+            var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            Module.getAddObject().Add3DPoint("objHeight", "buildingLengths", buildingLon, buildingLat, 10, imageData.data, imageData.width, imageData.height, "[" + parseFloat(dataArr[2]).toFixed(3) + "m]");
+            Module.XDRenderData();
+        }
+    }
+
+    function clearJudong() {
+        var layerList = new Module.JSLayerList(true);
+        var layer = layerList.nameAtLayer("objHeight");
+        Module.XDClearInputPoint();
+        Module.getMap().clearSelectObj();
+        layer.removeAll();
+        Module.XDRenderData();
+    }
+
+    function setMouseAnlaysis(){
+        Module.XDSetMouseState(Module.MML_INPUT_LINE);
+    }
+
+    function setMouseMove(){
+        Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+    }
+
+    function setMouseSelect(){
+        Module.XDSetMouseState(Module.MML_SELECT_POINT);
+    }
   </script>
 </body>
 </html>

@@ -20,39 +20,181 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      [Ground Hole Automatic Movement]
+<input type="button" id="BT_MoveStart" value="Start" onClick="startTransparencyAutoMove();">
+<input type="button" id="BT_MoveStop" value="Stop" onClick="stopTransparencyAutoMove();" disabled>
+<div id="DV_SuvMain">
+	Automatic Movement Frame Unit
+	<input type="range" id="RG_MoveFrame" min="1" max="10" step="1" onChange="setAutoMoveFrame(parseInt(this.value));"> 
+	<input type="text" id="TX_MoveFrame" style="width:30px;" value="5" readonly> 
+</div>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Transparency : null,
+	Map : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Return the object for calling the Excavation (JSTransparency) API
+		GLOBAL.Transparency = Module.getTransparency();
+		GLOBAL.Transparency.setRadius(100.0);
+		
+		// Return the object for calling the Map (JSMap) API
+		GLOBAL.Map = Module.getMap();
+			
+		// Set camera position
+		Module.getViewCamera().setLocation(new Module.JSVector3D(127.03846702092424, 37.5087291986843, 600.0));
+		
+		// Load underground facility objects
+		createUndergroundFacility();
+		
+		// Excavation auto move end event
+		Module.canvas.addEventListener("Fire_EventFinishTransparencyAutoMove", function(e){
+			
+			alert("[Event] Automatic movement ended");
+			
+			document.getElementById("RG_MoveFrame").disabled = false;
+			document.getElementById("TX_MoveFrame").disabled = false;
+			document.getElementById("BT_MoveStart").disabled = false;
+			document.getElementById("BT_MoveStop").disabled = true;
+		});
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set transparency auto move */
+function setTransparencyAutoMove() {
+	
+	if (GLOBAL.Transparency == null) {
+		return;
+	}
+	
+	// Excavation movement update frame
+	var waitFrame = parseInt(document.getElementById("TX_MoveFrame").value);
+	
+	// Excavation movement point list
+	var movePositionList = new Module.JSVec2Array();
+	movePositionList.push(new Module.JSVector2D(127.03691229708741, 37.509635136930626));
+	movePositionList.push(new Module.JSVector2D(127.03987097629198, 37.50932526196098));
+	movePositionList.push(new Module.JSVector2D(127.03695802409491, 37.50865005215346));
+	movePositionList.push(new Module.JSVector2D(127.03985503640686, 37.50816724210336));
+	movePositionList.push(new Module.JSVector2D(127.03711645791172, 37.50779863443866));
+	movePositionList.push(new Module.JSVector2D(127.03978095384555, 37.50738212410067));
+
+	// Set transparency auto move
+	GLOBAL.Transparency.setAutoMove(movePositionList, waitFrame)
+}
+
+/* Start transparency auto move */
+function startTransparencyAutoMove() {
+	
+	if (GLOBAL.Transparency == null) {
+		return;
+	}
+	
+	// Set transparency auto move
+	setTransparencyAutoMove();
+	
+	// Start transparency auto move
+	GLOBAL.Transparency.startAutoMove();
+	
+	document.getElementById("RG_MoveFrame").disabled = true;
+	document.getElementById("TX_MoveFrame").disabled = true;
+	document.getElementById("BT_MoveStart").disabled = true;
+	document.getElementById("BT_MoveStop").disabled = false;
+}
+
+/* Stop transparency auto move */
+function stopTransparencyAutoMove() {
+	
+	if (GLOBAL.Transparency == null) {
+		return;
+	}
+	
+	// Stop transparency auto move
+	GLOBAL.Transparency.stopAutoMove();
+	
+	document.getElementById("RG_MoveFrame").disabled = false;
+	document.getElementById("TX_MoveFrame").disabled = false;
+	document.getElementById("BT_MoveStart").disabled = false;
+	document.getElementById("BT_MoveStop").disabled = true;
+}
+
+/* Save excavation movement update frame */
+function setAutoMoveFrame(_value) {
+	document.getElementById("TX_MoveFrame").value = _value;
+}
+
+/* Load underground facilities */
+function createUndergroundFacility() {
+	
+	$.getJSON("./data/underGroundFacility.json", function(_response){
+		
+		var facilities = _response.PipeFacilities;
+		
+		// Create layer for underground infrastructure
+		var layerList = new Module.JSLayerList(true);
+		var pipeLayer = layerList.createLayer("PipeLayer", 0);
+		
+		for (var i=0, len=facilities.length; i<len; i++) {
+			
+			var dataCoordinates = facilities[i].Coordinates;
+			
+			// Create pipe
+			var vPointList = new Module.Collection();
+			for (var j=0, subLen=dataCoordinates.length; j<subLen; j++) {
+				
+				vPointList.add(new Module.JSVector3D(dataCoordinates[j][0],
+													 dataCoordinates[j][1],
+													 dataCoordinates[j][2]));
+			}
+			
+			var pipe = Module.createPipe("PipeObject"),
+				pipeColor = new Module.JSColor(150, facilities[i].Color[0], facilities[i].Color[1], facilities[i].Color[2])
+				;
+			pipe.create(vPointList, pipeColor, pipeColor, 12.0, 0.6, 0.5);
+			
+			// Set pipe flow animation
+			pipe.setFlow(new Module.JSColor(255, 0, 0), new Module.JSColor(255, 255, 255), 4, 1.0);
+			pipe.setFlowWaitFrame(3);
+			pipe.setFlowDisplay(true);
+			
+			pipeLayer.addObject(pipe, 0);
+		}
+	});
+	
+}
   </script>
 </body>
 </html>

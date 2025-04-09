@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>XDWorld 샘플 - analysis_grid_shadow_brief</title>
+  <title>XDWorld 경사면 분석 샘플</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
     #map { width: 100%; height: 100%; position: relative; }
@@ -20,7 +20,12 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <form>
+        <input type="radio" name="measureMode" onclick="setMouseMove();" checked>Move map
+        <input type="radio" name="measureMode" onclick="setMouseAnlaysis();">Analysis slope
+      </form>
+      <input type="button" value="Get Slope Plane" onclick="getSlopePlane();">
+      <input type="button" value="Clear" onclick="clearSlopePlane();">
     </div>
   </div>
 
@@ -45,14 +50,53 @@
               servername : "XDServer3d"
             }
           },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
         });
+
+        Module.getViewCamera().setLocation(
+          new Module.JSVector3D(129.128265, 35.171834, 1000.0)
+        );
+
+        var layer = Module.getTileLayerList().createXDServerLayer({
+          url: "https://xdworld.vworld.kr",
+          servername: "XDServer3d",
+          name: "facility_build",
+          type: 9,
+          minLevel: 0,
+          maxLevel: 15,
+        });
+
+        Module.setVisibleRange("facility_build", parseFloat(5), 300000);
       }
     };
 
     var script = document.createElement('script');
     script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
     document.body.appendChild(script);
+
+    function getSlopePlane()
+    {
+      var color = new Module.createColor();
+      color.setARGB(180, 255, 0, 0);
+      Module.getAnalysis().createSlopePlane(30, 80, 1000, color);
+    }
+
+    function clearSlopePlane()
+    {
+      Module.getSlope().clearAnalysisData();
+      Module.getMap().clearSelectObj();
+      Module.getUserLayer().removeAll();
+      Module.XDClearInputPoint();
+      Module.XDRenderData();
+    }
+
+    function setMouseAnlaysis(){
+      Module.XDSetMouseState(Module.MML_INPUT_LINE);
+    }
+
+    function setMouseMove(){
+      Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+    }
   </script>
 </body>
 </html>

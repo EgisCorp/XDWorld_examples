@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>XDWorld 샘플 - analysis_measure_altdistance</title>
+  <title>XDWorld 고저 거리 측정</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
     #map { width: 100%; height: 100%; position: relative; }
@@ -20,39 +20,113 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <form>
+        <input type="radio" name="measureMode" id="move" onclick="setMouseState('move');" checked>Move map
+        <input type="radio" name="measureMode" id="measure" onclick="setMouseState('measure');">Measure
+        <ul id='objList'></ul>
+      </form>
+      <input type="button" value="Clear" onclick="clearAnalysis();">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
+      locateFile: function (s) {
+        return "https://cdn.xdworld.kr/latest/" + s;
       },
-      postRun: function() {
+      postRun: function () {
         Module.initialize({
           container: document.getElementById("map"),
           terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
+            dem: {
+              url: "https://xdworld.vworld.kr",
+              name: "dem",
+              servername: "XDServer3d",
+              encoding: true
             },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
+            image: {
+              url: "https://xdworld.vworld.kr",
+              name: "tile",
+              servername: "XDServer3d"
             }
           },
           defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
         });
+
+        Module.getViewCamera().setLocation(new Module.JSVector3D(127.0, 37.5, 300.0));
+        Module.canvas.addEventListener("OnEventAnalysisAltDistance", callBackAltDistance);
       }
     };
 
     var script = document.createElement('script');
     script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
     document.body.appendChild(script);
+
+    function setMouseState(type) {
+      if (type === 'move') {
+        Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+      } else {
+        Module.XDSetMouseState(Module.MML_ANALYS_ALTDISTANCE);
+      }
+    }
+
+    function callBackAltDistance(e) {
+      const list = document.getElementById("objList");
+      list.innerHTML = "";
+
+      const data = e.detail;
+      const points = data.pointList;
+      const altList = data.altitudeList;
+      const len = points.count();
+
+      for (let i = 0; i < len; i++) {
+        const alt = altList.get(i).toFixed(2);
+        const li = document.createElement("li");
+        li.textContent = `Point ${i + 1} Altitude: ${alt} m`;
+        list.appendChild(li);
+
+        Module.getAddObject().AddPOI(
+          "poi_layer", `poi_${i}`,
+          points.get(i).Longitude,
+          points.get(i).Latitude,
+          0,
+          `${alt} m`, 12, "#000000", "#00ffff"
+        );
+      }
+
+      Module.getAddObject().AddLine(
+        "line_layer", "measure_line",
+        [
+          points.get(0).Longitude, points.get(0).Latitude, altList.get(0),
+          points.get(1).Longitude, points.get(1).Latitude, altList.get(1)
+        ], "#00ffff"
+      );
+
+      const diffAlt = (altList.get(1) - altList.get(0)).toFixed(2);
+      const dx = points.get(1).Longitude - points.get(0).Longitude;
+      const dy = points.get(1).Latitude - points.get(0).Latitude;
+      const groundDist = Math.sqrt(dx * dx + dy * dy) * 111319.9; // degree to meters
+      const hypotenuse = Math.sqrt(Math.pow(diffAlt, 2) + Math.pow(groundDist, 2));
+
+      const li = document.createElement("li");
+      li.innerHTML = `Vertical: ${diffAlt} m<br>Ground: ${groundDist.toFixed(2)} m<br>Straight: ${hypotenuse.toFixed(2)} m`;
+      list.appendChild(li);
+    }
+
+    function clearAnalysis() {
+      const list = document.getElementById("objList");
+      list.innerHTML = "";
+
+      const layerList = new Module.JSLayerList(true);
+      const poiLayer = layerList.nameAtLayer("poi_layer");
+      if (poiLayer) poiLayer.removeAll();
+
+      const lineLayer = layerList.nameAtLayer("line_layer");
+      if (lineLayer) lineLayer.removeAll();
+
+      Module.XDClearAnalysis();
+      Module.XDRenderData();
+    }
   </script>
 </body>
 </html>

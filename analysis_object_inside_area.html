@@ -20,39 +20,302 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        #moving {
+        display: none;
+        position : absolute;
+        z-index: 999;
+        width: 20px;
+        height: 20px;
+        padding: 0px;
+        margin: 0px;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      </style>
+      <label>Condition of inclusion inside</label><br>
+      <input type="radio" id="option-completely" name="option" onclick="optionChange()" checked><label>Completely</label>
+      <input type="radio" id="option-partially" name="option" onclick="optionChange()"><label>Partially</label>
+      <input type="button" id="moving" value="+" onclick="">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	// Ghost symbol object layer
+	LAYER : null,
+	// Status(dragging the model)
+	MODEL_MOVING : false,
+	// Area point list
+	AREA_POINTS : null,
+	AREA_PARTS : null,
+	// Include option(true: completely, false: partially)
+	INCLUDE_OPTION_COMPLETELY : true,
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+		// Set camera
+		let camera = Module.getViewCamera();
+		camera.setLocation(new Module.JSVector3D(129.1294, 35.1685, 150));
+		camera.setDirect(10.0);
+		camera.setTilt(28.0);
+
+		// Load model and Create object
+		Module.getGhostSymbolMap().insert({
+			id : "building",
+			url : "./data/building_sample.3ds",
+			callback : function(e) {
+				
+				// Set camera
+				var sphere = Module.createGhostSymbol("ghostsymbol_building");
+				sphere.setGhostSymbol("building");
+				sphere.setPosition(new Module.JSVector3D(129.13, 35.1709, 4.0));
+				sphere.setScale(new Module.JSSize3D(10.0, 10.0, 10.0));
+
+				var layerList = new Module.JSLayerList(true);
+				var layer = layerList.createLayer("ghostsymbol_layer", Module.ELT_GHOST_3DSYMBOL);
+				layer.addObject(sphere, 0);
+
+				GLOBAL.LAYER = layer;
+			}
+		});
+
+		// Set mouse to select mode
+		Module.XDSetMouseState(Module.MML_SELECT_POINT);
+
+		// Set event
+		initEvent();
+
+		Module.getMap().setSelectColor(new Module.JSColor(128, 0, 255, 0));
+        
+		GLOBAL.AREA_POINTS = new Module.JSVec3Array();
+		GLOBAL.AREA_PARTS = new Module.Collection();
+		
+		let layerList = new Module.JSLayerList(true);
+		let layer = layerList.createLayer("area_layer", Module.ELT_PLANE);
+		
+		let altitude = 5.0;
+
+		let area0 = new Module.JSVec3Array();
+		area0.push(new Module.JSVector3D(129.128940, 35.170739, altitude));
+		area0.push(new Module.JSVector3D(129.128960, 35.170838, altitude));
+		area0.push(new Module.JSVector3D(129.129576, 35.171159, altitude));
+		area0.push(new Module.JSVector3D(129.130218, 35.170349, altitude));
+		area0.push(new Module.JSVector3D(129.129611, 35.170018, altitude));
+		area0.push(new Module.JSVector3D(129.129517, 35.170033, altitude));
+		createArea(layer, "area0", area0);
+
+		let area1 = new Module.JSVec3Array();
+		area1.push(new Module.JSVector3D(129.129621, 35.171188, altitude));
+		area1.push(new Module.JSVector3D(129.130198, 35.171511, altitude));
+		area1.push(new Module.JSVector3D(129.130305, 35.171499, altitude));
+		area1.push(new Module.JSVector3D(129.130885, 35.170779, altitude));
+		area1.push(new Module.JSVector3D(129.130861, 35.170700, altitude));
+		area1.push(new Module.JSVector3D(129.130266, 35.170383, altitude));
+		createArea(layer, "area1", area1);
+	}
+};
+
+function createArea(_layer, _name, _points) {
+	let polygon = Module.createPolygon(_name);
+
+	let pointCount = _points.count();
+	for (let i = 0; i < pointCount; ++i) {
+		GLOBAL.AREA_POINTS.push(_points.get(i));
+	}
+
+	let part = new Module.Collection();
+	part.add(pointCount);
+	GLOBAL.AREA_PARTS.add(pointCount);
+		
+	let polygonStyle = new Module.JSPolygonStyle();
+	{
+		polygonStyle.setFill(true);
+		polygonStyle.setFillColor(new Module.JSColor(100, 0, 0, 255));
+		
+		polygonStyle.setOutLine(true);
+		polygonStyle.setOutLineWidth(2.0);
+		polygonStyle.setOutLineColor(new Module.JSColor(255, 255, 255));
+	}
+
+	polygon.setPartCoordinates(_points, part);
+	polygon.setStyle(polygonStyle);
+
+	_layer.addObject(polygon, 0);
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set event */
+function initEvent() {
+
+	// Object selection event setup
+	Module.canvas.addEventListener("Fire_EventSelectedObject", function(e) {
+
+		// Return the selected object based on the event key parameter
+
+		var object = GLOBAL.LAYER.keyAtObject(e.objKey);
+		if (object == null) {
+			return;
+		}
+
+		// Calculate the latitude, longitude, and altitude coordinates of the selected object's bottom surface
+		var position = object.getPosition();
+		position.Altitude += (object.getScale().depth * object.getBasePointY());
+
+		setSelectColor();
+
+		// Display the move button at the selected object's position
+		displayMovingButton(true, position);
+	});
+
+	// Object movement button event setup
+	var movingButton = document.getElementById("moving");
+	movingButton.onmousedown = function(){
+
+		// Object movement state on
+		GLOBAL.MODEL_MOVING = true;
+
+		Module.getMap().getSelectObject().setPickable(false);
+	};
+
+	movingButton.onmouseup = function(){
+
+		// Object movement state off
+		GLOBAL.MODEL_MOVING = false;
+
+		Module.getMap().getSelectObject().setPickable(true);
+	};
+
+	movingButton.onmouseover = function(e){
+
+		// Turn off map manipulation when using the object movement button
+		Module.getControl().activeMouse(false);
+	};
+
+	movingButton.onmouseout = function(e){
+		
+		// Turn on map manipulation when not using the object movement button
+		Module.getControl().activeMouse(true);
+	};
+	
+	Module.canvas.onmousewheel = function() {
+
+		// Deselect the object and hide the object movement button if no object is selected
+		Module.getMap().clearSelectObj();
+		displayMovingButton(false);
+	};
+	
+	Module.canvas.onmouseup = function() {
+
+		// Hide the object movement button if no object is selected
+		var selectedObject = Module.getMap().getSelectObject();
+		if (selectedObject == null) {
+			displayMovingButton(false);
+		}
+	};
+
+	Module.canvas.onmousemove = function(e){
+
+		// Move the spherical object according to the mouse position if the object movement state is on
+		if (GLOBAL.MODEL_MOVING) {
+
+			// Return the selected object
+			var selectedObject = Module.getMap().getSelectObject();
+			if (selectedObject) {
+
+				// Move the object by converting screen coordinates to map coordinates
+				var targetPosition = Module.getMap().ScreenToMapPointEX(new Module.JSVector2D(e.clientX, e.clientY));
+				selectedObject.setPosition(targetPosition);
+			}
+
+			setSelectColor();
+
+			// Realign the object movement button according to the mouse drag position
+			var movingButton = document.getElementById("moving");
+			movingButton.style.left = (e.clientX-15) + 'px';
+			movingButton.style.top = (e.clientY-15) + 'px';
+
+		} else {
+
+			// Hide the object movement button being displayed and deselect the object when not using the object movement button
+			if (e.buttons > 0) {
+				Module.getMap().clearSelectObj();
+				displayMovingButton(false);
+			}
+		}
+	};
+}
+
+// Change option
+function optionChange() {
+	GLOBAL.INCLUDE_OPTION_COMPLETELY = document.getElementById("option-completely").checked;
+	let color = (GLOBAL.INCLUDE_OPTION_COMPLETELY) ? new Module.JSColor(128, 255, 0, 0) : new Module.JSColor(128, 0, 255, 0);
+	Module.getMap().setSelectColor(color);
+	Module.XDRenderData();
+}
+
+function setSelectColor() {
+    let selectedObject = Module.getMap().getSelectObject();
+    // Include option
+    // 0: Completely, 1: Partially
+    let result = Module.getAnalysis().checkInsideAreas(GLOBAL.AREA_POINTS, GLOBAL.AREA_PARTS, selectedObject, (GLOBAL.INCLUDE_OPTION_COMPLETELY)? 0 : 1);
+    console.log(result);
+    let color = (result.length > 0) ? new Module.JSColor(128, 0, 255, 0) : new Module.JSColor(128, 255, 0, 0);
+    Module.getMap().setSelectColor(color);
+	Module.XDRenderData();
+}
+
+/* Set the display of the object movement button */
+function displayMovingButton(_display, _mapPosition) {
+
+	// Return the element
+	var moveButton = document.getElementById("moving");
+	if (moveButton == null) {
+		return;
+	}
+
+	// Set the button display
+	if (_display) {
+		
+		moveButton.style.display = "block";
+
+		// Place the button after converting map coordinates to screen coordinates
+		var screenPosition = Module.getMap().MapToScreenPointEX(_mapPosition);
+		moveButton.style.left = parseInt(screenPosition.x-15) + "px";
+		moveButton.style.top = parseInt(screenPosition.y-15) + "px";
+
+	} else {
+		moveButton.style.display = "none";
+	}
+}
   </script>
 </body>
 </html>

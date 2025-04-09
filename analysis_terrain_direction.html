@@ -20,39 +20,298 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      [Mouse Mode]
+<form>
+	<input type="radio" name="mouseMode" onclick="setMouseState('move');" checked> Map Navigation
+	</br>
+	<input type="radio" name="mouseMode" onclick="setMouseState('measure');"> Analysis Area Input
+	</br>
+	<input type="button" value="Clear" onclick="clearAnalysisData();"></input>
+	<input type="button" id="BT_ExecuteAnalysis" value="Execute Slope Analysis" onclick="ExcuteSlopeAnalysis();" disabled></input>			
+</form> 
+</br>
+[Slope Direction by Area]
+</br>
+<table>
+	<tr>
+		<td>North</td>
+		<td class="legendColor" style="background-color:rgb(255, 0, 0);width:30px;"></td>
+		<td class="result" id="TD_Result_0">0㎡</td>
+	</tr>
+	<tr>
+		<td>North East</td>
+		<td class="legendColor" style="background-color:rgb(255, 166, 0);"></td>
+		<td class="result" id="TD_Result_1">0㎡</td>
+	</tr>
+	<tr>
+		<td>East</td>
+		<td class="legendColor" style="background-color:rgb(255, 255, 0);"></td>
+		<td class="result" id="TD_Result_2">0㎡</td>
+	</tr>
+	<tr>
+		<td>South East</td>
+		<td class="legendColor" style="background-color:rgb(0, 255, 0);"></td>
+		<td class="result" id="TD_Result_3">0㎡</td>
+	</tr>
+	<tr>
+		<td>South</td>
+		<td class="legendColor" style="background-color:rgb(0, 100, 100);"></td>
+		<td class="result" id="TD_Result_4">0㎡</td>
+	</tr>
+	<tr>
+		<td>South West</td>
+		<td class="legendColor" style="background-color:rgb(0, 166, 255);"></td>
+		<td class="result" id="TD_Result_5">0㎡</td>
+	</tr>
+	<tr>
+		<td>West</td>
+		<td class="legendColor" style="background-color:rgb(0, 0, 255);"></td>
+		<td class="result" id="TD_Result_6">0㎡</td>
+	</tr>			
+	<tr>
+		<td>North West</td>
+		<td class="legendColor" style="background-color:rgb(255, 0, 255);"></td>
+		<td class="result" id="TD_Result_7">0㎡</td>
+	</tr>
+<table>
+<table>
+	<tr>
+		<td style="width: 80px;">Progress : </td>
+		<td><label id="u_progress"></label></td>
+	</tr>
+</table>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+              dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(129.14310068502948, 35.1821740797022, 2000.0));
+  
+    Module.getOption().SetAreaMeasurePolygonDepthBuffer(true);		// Set WEBGL GL_DEPTH_TEST
+    //Module.getOption().SetAreaMeasurePolygonDepthBuffer(false);		// Set WEBGL GL_DEPTH_TEST (object overlap problem detected)
+    
+    // Creating a slope analysis layer
+    Module.XDCreateLayer(9, "directionSlopeLayer");
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Change mouse state */
+function setMouseState(_type){
+
+if (_type == "move") {
+  // Change mouse mode to move map
+  Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+  document.getElementById("BT_ExecuteAnalysis").disabled = true;
+  
+}
+else if (_type == "measure") {
+  // Change mouse mode to measure area
+  Module.XDSetMouseState(Module.MML_INPUT_LINE);
+  document.getElementById("BT_ExecuteAnalysis").disabled = false;
+}
+}
+
+function ExcuteSlopeAnalysis() {
+let callback = createRTTPixel;		// Function for generating slope image (mandatory)
+let progress = nowProgress;			// Function to check slope analysis progress
+let slope = Module.getSlope();		// Return slope instance
+
+let slopeoption = {
+  info: {
+    layer: "directionSlopeLayer",	// Name of the layer to contain the analysis result
+    key: "slope_direction",			// Key for the analysis result object
+  },
+  coordinates: {
+    style: "JSVector3D",		// Coordinate type
+    coordinate: Module.getMap().getInputPoints(),	// User input data
+  },
+  analysis: {
+    type: "TERRAIN_DIRECTION",	// Analysis Type
+    size: 6,					// Analysis Grid size
+    image: true,				// Output RTT image
+  },
+  callback: callback,				// Callback function for RTT image generation
+  progress: progress,				// Callback function for progress
+}
+setLegendColorList();				// Apply color legend
+slope.analysisTerrainSlope(slopeoption);	// Return success on success, return failure error on failure
+viewOutputData();					// Apply analysis result
+// Refresh the screen
+Module.XDRenderData();
+}
+
+//=============================================== Apply Legend Colors
+function setLegendColorList() {
+  let alpha = Number(200);
+  let TerrainType = "";
+  let list = [];
+  let colorMap = {};
+  
+  // Set slope direction
+  //( Number, Minimum comparison value, Maximum comparison value, Direction information, Legend color );
+  // - Direction Information 
+  //      - N     : North     ( 0 ~ 22.5, 337.6 ~ 360 )
+  //      - NE    : Northeast ( 22.6 ~ 67.5 )
+  //      - E     : East      ( 67.6 ~ 112.5 )
+  //      - SE    : Southeast ( 112.6 ~ 157.5 )
+  //      - S     : South     ( 157.6 ~ 202.5 )   
+  //      - SW    : Southwest ( 202.6 ~ 247.5 )
+  //      - W     : West      ( 247.6 ~ 292.5 )
+  //      - NW    : Northwest ( 292.6 ~ 337.5 )
+  
+  TerrainType = "TERRAIN_DIRECTION";     // Analysis Type (Slope Direction: TERRAIN_DIRECTION)        
+  list = [
+      { num: 0, direction: "N", a: alpha, r: 255, g: 0, b: 0 },        // North     RGBA(255,0,0,200) when direction is N
+      { num: 1, direction: "NE", a: alpha, r: 255, g: 166, b: 0 },    // Northeast RGBA(255,166,0,200) when direction is NE
+      { num: 2, direction: "E", a: alpha, r: 255, g: 255, b: 0 },     // East      RGBA(255,255,0,200) when direction is E
+      { num: 3, direction: "SE", a: alpha, r: 0, g: 255, b: 0 },      // Southeast RGBA(0,255,0,200) when direction is SE
+      { num: 4, direction: "S", a: alpha, r: 0, g: 100, b: 100 },     // South     RGBA(0,100,100,200) when direction is S
+      { num: 5, direction: "SW", a: alpha, r: 0, g: 166, b: 255 },    // Southwest RGBA(0,166,255,200) when direction is SW
+      { num: 6, direction: "W", a: alpha, r: 0, g: 0, b: 255 },       // West      RGBA(0,0,255,200) when direction is W
+      { num: 7, direction: "NW", a: alpha, r: 255, g: 0, b: 255 },    // Northwest RGBA(255,0,255,200) when direction is NW
+  ];
+  // List information (Up to 25 legend items provided)
+      // num : Legend number
+      // direction : Direction
+      // alpha : Transparency (0~255)
+      // r : red (0~255)
+      // g : green (0~255)
+      // b : blue (0~255)
+  colorMap = {
+      type: TerrainType,
+      list: list
+  };
+  let slope = Module.getSlope();
+  slope.insertColorMap(colorMap);
+}
+
+//=============================================== View Analysis Results
+function viewOutputData() {
+
+  let div = null;
+  let slope = Module.getSlope();
+
+  // Return generated image size by creation key
+  console.log(slope.getImageWidth("slope_direction"));
+  console.log(slope.getImageHeight("slope_direction"));        
+
+  // Return information by creation key
+  //getAnalysisResult(keyname, type[0: Aspect 1: Slope], valueType[0: Average, 1: Minimum, 2: Maximum])
+  console.log("angle avg : " + slope.getAnalysisResult("slope_direction", 0, 0)); 
+  console.log("angle min : " + slope.getAnalysisResult("slope_direction", 0, 1));
+  console.log("angle max : " + slope.getAnalysisResult("slope_direction", 0, 2));
+
+  // Return information by creation key
+  for (let i = 0; i < 8; i++) {
+      let id = "TD_Result_" + i;
+      div = document.getElementById(id);
+      div.innerHTML = Math.round(slope.getColorArea("slope_direction", i)) + " m2";
+  }
+}
+
+//=============================================== CallBack Related
+// Display progress
+function nowProgress(..._args) {
+  let div = document.getElementById("u_progress");
+  div.innerHTML = _args[0] + " %";
+}
+// RTT Image Generation 
+function createRTTPixel(..._args) {
+  // _args components
+  // _args variable parameters
+  // _args[0] : RTT image width
+  // _args[1] : RTT image height
+  // _args[2] : RTT image data
+  
+  let width, height,
+      r, g, b, a, color,
+      x, y,
+      data, pixelData, size;
+
+  r = g = b = a = 0;
+  width = _args[0];
+  height = _args[1];
+  size = width * height;
+  data = pixelData = null;
+
+  let c = document.createElement('canvas');
+  c.width = width;
+  c.height = height;
+
+  let ctx = c.getContext('2d');
+
+  data = HEAPU32.subarray(_args[2] / 4, _args[2] + size);        // Create an array to hold integer values
+  pixelData = ctx.createImageData(width, height);
+
+  for (y = 0; y < height; y++) {
+      for (x = 0; x < width; x++) {
+          color = data[size - ((y + 1) * width) + x];
+          if (color != 0) {
+              a = (color >> 24) & 0xff;
+              r = (color >> 16) & 0xff;
+              g = (color >> 8) & 0xff;
+              b = color & 0xff;
+          } else {
+              r = g = b = a = 0;
+          }
+          pixelData.data[(((y * width) + x) * 4)] = r;        // red   color
+          pixelData.data[(((y * width) + x) * 4) + 1] = g;    // green color
+          pixelData.data[(((y * width) + x) * 4) + 2] = b;    // blue  color
+          pixelData.data[(((y * width) + x) * 4) + 3] = a;    // alpha color
+      }
+  }
+
+  ctx.putImageData(pixelData, 0, 0);                        // Match the pixel data constructed by pixelData to the canvas
+  return ctx.getImageData(0, 0, width, height).data;         // Return the image data to the engine
+}
+
+//=============================================== Initialization
+function clearAnalysisData() {
+  
+  Module.XDEClearMeasurement();
+  Module.getMap().clearInputPoint();
+  
+  // Refresh the screen after clearing analysis data    
+  let slope = Module.getSlope();
+  slope.clearAnalysisData();
+  
+  // Initialize analysis result text
+  for (var i=0; i<8; i++) {
+      document.getElementById("TD_Result_"+i).innerHTML = 0 + "㎡";
+  }
+  
+  document.getElementById("u_progress").innerHTML = 0 + " %";
+}
   </script>
 </body>
 </html>

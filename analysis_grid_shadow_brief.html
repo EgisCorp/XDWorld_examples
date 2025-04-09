@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>XDWorld 샘플 - analysis_grid_shadow_brief</title>
+  <title>XDWorld 간이 일조 분석 샘플</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
     #map { width: 100%; height: 100%; position: relative; }
@@ -20,19 +20,71 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span style="color:red; font-size:15pt;">Please proceed in the order below.</span><br>
+      1. <input type="button" value="Select Area" onclick="inputArea()" /><br>
+      2. <input type="button" value="Create Grid (Evenly)" onclick="createGrid(false)" /> or
+         <input type="button" value="Create Grid (Fit to Area)" onclick="createGrid(true)" /><br>
+      3. <input type="button" value="Start Analysis" onclick="analysis()" /><br><br>
+      <input type="button" value="Clear grids" onclick="clearGrid()" />
     </div>
   </div>
 
   <script>
+    var GLOBAL = {
+      GRID : null,
+      ANALYSIS : null
+    };
+
+    function inputArea() {
+      Module.XDSetMouseState(Module.MML_ANALYS_GRIDSHADOW);
+    }
+
+    function createGrid(_type) {
+      GLOBAL.GRID.create("gridlayer", 10, _type);
+      Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+    }
+
+    function analysis() {
+      Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+      GLOBAL.GRID.prograss(prograssGRID);
+      GLOBAL.ANALYSIS.setShadowSimulTime(2023, 4, 17, 9, 30, 15, 30);
+      GLOBAL.ANALYSIS.setShadowSimulation(true);
+      GLOBAL.GRID.startAnalysis(
+        new Module.JSDateTime(2023, 4, 17, 9, 30, 0),
+        new Module.JSDateTime(2023, 4, 17, 15, 30, 0),
+        10
+      );
+    }
+
+    function getResult() {
+      var result = GLOBAL.GRID.getResult();
+      const json = JSON.parse(result);
+      for (var i = 0; i < json.length; i++) {
+        if (!json[i].isanlaysis) continue;
+        if (json[i].continuevalue >= 120 || json[i].totalvalue >= 240) {
+          GLOBAL.GRID.setColor(json[i].id, new Module.JSColor(150, 0, 255, 0));
+        } else {
+          GLOBAL.GRID.setColor(json[i].id, new Module.JSColor(150, 255, 0, 0));
+        }
+      }
+    }
+
+    function prograssGRID(...arg) {
+      if (arg[0] == 100) getResult();
+    }
+
+    function clearGrid() {
+      GLOBAL.GRID.clear();
+    }
+
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
+      locateFile: function(s) {
+        return "https://cdn.xdworld.kr/latest/" + s;
       },
       postRun: function() {
         Module.initialize({
           container: document.getElementById("map"),
-          terrain: {
+          terrain : {
             dem : {
               url : "https://xdworld.vworld.kr",
               name : "dem",
@@ -45,7 +97,30 @@
               servername : "XDServer3d"
             }
           },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+          worker : {
+            use : true,
+            path : "./worker/XDWorldWorker.js",
+            count : 5
+          },
+          defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+        });
+
+        GLOBAL.GRID  = Module.getAnalysisGridShadow();
+        GLOBAL.ANALYSIS = Module.getAnalysis();
+
+        GLOBAL.GRID.strictCalculate = Module.BRIEF_ANALYSIS_MODE;
+        GLOBAL.ANALYSIS.setAllObjectRenderShadow(true);
+        GLOBAL.ANALYSIS.setTerrainAnalysis(true);
+
+        Module.getViewCamera().setLocation(new Module.JSVector3D(127.02611318576476, 37.491109722149154, 300.0));
+
+        var layer = Module.getTileLayerList().createXDServerLayer({
+          url : "https://xdworld.vworld.kr",
+          servername : "XDServer3d",
+          name : "facility_build",
+          type : 9,
+          minLevel : 0,
+          maxLevel : 15
         });
       }
     };

@@ -20,39 +20,108 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="radio" name="mouseMode" onClick="setMouseState(true);" checked> Move map
+</br>
+<input type="radio" name="mouseMode" onClick="setMouseState(false);"> Mouse drag to underground view
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	Transparency : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Return the object for calling the Excavation (JSTransparency) API
+		GLOBAL.Transparency = Module.getTransparency();
+
+		// Setting the depth of circular excavation
+		GLOBAL.Transparency.setRadius(100.0);
+		
+		// Set camera position
+		Module.getViewCamera().setLocation(new Module.JSVector3D(127.03846702092424, 37.5087291986843, 600.0));
+		
+		createUndergroundFacility();
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set mouse mode */
+function setMouseState(_bMode) {
+	
+	if (_bMode) {
+		Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+	} else {
+		Module.XDSetMouseState(Module.MML_VIEW_UNDERGROUND);
+	}
+}
+
+/* Load underground facilities */
+function createUndergroundFacility() {
+	
+	$.getJSON("./data/underGroundFacility.json", function(_response){
+		
+		var facilities = _response.PipeFacilities;
+		
+		// Create layer for underground infrastructure
+		var layerList = new Module.JSLayerList(true);
+		var pipeLayer = layerList.createLayer("PipeLayer", 0);
+		
+		for (var i=0, len=facilities.length; i<len; i++) {
+			
+			var dataCoordinates = facilities[i].Coordinates;
+			
+			// Create pipe
+			var vPointList = new Module.Collection();
+			for (var j=0, subLen=dataCoordinates.length; j<subLen; j++) {
+				
+				vPointList.add(new Module.JSVector3D(dataCoordinates[j][0],
+													 dataCoordinates[j][1],
+													 dataCoordinates[j][2]));
+			}
+			
+			var pipe = Module.createPipe("PipeObject"),
+				pipeColor = new Module.JSColor(150, facilities[i].Color[0], facilities[i].Color[1], facilities[i].Color[2])
+				;
+			pipe.create(vPointList, pipeColor, pipeColor, 12.0, 0.6, 0.5);
+			
+			// Set pipe flow animation
+			pipe.setFlow(new Module.JSColor(255, 0, 0), new Module.JSColor(255, 255, 255), 4, 1.0);
+			pipe.setFlowWaitFrame(3);
+			pipe.setFlowDisplay(true);
+			
+			pipeLayer.addObject(pipe, 0);
+		}
+	});
+}
   </script>
 </body>
 </html>

@@ -20,39 +20,206 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <form>
+        <span>Mouse Mode</span>
+        <br>
+        <input type="radio" id="movegrab" name="terraineditMode" onclick="setMouseMove();" checked>Map Navigation
+        <input type="radio" id="selectarea" name="terraineditMode" onclick="setMouseEditTerrain();">Select Terrain Area
+        <input type="radio" id="boundary" name="terraineditMode" onclick="setboundaryMode();">Input Terrain Boundary
+        <table id="terrainboundary" style="display:none;">
+          <tr>
+            <td rowspan="2">
+              <span>MIN</span>
+            </td>
+            <td>
+              <span>LON</span>
+            </td>
+            <td>
+              <input type="text" id="longitude_min" value="126.986389">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>LAT</span>
+            </td>
+            <td>
+              <input type="text" id="latitude_min" value="37.545873">
+            </td>
+          </tr>
+          <tr>
+            <td rowspan="2">
+              <span>MAX</span>
+            </td>
+            <td>
+              <span>LON</span>
+            </td>
+            <td>
+              <input type="text" id="longitude_max" value="126.995347">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span>LAT</span>
+            </td>
+            <td>
+              <input type="text" id="latitude_max" value="37.553526">
+            </td>
+          </tr>
+        </table>
+      </form>
+      <br>
+      <span>Options</span>
+      <br>
+      <span>Height</span>
+      <input type="range" id="height" value="0.0" min="0.0" max="500.0" step="0.1" onchange="setHeight(this.value);">
+      <span id="heightText">0.0</span>
+      <br>
+      <span>Slope Angle</span>
+      <input type="range" id="angle" value="60.0" min="5.0" max="90.0" step="0.1" onchange="setAngle(this.value);">
+      <span id="angleText">60.0</span>
+      <br>
+      <br>
+      <input type="button" value="Execute Terrain" onclick="createEditTerrain();">
+      <input type="button" value="Clear" onclick="clearEditTerrain();">
+      <br>
+      <br>
+      <span id="edit_value_add"></span>
+      <br>
+      <span id="edit_value_sub"></span>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
+
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+              dem : {
               url : "https://xdworld.vworld.kr",
               name : "dem",
               servername : "XDServer3d",
               encoding : true
-            },
-            image : {
+          },
+          image : {
               url : "https://xdworld.vworld.kr",
               name : "tile",
               servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+          }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+   // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.993383, 37.550186, 3000.0));
+}
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+// Definition of createEditTerrain
+// Function to execute terrain excavation
+function createEditTerrain(){
+  
+  var terrainEdit = Module.getEditTerrain();
+  
+  var height = parseFloat(document.getElementById("height").value);    // Set the height of the terrain to be excavated
+  var angle = parseFloat(document.getElementById("angle").value);      // Set the angle of the terrain to be excavated
+  var isValidResult = false;
+  
+  if(document.getElementById("selectarea").checked) {
+      
+      // Set colors for excavation area
+      Module.getEditTerrain().setEditFaceColor({
+          slope : new Module.JSColor(150, 255, 0, 0),       // Slope color
+          bottom : new Module.JSColor(150, 255, 255, 0)    // Bottom color
+      });
+      isValidResult = terrainEdit.create(Module.getMap().getInputPoints(), height, angle);   // Function to execute excavation when area is selected
+  } 
+  else if(document.getElementById("boundary").checked) {
+      
+      // Set colors for excavation area
+      Module.getEditTerrain().setEditFaceColor({
+          slope : new Module.JSColor(150, 255, 0, 0),       // Slope color
+          bottom : new Module.JSColor(150, 255, 255, 0)    // Bottom color
+      });
+      
+      // To proceed with excavation by boundary
+      var area_min_lon = parseFloat(document.getElementById("longitude_min").value);
+      var area_min_lat = parseFloat(document.getElementById("latitude_min").value);
+      var area_max_lon = parseFloat(document.getElementById("longitude_max").value);
+      var area_max_lat = parseFloat(document.getElementById("latitude_max").value);
+      
+      // Function to execute excavation by boundary
+      isValidResult = terrainEdit.createBoundary(new Module.JSVector2D(area_min_lon, area_min_lat), new Module.JSVector2D(area_max_lon, area_max_lat), height, angle);
+  } else {
+      return;
+  }
+  
+  // Switch to mouse move mode after excavation
+  Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+  document.getElementById("movegrab").checked = true;
+  
+  // Clear the input coordinates after excavation
+  Module.getMap().clearInputPoint();
+  
+  // Output excavation and embankment volumes
+  if (isValidResult) {
+      var editResultIndex = terrainEdit.getEditCount()-1;
+      document.getElementById("edit_value_add").innerHTML = "- Excavation : " + terrainEdit.getAddVolume(editResultIndex).toFixed(3) + " m³";
+      document.getElementById("edit_value_sub").innerHTML = "- Embankment : " + terrainEdit.getSubVolume(editResultIndex).toFixed(3) + " m³";
+  }
+}
+
+// Definition of clearEditTerrain
+// Initialize terrain excavation
+function clearEditTerrain(){
+  
+  Module.getEditTerrain().clear();
+}
+
+// Definition of setboundaryMode
+// To proceed with excavation by min and max
+// Display input UI block
+function setboundaryMode(){
+  document.getElementById("terrainboundary").style.display = "block";
+}
+
+// Definition of setMouseEditTerrain
+// Change mouse mode to select area to excavate
+function setMouseEditTerrain(){
+  
+  Module.XDSetMouseState(Module.MML_INPUT_AREA);
+  
+  document.getElementById("terrainboundary").style.display = "none";
+}
+
+// Definition of setMouseMove
+// Change mouse mode for map movement
+function setMouseMove(){
+  
+  Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+  
+  document.getElementById("terrainboundary").style.display = "none";
+}
+
+/* Set the height of the edited terrain */
+function setHeight(_height) {
+  document.getElementById("heightText").innerHTML = parseFloat(_height).toFixed(1);
+}
+
+/* Set the angle of the edited terrain slope */
+function setAngle(_angle) {
+  document.getElementById("angleText").innerHTML = parseFloat(_angle).toFixed(1);
+}
   </script>
 </body>
 </html>

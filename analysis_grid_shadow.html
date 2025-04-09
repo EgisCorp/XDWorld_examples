@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>XDWorld 샘플 - analysis_grid_shadow</title>
+  <title>XDWorld 조망 분석 샘플</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
     #map { width: 100%; height: 100%; position: relative; }
@@ -20,19 +20,56 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" value="Start Viewshed Analysis" onclick="startJomang(0);">
+      <input type="button" id="pause_jomang" value="Pause Viewshed Analysis" onclick="pauseJomang();">
+      <input type="button" value="Stop Viewshed Analysis" onclick="stopJomang();">
     </div>
   </div>
 
   <script>
+    var GLOBAL = {
+      targetPoint : null,
+      jomangPointList : null,
+      pause : false,
+      stop : false,
+      start : false
+    };
+
+    function startJomang(count) {
+      GLOBAL.start = true;
+      analysisJomang(count);
+    }
+
+    function pauseJomang() {
+      GLOBAL.pause = !GLOBAL.pause;
+      document.getElementById("pause_jomang").value = GLOBAL.pause ? "Release Pause" : "Pause Viewshed Analysis";
+    }
+
+    function stopJomang() {
+      GLOBAL.stop = true;
+      GLOBAL.start = false;
+      GLOBAL.pause = false;
+      document.getElementById("pause_jomang").value = "Pause Viewshed Analysis";
+    }
+
+    function analysisJomang(count) {
+      if (GLOBAL.stop && !GLOBAL.start) return;
+      if (!GLOBAL.pause) {
+        Module.getViewCamera().look(GLOBAL.jomangPointList.get(count), GLOBAL.targetPoint);
+        count++;
+      }
+      if (count >= GLOBAL.jomangPointList.count()) count = 0;
+      setTimeout(function() { analysisJomang(count); }, 2000);
+    }
+
     var Module = {
       locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
+        return "https://cdn.xdworld.kr/latest/" + s;
       },
       postRun: function() {
         Module.initialize({
           container: document.getElementById("map"),
-          terrain: {
+          terrain : {
             dem : {
               url : "https://xdworld.vworld.kr",
               name : "dem",
@@ -45,8 +82,18 @@
               servername : "XDServer3d"
             }
           },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+          defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
         });
+
+        Module.getViewCamera().setLocation(new Module.JSVector3D(126.97603338910677, 37.596857361268654, 1000.0));
+        Module.getViewCamera().setLimitTilt(0.0);
+        Module.XDEMapCreateLayer("facility_build", "http://xdworld.vworld.kr:8080", 0, true, true, false, 9, 0, 15);
+
+        GLOBAL.targetPoint = new Module.JSVector3D(126.94781222770325, 37.56845835144038, 380);
+        GLOBAL.jomangPointList = new Module.JSVec3Array();
+        GLOBAL.jomangPointList.push(new Module.JSVector3D(126.97603338910677, 37.596857361268654, 360));
+        GLOBAL.jomangPointList.push(new Module.JSVector3D(126.94813415084231, 37.51395098956412, 150));
+        GLOBAL.jomangPointList.push(new Module.JSVector3D(126.88142525593913, 37.52490203026996, 118));
       }
     };
 

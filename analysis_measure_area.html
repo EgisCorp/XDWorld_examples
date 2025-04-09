@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>XDWorld 샘플 - analysis_measure_area</title>
+  <title>XDWorld 면적 측정</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
     #map { width: 100%; height: 100%; position: relative; }
@@ -20,32 +20,51 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <form>
+        <input type="radio" name="measureMode" onclick="setMouseState('move');" checked>Move map
+        <input type="radio" name="measureMode" onclick="setMouseState('measure');">Measure area
+        <ul id='objList'></ul>
+      </form>
+      <input type="button" value="Clear" onclick="clearAnalysis();">
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
+      locateFile: function(s) {
+        return "https://cdn.xdworld.kr/latest/" + s;
       },
       postRun: function() {
         Module.initialize({
           container: document.getElementById("map"),
           terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
+            dem: {
+              url: "https://xdworld.vworld.kr",
+              name: "dem",
+              servername: "XDServer3d",
+              encoding: true
             },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
+            image: {
+              url: "https://xdworld.vworld.kr",
+              name: "tile",
+              servername: "XDServer3d"
             }
           },
           defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+        });
+
+        Module.canvas.addEventListener("OnEventMeasureArea", function(e) {
+          const objList = document.getElementById("objList");
+          objList.innerHTML = "";
+
+          const result = e.detail;
+          const ground = result.dGround.toFixed(2);
+          const vertical = result.dVertical.toFixed(2);
+          const surface = result.dSurface.toFixed(2);
+
+          const li = document.createElement("li");
+          li.innerHTML = `Ground: ${ground}㎡<br>Vertical: ${vertical}㎡<br>Surface: ${surface}㎡`;
+          objList.appendChild(li);
         });
       }
     };
@@ -53,6 +72,21 @@
     var script = document.createElement('script');
     script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
     document.body.appendChild(script);
+
+    function setMouseState(mode) {
+      if (mode === 'move') {
+        Module.XDSetMouseState(Module.MML_MOVE_GRAB);
+      } else {
+        Module.XDSetMouseState(Module.MML_MEASURE_AREA);
+      }
+    }
+
+    function clearAnalysis() {
+      const objList = document.getElementById("objList");
+      objList.innerHTML = "";
+      Module.XDClearMeasure();
+      Module.XDRenderData();
+    }
   </script>
 </body>
 </html>
