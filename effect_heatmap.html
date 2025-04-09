@@ -50,7 +50,7 @@
 *********************************************************/
 var Module = {
 	locateFile: function (s) {
-        return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+        return "https://cdn.xdworld.kr/latest/"+ s;
     },
 	postRun: function() {
 		Module.initialize({
@@ -93,7 +93,7 @@ var Module = {
 };
 
 var script = document.createElement('script');
-script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
 document.body.appendChild(script);
 
 /*********************** 아래부터 API 테스트 영역 입니다 ********************************************/

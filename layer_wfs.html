@@ -46,7 +46,7 @@
     var Module = {
 
 locateFile : function(s) {
-  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+  return "https://cdn.xdworld.kr/latest/"+ s;
 },
 postRun: function() {
   
@@ -75,7 +75,7 @@ postRun: function() {
 };
 
 var script = document.createElement('script');
-script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
 document.body.appendChild(script);
 function createPoly(_data, _layer, _tileInfo) {
   if(_data.type == undefined || _data.type != "FeatureCollection" || _data.features == undefined || _data.features.length < 1) {

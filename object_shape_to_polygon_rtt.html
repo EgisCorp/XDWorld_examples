@@ -481,7 +481,7 @@ DBFParser.prototype.parse = function (arrayBuffer, src) {
  */
 var Module = {
     locateFile: function (s) {
-        return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+        return "https://cdn.xdworld.kr/latest/"+ s;
     },
     postRun: function () {
 
@@ -510,7 +510,7 @@ var Module = {
 };
 
 var script = document.createElement("script");
-script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
 document.body.appendChild(script);
 
   </script>
