@@ -20,39 +20,101 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="checkbox" id="recoverHueUse" onChange="setHSV();" checked> Color recovering with shader 
+<br>
+<br>
+<input type="range" id="recoverHue" min="0.0" max="2.0" step="0.1" value="1.0" onChange="setHSV();"> Hue
+<span id="recoverHueText"></span>
+<br>
+<input type="range" id="recoverSat" min="0.0" max="2.0" step="0.1" value="1.0" onChange="setHSV();"> Saturation
+<span id="recoverSatText"></span>
+<br>
+<input type="range" id="recoverVal" min="0.0" max="2.0" step="0.1" value="1.0" onChange="setHSV();"> Value
+<span id="recoverValText"></span>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {	
+	layer : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+	    
+		// Set camera position
+	    Module.getViewCamera().setLocation(new Module.JSVector3D(126.93902090623256, 37.520766972537686, 465.2781725442037));
+		
+	    // Add building layer
+	    var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+	    
+		// Store layer object
+		var layerList = new Module.JSLayerList(false);
+		GLOBAL.layer = layerList.nameAtLayer("facility_build");
+
+		// Adjust layer color
+		setHSV();
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Adjust layer color */
+function setHSV() {
+    
+    if (document.getElementById("recoverHueUse").checked) {
+        
+        // Set layer color based on the options
+        GLOBAL.layer.setUseRecoverHsv(true);
+        GLOBAL.layer.setRecoverHsvValue(
+            parseFloat(document.getElementById("recoverHue").value),
+            parseFloat(document.getElementById("recoverSat").value),
+            parseFloat(document.getElementById("recoverVal").value)
+        );    
+    
+    } else {
+        GLOBAL.layer.setUseRecoverHsv(false);
+    }
+    
+    document.getElementById("recoverHueText").innerHTML = document.getElementById("recoverHue").value;
+    document.getElementById("recoverSatText").innerHTML = document.getElementById("recoverSat").value;
+    document.getElementById("recoverValText").innerHTML = document.getElementById("recoverVal").value;
+    
+    // Refresh the screen
+    Module.XDRenderData();
+}
   </script>
 </body>
 </html>

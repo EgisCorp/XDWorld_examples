@@ -20,39 +20,90 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>offset(Red)</span>
+<input type="range" id="colorR" value="0" min="-255" max="255" onchange="setColorRange('R', this.value);">
+<span id="colorTextR">0</span>
+<br>
+<span>offset(Green)</span>
+<input type="range" id="colorG" value="0" min="-255" max="255" onchange="setColorRange('G', this.value);">
+<span id="colorTextG">0</span>
+<br>
+<span>offset(Blue)</span>
+<input type="range" id="colorB" value="0" min="-255" max="255" onchange="setColorRange('B', this.value);">
+<span id="colorTextB">0</span>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+    POINT_CLOUD : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+	   	Module.getViewCamera().setLocation(new Module.JSVector3D(126.92192801005923, 37.52708702762049, 518.8763168212026));
+	    
+		// Load the point cloud layer
+		Module.XDEMapCreateLayer("tile_pcl_19_yeouido", "3dmap.egiscloud.com", 8080, false, true, false, 19, 0, 19);
+
+		var layerList = new Module.JSLayerList(false);
+		var layer = layerList.nameAtLayer("tile_pcl_19_yeouido");
+
+		// Apply altitude offset to the point cloud layer
+	  	layer.setTileAltitudeOffset(-1.0);
+	  
+		GLOBAL.POINT_CLOUD = layer;
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Specify the color offset for the point cloud */
+function setColorRange(_colorType, _value) {
+
+    if (GLOBAL.POINT_CLOUD == null) {
+        return;
+    }
+
+    // Set the output text for the specified value
+    document.getElementById("colorText" + _colorType).innerHTML = _value;
+
+    // Set the color for the point cloud
+    GLOBAL.POINT_CLOUD.SetPointCloudRenderModeRGB(
+        parseInt(document.getElementById("colorR").value),
+        parseInt(document.getElementById("colorG").value),
+        parseInt(document.getElementById("colorB").value)
+    );
+
+    // Update the screen
+    Module.XDRenderData();
+}
   </script>
 </body>
 </html>

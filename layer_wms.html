@@ -20,39 +20,217 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Layer Visible Set</span>
+<table>
+	<tr>
+		<td>
+			<span>url</span>
+		</td>
+		<td>
+			<input type="text" id="url" value="https://2dmap.egiscloud.com/geoserver/wms?">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>layer</span>
+		</td>
+		<td>
+			<fieldset>
+				<legend>Choose Laysers:</legend>
+			  <div>
+				  <input type="checkbox" id="layer1" name="layer1" value="w_admin:user_shp_admin_1706495499027" checked />
+				  <label for="layer1">w_admin:user_shp_admin_1706495499027</label>
+				</div>
+			  <div>
+				  <input type="checkbox" id="layer2" name="layer2" value="w_admin:user_shp_admin_1708659581410" />
+				  <label for="layer2">w_admin:user_shp_admin_1708659581410</label>
+			 </div>
+			  <div>
+				  <input type="checkbox" id="layer3" name="layer3" value="w_admin:user_shp_admin_1709711069866" />
+				  <label for="layer3">w_admin:user_shp_admin_1709711069866</label>
+			 </div>
+		  </fieldset>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>minimumlevel</span>
+		</td>
+		<td>
+			<input type="text" id="minimumLevel" value="10">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>maximumlevel</span>
+		</td>
+		<td>
+			<input type="text" id="maximumLevel" value="15">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>tilesize</span>
+		</td>
+		<td>
+			<input type="text" id="tilesize" value="256">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>crs(srs)</span>
+		</td>
+		<td>
+			<input type="text" id="crs" value="EPSG:5179">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>version</span>
+		</td>
+		<td>
+			<input type="text" id="version" value="1.1.0">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>proxy</span>
+		</td>
+		<td>
+			<form>
+				<input type="radio" id="proxy" name="proxy">Enabled
+				<input type="radio" name="proxy" checked>Disabled
+			</form>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>box</span>
+		</td>
+		<td>
+			<form>
+				<input type="radio" id="box" name="box" checked>{x,y}
+				<input type="radio" name="box">{y,x}
+			</form>
+		</td>
+	</tr>
+	<tr>
+		<td colspan="2">
+			<input type="button" value="Create WMS Layer" onclick="createLayerWMS();">
+		</td>
+	</tr>
+</table>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.93034890229156, 37.526245609771806, 15211.000774919987));
+  createLayerWMS();
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function createLayerWMS() {
+
+let strUrl, strLayer, strCrs, strVersion;
+let numMinlevel, numMaxlevel, numTileSize;
+let bBox, bProxy;
+let wmslayer;
+
+// Initialization
+strUrl = strLayer = strCrs = strVersion = "";
+numMinlevel = numMaxlevel = numTileSize = 0;
+bBox = bProxy = false;
+
+let layerList = new Module.JSLayerList(false);		// Returns a layer list (true: OCTREE, false: TILE)
+wmslayer = layerList.nameAtLayer("wmslayer");
+if(wmslayer != null)	wmslayer.clearWMSCache();	// Clear cached WMS images
+layerList.delLayerAtName("wmslayer") 				// Remove WMS layer
+
+// Enter WMS UI data
+strUrl = document.getElementById("url").value;
+strLayer = "";
+strLayer += $("#layer1").is(":checked") == true ?  $("#layer1").val() + "," : "";
+strLayer += $("#layer2").is(":checked") == true ?  $("#layer2").val() + "," : "";
+strLayer += $("#layer3").is(":checked") == true ?  $("#layer3").val() + "," : "";
+if(strLayer.at(-1) == ',') strLayer = strLayer.substring(0, strLayer.length-1);
+
+strCrs = document.getElementById("crs").value; 
+numMinlevel = Number(document.getElementById("minimumLevel").value); 
+numMaxlevel = Number(document.getElementById("maximumLevel").value); 
+numTileSize = Number(document.getElementById("tilesize").value); 
+
+// Enter Parameters UI data
+strVersion = document.getElementById("version").value;
+
+// Enter WMS Option data
+bBox = document.getElementById("box").checked;
+bProxy = document.getElementById("proxy").checked;
+
+let slopeoption = {
+  url: strUrl,
+  layer: strLayer,
+  minimumlevel: numMinlevel,	// Changed tag: minmumLevel -> minimumlevel || If tag not set, [Default 0]
+  maximumlevel: numMaxlevel,	// Changed tag: maxmumLevel -> maximumlevel || If tag not set, [Default 20]
+  tilesize: numTileSize,		// Changed tag: tileSize -> tilesize			|| If tag not set, [Default 256]
+  crs: strCrs,				// CRS also applies CRS value					|| If tag not set, [Default EPSG:4326]
+  parameters: {
+    version: strVersion,
+    // Parameters information
+    // Default list of parameters (applied by default)
+    // SERVICE=WMS
+    // REQUEST=GetMap
+    // FORMAT=image/png
+    // VERSION=1.1.0
+    // TRANSPARENT=TRUE
+    // Other additional parameters are entered as Key:value to be included in the URL component
+    // Example
+    //enablePickFeatures: true, Adding this will append enablePickFeatures=true& to the URL
+  }
+};	
+wmslayer = layerList.createWMSLayer("wmslayer") 	// Create WMS layer
+wmslayer.setWMSProvider(slopeoption);				// Set WMS layer information
+wmslayer.setBBoxOrder(bBox);
+// setBBoxOrder	[Default false]
+// Sets the position of the BBOX coordinates in the Request URL
+// TRUE  - BBOX=229675.631739,433847.818064,232773.044569,437761.304661
+// FALSE - BBOX=433847.818064,229675.631739,437761.304661,232773.044569
+
+if (bProxy == true) {
+  Module.SetProxy("");			// Proxy Server URL to apply (public)
+  wmslayer.setProxyRequest(true);	// Proxy server usage API
+}
+}
   </script>
 </body>
 </html>

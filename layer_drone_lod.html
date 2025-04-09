@@ -20,39 +20,110 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Tile Load LOD Rate</span>
+<input type="range" min="0.01" max="3.00" step="0.01" value="1.00" onclick="setTileLoadLOD(parseFloat(this.value));">
+<span id="TileLoadLOD">2.5</span>
+<br>
+<span>Texture Detail Rate</span>
+<input type="range" min="0.01" max="3.00" step="0.01" value="1.00" onclick="setObjectLOD(parseFloat(this.value));">
+<span id="TextureLOD">1.00</span>
+<br>
+<span>Altitude Offset</span>
+<input type="range" min="-200.0" max="500.0" step="0.1" value="0.0" onclick="setAltitudeOffset(parseFloat(this.value));">
+<span id="AltitudeOffset">0.0</span>
+<br>
+<span>Opacity</span>
+<input type="range" min="0.0" max="1.0" step="0.1" value="1.0" onclick="setOpacity(parseFloat(this.value));">
+<span id="Opacity">1.0</span>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	LAYER : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+		// Set initial position
+		Module.getViewCamera().setLocation(new Module.JSVector3D(127.42783066858743, 37.500795887788236, 1957.945530910976));
+
+		// Load drone LOD layer
+		Module.XDEMapCreateLayer("tile_LOD_yangp", "3dmap.egiscloud.com", 0, false, true, false, 20, 0, 20);
+		var layerList = new Module.JSLayerList(false);
+		GLOBAL.LAYER = layerList.nameAtLayer("tile_LOD_yangp");
+
+		// Set layer visibility range and LOD weight
+		Module.setVisibleRange("tile_LOD_yangp", 2.5, 6000000.0);
+
+		// Set layer altitude offset
+		Module.XDSetLayerMoveZ("tile_LOD_yangp", -30);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Adjust layer tile LOD Rate */
+function setTileLoadLOD(_rate) {
+    if (GLOBAL.LAYER != null) {
+        GLOBAL.LAYER.tile_load_ratio = _rate;
+        document.getElementById("TileLoadLOD").innerHTML = _rate.toFixed(2).toString();
+        Module.XDRenderData();
+    }
+}
+
+/* Adjust layer LOD Rate */
+function setObjectLOD(_rate) {
+    if (GLOBAL.LAYER != null) {
+        GLOBAL.LAYER.lod_object_detail_ratio = _rate;
+        document.getElementById("TextureLOD").innerHTML = _rate.toFixed(2).toString();
+        Module.XDRenderData();
+    }
+}
+
+/* Adjust layer altitude offset */
+function setAltitudeOffset(_rate) {
+    if (GLOBAL.LAYER != null) {
+        GLOBAL.LAYER.altitude_offset = _rate;
+        document.getElementById("AltitudeOffset").innerHTML = _rate.toFixed(2).toString();
+        Module.XDRenderData();
+    }
+}
+
+/* Adjust layer opacity */
+function setOpacity(_rate) {
+    if (GLOBAL.LAYER != null) {
+        GLOBAL.LAYER.lod_object_alpha = _rate;
+        document.getElementById("Opacity").innerHTML = _rate.toFixed(2).toString();
+        Module.XDRenderData();
+    }
+}
   </script>
 </body>
 </html>

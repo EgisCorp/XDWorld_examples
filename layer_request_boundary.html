@@ -20,39 +20,139 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <label>Set limit boundary option</label>
+<button id="option-button" type="button" onclick="setOption();">off</button>
+<br>
+<label>※To switch modes, please wait until the object request is complete.</label>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	LAYER_FACILITY : null,
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+		Module.XDESetPlanetTransparecny(0.7);
+
+        // Initialize camera
+        let camera = Module.getViewCamera();
+		camera.setPermitUnderGround(true);
+        camera.setDirect(0.0);
+		camera.setLocation(new Module.JSVector3D(129.1435, 35.152, 1500.0));
+		camera.setDirect(-30.0);
+		camera.setTilt(45.0);
+
+		setFacility();
+	}
+};
+
+function setOption() {
+	GLOBAL.LAYER_FACILITY.boundaryLimit = !GLOBAL.LAYER_FACILITY.boundaryLimit;
+	if (GLOBAL.LAYER_FACILITY.boundaryLimit) {
+		document.getElementById("option-button").innerHTML = "on";
+	} else {
+		document.getElementById("option-button").innerHTML = "off";
+	}
+}
+
+// Set boundary polygon
+function createBoundary(_vertex) {
+
+	var polygon = Module.createPolygon("POLYGON_BOUNDARY");
+
+	// Set polygon shape
+	var vertex = new Module.JSVec3Array();
+	var part = new Module.Collection();
+
+	for (var i = 0; i < _vertex.length; i++) {
+
+		for (var j = 0; j < _vertex[i].length; j++) {
+			vertex.push(_vertex[i][j]);
+		}
+
+		part.add(_vertex[i].length);
+	}
+	polygon.setPartCoordinates(vertex, part);
+
+	// Set polygon color
+	var polygonStyle = new Module.JSPolygonStyle();
+	polygonStyle.setFill(false);
+	polygonStyle.setFillColor(new Module.JSColor(255, 0, 0));
+	polygonStyle.setOutLineColor(new Module.JSColor(255, 0, 0));
+	polygon.setStyle(polygonStyle);
+	
+	return polygon;
+}
+
+// Set facility layer
+function setFacility() {
+	let layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+
+	GLOBAL.LAYER_FACILITY = layer
+
+	GLOBAL.LAYER_FACILITY.setLimitBoundary({
+		boundary: {
+			min: [129.125, 35.161],		// Lower left
+			max: [129.141, 35.168]		// Upper right
+		}
+	});
+
+	layer.setMaxDistance(200000000.0);
+	layer.setLODRatio(2.0);
+	{
+		let polygon = createBoundary(
+			[[
+				new Module.JSVector3D(129.125, 35.161, 15.0),
+				new Module.JSVector3D(129.125, 35.168, 15.0),
+				new Module.JSVector3D(129.141, 35.168, 15.0),
+				new Module.JSVector3D(129.141, 35.161, 15.0),
+			]]
+		);
+
+		let layerList = new Module.JSLayerList(true);
+		var boundaryLayer = layerList.createLayer("BOUNDARY_LAYER", Module.ELT_POLYHEDRON);
+		boundaryLayer.setMaxDistance(2000000.0);
+		boundaryLayer.addObject(polygon, 0);
+	}
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

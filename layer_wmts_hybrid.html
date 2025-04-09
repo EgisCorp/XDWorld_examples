@@ -20,39 +20,660 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <table>
+        <tr>
+          <td>
+            <span>Base Map </span>
+          </td>
+          <td>
+            <Select id="BaseMapMode" onChange="createLayerWMTS(parseInt(this.value));">
+              <option value="0">Choose Base Map(please use the API key issued for you).</option>
+              <option value="1" style="color:red">normal</option>
+              <option value="2" style="color:red">airphoto</option>
+              <option value="3" style="color:red">color</option>
+              <option value="4" style="color:red">big font</option>
+              <option value="5" style="color:red">white</option>
+              <option value="6" style="color:red">english</option>
+              <option value="7" style="color:red">chinese</option>
+              <option value="8" style="color:red">japanese</option>
+              <option value="9" style="color:red">white(education)</option>
+              <option value="10" style="color:red">2011</option>
+              <option value="11" style="color:red">2012</option>
+              <option value="12" style="color:red">2013</option>
+              <option value="13" style="color:red">2014</option>
+              <option value="14" style="color:red">2015</option>
+              <option value="15" style="color:red">2016</option>
+              <option value="16" style="color:red">2017</option>
+              <option value="17" style="color:red">2018</option>
+              <option value="18" style="color:red">2019</option>
+              <option value="19" style="color:red">2020</option>
+              <option value="20" style="color:red">2021</option>
+              <option value="21" style="color:red">2022</option>
+            </Select>
+          </td>
+        </tr>
+        <tr>
+          <td col=2>
+            <input type="button" value="Clear" onClick="clearMap();">
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    // Please obtain an API Key from the National Geographic Information Institute (NGII) platform (https://map.ngii.go.kr/mi/openKey/openKeyRegist.do) before using the video map, color map, large font map, white map, English map, Chinese map, Japanese map, and educational white map.
+var apikey = "";
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+// Korean map
+function korean_map() {
+
+	/* serverSetting configuration information (values ​​that do not change unless re-tiling)
+	 * 	url : Request URL
+	 * 	tileExtent : Tile full extent (lower left, upper right)
+	 * 	projection : Coordinate system
+	 *  tileSize : Tile size
+	 * 	resolutions: Resolution by level
+	 * 	matrixIds  : Definition of tile levels (matching with resolutions)
+	 *  serviceLevel : Minimum and maximum levels tiled
+	 *  gridSubset : Actual data area (set not to request areas with no data) Default: tileExtent setting value
+	 * 	vworldTileSet : If it is a V-world tile structure, set to true
+	 *  indexOrder : Tile indexing base point (indexing from top to bottom: true, indexing from bottom to top: false)
+	 */
+	
+	/* userSetting configuration information (user-set values ​​for LOD, image quality)
+	 * 	zeroLevel : Image request LOD
+	 * 	quality : Image quality (low, middle, high) *Use 'high' quality with caution as it increases memory usage 16 times compared to the default.
+	 *	iscrack : If cracks occur between tiles (default: false)
+	 *	crackvalue : Tile crack compensation value (default: 1000)
+	 */	
+	let option = {
+		serverSetting:{
+			// Information about tile structure.
+			url: "https://map.ngii.go.kr/openapi/Gettile.do?apikey="+apikey+"&layer=korean_map&style=korean&tilematrixset=EPSG%3A5179&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix=L{02z}&TileCol={x}&TileRow={y}",		
+			tileExtent: {		// Tile full extent (lower left, upper right)
+				min: new Module.JSVector2D(-200000.98, -28086425.6),
+				max: new Module.JSVector2D(31886425.6, 4000000.0)
+			},
+			projection: "EPSG:5179",
+			tileSize: 256,
+			resolutions : [2088.96, 1044.48, 522.24, 261.12, 130.56, 65.28, 32.64, 16.32, 8.16, 4.08, 2.04, 1.02, 0.51, 0.255],		// Resolution by level
+			matrixIds : [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],	// Definition of tile levels (matching with resolutions)
+			serviceLevel: {		// Minimum and maximum levels tiled
+				min: 3,
+				max: 20
+			},
+			/*
+			* gridSubset: {	// Actual data area (set not to request areas with no data) Default: tileExtent setting value
+			*	min: new Module.JSVector2D(-200000, 997738.4107),
+			*	max: new Module.JSVector2D(2802261.589, 4000000)
+			* },
+			* vworldTileSet: false,	// If it is a V-world tile structure, set to true	Default: false
+			* indexOrder: true,		// Tile indexing base point	Default: true
+			*/
+		},
+		userSetting: {
+			zeroLevel: 2,				// WMTS image LOD
+			quality: "middle"			// WMTS image quality
+			// iscrack : false, 		// If cracks occur between tiles (default: false)
+			// crackvalue : 1000		// Tile crack compensation value (default: 1000)
+		}
+	};		
+	
+	// Returns the layer list (true: OCTREE, false: TILE)
+	let layerList = new Module.JSLayerList(false);
+	
+	// Search for layers
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	// Delete existing layer if present
+	if(wmslayer != null) {
+		wmslayer.clearWMSCache();				// Delete rendered WMTS images
+		layerList.delLayerAtName("wmtsLayer"); 	// Delete WMTS	
+	}
+	
+	// Create WMTS layer
+	wmslayer = layerList.createWMSLayer("wmtsLayer");
+	
+	// Set WMTS layer information
+	wmslayer.setWMTSProvider(option);
+    
+    Module.XDEPlanetRefresh();
+}
+
+// Video map
+function airphoto() {
+	
+	let option = {
+		serverSetting:{
+			url: "https://map.ngii.go.kr/openapi/proxy/proxyTile.jsp?apikey="+apikey+"&URL=http://210.117.198.120:8081/o2map/services%3Fapikey="+apikey+"%26layer=AIRPHOTO%26style=_null%26tilematrixset=NGIS_AIR%26Service=WMTS%26Request=GetTile%26Version=1.0.0%26Format=image%252Fjpg%26TileMatrix={z}%26TileCol={x}%26TileRow={y}",									
+			tileExtent: {		// Tile full extent (lower left, upper right)
+				min: new Module.JSVector2D(-200000.98, -28086425.6),
+				max: new Module.JSVector2D(31886425.6, 4000000.0)
+			},
+			projection: "EPSG:5179",
+			tileSize: 256,
+			resolutions : [2088.96, 1044.48, 522.24, 261.12, 130.56, 65.28, 32.64, 16.32, 8.16, 4.08, 2.04, 1.02, 0.51, 0.255],		// Resolution by level
+			matrixIds : [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],	// Definition of tile levels (matching with resolutions)
+			serviceLevel: {		// Minimum and maximum levels tiled
+				min: 3,
+				max: 20
+			},
+		},
+		userSetting: {
+			zeroLevel: 2,				// WMTS image LOD
+			quality: "middle"			// WMTS image quality
+		}
+	};
+	
+	// Returns the layer list (true: OCTREE, false: TILE)
+	let layerList = new Module.JSLayerList(false);
+	
+	// Search for layers
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	// Delete existing layer if present
+	if(wmslayer != null) {
+		wmslayer.clearWMSCache();				// Delete rendered WMTS images
+		layerList.delLayerAtName("wmtsLayer"); 	// Delete WMTS	
+	}
+	
+	// Create WMTS layer
+	wmslayer = layerList.createWMSLayer("wmtsLayer");
+	
+	// Set WMTS layer information
+	wmslayer.setWMTSProvider(option);
+    
+    Module.XDEPlanetRefresh();
+}
+
+// Color map
+function color_map() {
+	
+	let option = {
+		serverSetting:{
+			url: "https://map.ngii.go.kr/openapi/Gettile.do?apikey="+apikey+"&layer=color_map&style=korean&tilematrixset=EPSG:5179&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=L{02z}&TileCol={x}&TileRow={y}",								
+			tileExtent: {		// Tile full extent (lower left, upper right)
+				min: new Module.JSVector2D(-200000.98, -28086425.6),
+				max: new Module.JSVector2D(31886425.6, 4000000.0)
+			},
+			projection: "EPSG:5179",
+			tileSize: 256,
+			resolutions : [2088.96, 1044.48, 522.24, 261.12, 130.56, 65.28, 32.64, 16.32, 8.16, 4.08, 2.04, 1.02, 0.51, 0.255],		// Resolution by level
+			matrixIds : [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],	// Definition of tile levels (matching with resolutions)
+			serviceLevel: {		// Minimum and maximum levels tiled
+				min: 3,
+				max: 20
+			},
+		},
+		userSetting: {
+			zeroLevel: 2,				// WMTS image LOD
+			quality: "middle"			// WMTS image quality
+			// iscrack : false, 		// If cracks occur between tiles (default: false)
+			// crackvalue : 1000		// Tile crack compensation value (default: 1000)
+		}
+	};					
+	
+	// Returns the layer list (true: OCTREE, false: TILE)
+	let layerList = new Module.JSLayerList(false);
+	
+	// Search for layers
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	// Delete existing layer if present
+	if(wmslayer != null) {
+		wmslayer.clearWMSCache();				// Delete rendered WMTS images
+		layerList.delLayerAtName("wmtsLayer"); 	// Delete WMTS	
+	}
+	
+	// Create WMTS layer
+	wmslayer = layerList.createWMSLayer("wmtsLayer");
+	
+	// Set WMTS layer information
+	wmslayer.setWMTSProvider(option);
+    
+    Module.XDEPlanetRefresh();
+}
+
+// Large font map
+function lowV_map() {
+	
+	let option = {
+		serverSetting: {
+			url: "https://map.ngii.go.kr/openapi/Gettile.do?apikey="+apikey+"&layer=lowV_map&style=korean&tilematrixset=EPSG:5179&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=L{02z}&TileCol={x}&TileRow={y}",								
+			tileExtent: {		// Tile full extent (lower left, upper right)
+				min: new Module.JSVector2D(-200000.98, -28086425.6),
+				max: new Module.JSVector2D(31886425.6, 4000000.0)
+			},
+			projection: "EPSG:5179",
+			tileSize: 256,
+			resolutions : [2088.96, 1044.48, 522.24, 261.12, 130.56, 65.28, 32.64, 16.32, 8.16, 4.08, 2.04, 1.02, 0.51, 0.255],		// Resolution by level
+			matrixIds : [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],	// Definition of tile levels (matching with resolutions)
+			serviceLevel: {		// Minimum and maximum levels tiled
+				min: 3,
+				max: 20
+			},
+		},
+		userSetting: {
+			zeroLevel: 2,				// WMTS image LOD
+			quality: "middle"			// WMTS image quality
+			// iscrack : false, 		// If cracks occur between tiles (default: false)
+			// crackvalue : 1000		// Tile crack compensation value (default: 1000)
+		}
+	};					
+	
+	// Returns the layer list (true: OCTREE, false: TILE)
+	let layerList = new Module.JSLayerList(false);
+	
+	// Search for layers
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	// Delete existing layer if present
+	if(wmslayer != null) {
+		wmslayer.clearWMSCache();				// Delete rendered WMTS images
+		layerList.delLayerAtName("wmtsLayer"); 	// Delete WMTS	
+	}
+	
+	// Create WMTS layer
+	wmslayer = layerList.createWMSLayer("wmtsLayer");
+	
+	// Set WMTS layer information
+	wmslayer.setWMTSProvider(option);			
+    
+    Module.XDEPlanetRefresh();	
+}
+
+// White map
+function white_map() {
+	
+	let option = {
+		serverSetting: {
+			url: "https://map.ngii.go.kr/openapi/Gettile.do?apikey="+apikey+"&layer=white_map&style=korean&tilematrixset=EPSG:5179&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=L{02z}&TileCol={x}&TileRow={y}",								
+			tileExtent: {		// Tile full extent (lower left, upper right)
+				min: new Module.JSVector2D(-200000.98, -28086425.6),
+				max: new Module.JSVector2D(31886425.6, 4000000.0)
+			},
+			projection: "EPSG:5179",
+			tileSize: 256,
+			resolutions : [2088.96, 1044.48, 522.24, 261.12, 130.56, 65.28, 32.64, 16.32, 8.16, 4.08, 2.04, 1.02, 0.51, 0.255],		// Resolution by level
+			matrixIds : [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],	// Definition of tile levels (matching with resolutions)
+			serviceLevel: {		// Minimum and maximum levels tiled
+				min: 3,
+				max: 20
+			},
+		},
+		userSetting: {
+			zeroLevel: 2,				// WMTS image LOD
+			quality: "middle"			// WMTS image quality
+			// iscrack : false, 		// If cracks occur between tiles (default: false)
+			// crackvalue : 1000		// Tile crack compensation value (default: 1000)
+		}
+	};						
+	
+	// Returns the layer list (true: OCTREE, false: TILE)
+	let layerList = new Module.JSLayerList(false);
+	
+	// Search for layers
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	// Delete existing layer if present
+	if(wmslayer != null) {
+		wmslayer.clearWMSCache();				// Delete rendered WMTS images
+		layerList.delLayerAtName("wmtsLayer"); 	// Delete WMTS	
+	}
+	
+	// Create WMTS layer
+	wmslayer = layerList.createWMSLayer("wmtsLayer");
+	
+	// Set WMTS layer information
+	wmslayer.setWMTSProvider(option);		
+    
+    Module.XDEPlanetRefresh();	
+}
+
+// English map
+function english_map() {
+	
+	let option = {
+		serverSetting: {
+			url: "https://map.ngii.go.kr/openapi/Gettile.do?apikey="+apikey+"&layer=english_map&style=korean&tilematrixset=EPSG:5179&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=L{02z}&TileCol={x}&TileRow={y}",								
+			tileExtent: {		// Tile full extent (lower left, upper right)
+				min: new Module.JSVector2D(-200000.98, -28086425.6),
+				max: new Module.JSVector2D(31886425.6, 4000000.0)
+			},
+			projection: "EPSG:5179",
+			tileSize: 256,
+			resolutions : [2088.96, 1044.48, 522.24, 261.12, 130.56, 65.28, 32.64, 16.32, 8.16, 4.08, 2.04, 1.02, 0.51, 0.255],		// Resolution by level
+			matrixIds : [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],	// Definition of tile levels (matching with resolutions)
+			serviceLevel: {		// Minimum and maximum levels tiled
+				min: 3,
+				max: 20
+			},
+		},
+		userSetting: {
+			zeroLevel: 2,				// WMTS image LOD
+			quality: "middle"			// WMTS image quality
+			// iscrack : false, 		// If cracks occur between tiles (default: false)
+			// crackvalue : 1000		// Tile crack compensation value (default: 1000)
+		}
+	};				
+	
+	// Returns the layer list (true: OCTREE, false: TILE)
+	let layerList = new Module.JSLayerList(false);
+	
+	// Search for layers
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	// Delete existing layer if present
+	if(wmslayer != null) {
+		wmslayer.clearWMSCache();				// Delete rendered WMTS images
+		layerList.delLayerAtName("wmtsLayer"); 	// Delete WMTS	
+	}
+	
+	// Create WMTS layer
+	wmslayer = layerList.createWMSLayer("wmtsLayer");
+	
+	// Set WMTS layer information
+	wmslayer.setWMTSProvider(option);		
+    
+    Module.XDEPlanetRefresh();		
+}
+
+// Chinese map
+function chinese_map() {
+	
+	let option = {
+		serverSetting: {
+			url: "https://map.ngii.go.kr/openapi/Gettile.do?apikey="+apikey+"&layer=chinese_map&style=korean&tilematrixset=EPSG:5179&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=L{02z}&TileCol={x}&TileRow={y}",								
+			tileExtent: {		// Tile full extent (lower left, upper right)
+				min: new Module.JSVector2D(-200000.98, -28086425.6),
+				max: new Module.JSVector2D(31886425.6, 4000000.0)
+			},
+			projection: "EPSG:5179",
+			tileSize: 256,
+			resolutions : [2088.96, 1044.48, 522.24, 261.12, 130.56, 65.28, 32.64, 16.32, 8.16, 4.08, 2.04, 1.02, 0.51, 0.255],		// Resolution by level
+			matrixIds : [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],	// Definition of tile levels (matching with resolutions)
+			serviceLevel: {		// Minimum and maximum levels tiled
+				min: 3,
+				max: 20
+			},
+			/*
+			* gridSubset: {	// Actual data area (do not request areas without data) Default: tileExtent setting value
+			*	min: new Module.JSVector2D(-200000, 997738.4107),
+			*	max: new Module.JSVector2D(2802261.589, 4000000)
+			* },
+			* vworldTileSet: false,	// If it is a Vworld tile structure, true Default: false
+			* indexOrder: true,		// Tile indexing reference point Default: true
+			*/
+		},
+		userSetting: {
+			zeroLevel: 2,				// WMTS image LOD
+			quality: "middle"			// WMTS image quality
+			// iscrack : false, 		// If cracks occur between tiles (default: false)
+			// crackvalue : 1000		// Tile crack compensation value (default: 1000)
+		}
+	};					
+	
+	// Returns the layer list (true: OCTREE, false: TILE)
+	let layerList = new Module.JSLayerList(false);
+	
+	// Search for layers
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	// Delete existing layer if present
+	if(wmslayer != null) {
+		wmslayer.clearWMSCache();				// Delete rendered WMTS images
+		layerList.delLayerAtName("wmtsLayer"); 	// Delete WMTS	
+	}
+	
+	// Create WMTS layer
+	wmslayer = layerList.createWMSLayer("wmtsLayer");
+	
+	// Set WMTS layer information
+	wmslayer.setWMTSProvider(option);		
+    
+    Module.XDEPlanetRefresh();		
+}
+
+// Japanese map
+function japanese_map() {
+	
+	let option = {
+		serverSetting: {
+			url: "https://map.ngii.go.kr/openapi/Gettile.do?apikey="+apikey+"&layer=japanese_map&style=korean&tilematrixset=EPSG:5179&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=L{02z}&TileCol={x}&TileRow={y}",								
+			tileExtent: {		// Tile full extent (lower left, upper right)
+				min: new Module.JSVector2D(-200000.98, -28086425.6),
+				max: new Module.JSVector2D(31886425.6, 4000000.0)
+			},
+			projection: "EPSG:5179",
+			tileSize: 256,
+			resolutions : [2088.96, 1044.48, 522.24, 261.12, 130.56, 65.28, 32.64, 16.32, 8.16, 4.08, 2.04, 1.02, 0.51, 0.255],		// Resolution by level
+			matrixIds : [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],	// Definition of tile levels (matching with resolutions)
+			serviceLevel: {		// Minimum and maximum levels tiled
+				min: 3,
+				max: 20
+			},
+			/*
+			* gridSubset: {	// Actual data area (do not request areas without data) Default: tileExtent setting value
+			*	min: new Module.JSVector2D(-200000, 997738.4107),
+			*	max: new Module.JSVector2D(2802261.589, 4000000)
+			* },
+			* vworldTileSet: false,	// If it is a Vworld tile structure, true Default: false
+			* indexOrder: true,		// Tile indexing reference point Default: true
+			*/
+		},
+		userSetting: {
+			zeroLevel: 2,				// WMTS image LOD
+			quality: "middle"			// WMTS image quality
+			// iscrack : false, 		// If cracks occur between tiles (default: false)
+			// crackvalue : 1000		// Tile crack compensation value (default: 1000)
+		}
+	};				
+	
+	// Returns the layer list (true: OCTREE, false: TILE)
+	let layerList = new Module.JSLayerList(false);
+	
+	// Search for layers
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	// Delete existing layer if present
+	if(wmslayer != null) {
+		wmslayer.clearWMSCache();				// Delete rendered WMTS images
+		layerList.delLayerAtName("wmtsLayer"); 	// Delete WMTS	
+	}
+	
+	// Create WMTS layer
+	wmslayer = layerList.createWMSLayer("wmtsLayer");
+	
+	// Set WMTS layer information
+	wmslayer.setWMTSProvider(option);		
+    
+    Module.XDEPlanetRefresh();		
+}
+
+// White educational map
+function white_edu_map() {
+	
+	let option = {
+		serverSetting: {
+			url: "https://map.ngii.go.kr/openapi/Gettile.do?apikey="+apikey+"&layer=white_edu_map&style=korean&tilematrixset=EPSG:5179&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=L{02z}&TileCol={x}&TileRow={y}",								
+			tileExtent: {		// Tile full extent (lower left, upper right)
+				min: new Module.JSVector2D(-200000.98, -28086425.6),
+				max: new Module.JSVector2D(31886425.6, 4000000.0)
+			},
+			projection: "EPSG:5179",
+			tileSize: 256,
+			resolutions : [2088.96, 1044.48, 522.24, 261.12, 130.56, 65.28, 32.64, 16.32, 8.16, 4.08, 2.04, 1.02, 0.51, 0.255],		// Resolution by level
+			matrixIds : [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],	// Definition of tile levels (matching with resolutions)
+			serviceLevel: {		// Minimum and maximum levels tiled
+				min: 3,
+				max: 20
+			},
+			/*
+			* gridSubset: {	// Actual data area (do not request areas without data) Default: tileExtent setting value
+			*	min: new Module.JSVector2D(-200000, 997738.4107),
+			*	max: new Module.JSVector2D(2802261.589, 4000000)
+			* },
+			* vworldTileSet: false,	// If it is a Vworld tile structure, true Default: false
+			* indexOrder: true,		// Tile indexing reference point Default: true
+			*/
+		},
+		userSetting: {
+			zeroLevel: 2,				// WMTS image LOD
+			quality: "middle"			// WMTS image quality
+			// iscrack : false, 		// If cracks occur between tiles (default: false)
+			// crackvalue : 1000		// Tile crack compensation value (default: 1000)
+		}
+	};				
+	
+	// Returns the layer list (true: OCTREE, false: TILE)
+	let layerList = new Module.JSLayerList(false);
+	
+	// Search for layers
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	// Delete existing layer if present
+	if(wmslayer != null) {
+		wmslayer.clearWMSCache();				// Delete rendered WMTS images
+		layerList.delLayerAtName("wmtsLayer"); 	// Delete WMTS	
+	}
+	
+	// Create WMTS layer
+	wmslayer = layerList.createWMSLayer("wmtsLayer");
+	
+	// Set WMTS layer information
+	wmslayer.setWMTSProvider(option);				
+    
+    Module.XDEPlanetRefresh();
+}
+
+// Show map for a specific year (2011-2022)
+function showYearMap(year) {
+	
+	let option = {
+		serverSetting: {
+			url: "https://map.ngii.go.kr/openapi/proxy/proxyTile.jsp?apikey="+apikey+"&URL=http%3A%2F%2F210.117.198.120%3A8081%2Fo2map%2Fservices%3Fapikey%3D04trYP9_xwLAfALjwZ-B8g%26layer%3DAIRPHOTO_"+year+"%26style%3D_null%26tilematrixset%3DNGIS_AIR%26Service%3DWMTS%26Request%3DGetTile%26Version%3D1.0.0%26Format%3Dimage%252Fjpg%26TileMatrix%3D{z}%26TileCol%3D{x}%26TileRow%3D{y}",
+			tileExtent: {		// Tile full extent (lower left, upper right)
+				min: new Module.JSVector2D(-200000.98, -28086425.6),
+				max: new Module.JSVector2D(31886425.6, 4000000.0)
+			},
+			projection: "EPSG:5179",
+			tileSize: 256,
+			resolutions : [2088.96, 1044.48, 522.24, 261.12, 130.56, 65.28, 32.64, 16.32, 8.16, 4.08, 2.04, 1.02, 0.51, 0.255],		// Resolution by level
+			matrixIds : [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],	// Definition of tile levels (matching with resolutions)
+			serviceLevel: {		// Minimum and maximum levels tiled
+				min: 3,
+				max: 20
+			},
+			/*
+			* gridSubset: {	// Actual data area (do not request areas without data) Default: tileExtent setting value
+			*	min: new Module.JSVector2D(-200000, 997738.4107),
+			*	max: new Module.JSVector2D(2802261.589, 4000000)
+			* },
+			* vworldTileSet: false,	// If it is a Vworld tile structure, true Default: false
+			* indexOrder: true,		// Tile indexing reference point Default: true
+			*/
+		},
+		userSetting: {
+			zeroLevel: 2,				// WMTS image LOD
+			quality: "middle"			// WMTS image quality
+			// iscrack : false, 		// If cracks occur between tiles (default: false)
+			// crackvalue : 1000		// Tile crack compensation value (default: 1000)
+		}
+	};					
+	
+	// Returns the layer list (true: OCTREE, false: TILE)
+	let layerList = new Module.JSLayerList(false);
+	
+	// Search for layers
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	// Delete existing layer if present
+	if(wmslayer != null) {
+		wmslayer.clearWMSCache();				// Delete rendered WMTS images
+		layerList.delLayerAtName("wmtsLayer"); 	// Delete WMTS	
+	}
+	
+	// Create WMTS layer
+	wmslayer = layerList.createWMSLayer("wmtsLayer");
+	
+	// Set WMTS layer information
+	wmslayer.setWMTSProvider(option);			
+    
+    Module.XDEPlanetRefresh();	
+}
+
+// Clear background map
+function clearMap() {
+	
+	let layerList = new Module.JSLayerList(false);	
+	let wmslayer = layerList.nameAtLayer("wmtsLayer");
+	
+	if(wmslayer != null) wmslayer.clearWMSCache();
+	layerList.delLayerAtName("wmtsLayer")
+}
+
+// Create WMTS layer based on type
+function createLayerWMTS(type) {
+	switch(type) {
+		case 1:		korean_map(); 		break;	// Korean map
+		case 2:		airphoto(); 		break;	// Aerial photo
+		case 3:		color_map();		break;	// Color map
+		case 4:		lowV_map(); 		break;	// Large font map
+		case 5:		white_map(); 		break;	// White map
+		case 6:		english_map(); 		break;	// English map
+		case 7:		chinese_map(); 		break;	// Chinese map
+		case 8:		japanese_map(); 	break;	// Japanese map
+		case 9:		white_edu_map(); 	break;	// White educational map
+		case 10: 	showYearMap(2011); 	break;	// 2011
+		case 11: 	showYearMap(2012); 	break;	// 2012
+		case 12: 	showYearMap(2013); 	break;	// 2013
+		case 13: 	showYearMap(2014); 	break;	// 2014
+		case 14: 	showYearMap(2015); 	break;	// 2015
+		case 15: 	showYearMap(2016); 	break;	// 2016
+		case 16: 	showYearMap(2017); 	break;	// 2017
+		case 17: 	showYearMap(2018); 	break;	// 2018
+		case 18: 	showYearMap(2019); 	break;	// 2019
+		case 19: 	showYearMap(2020); 	break;	// 2020
+		case 20: 	showYearMap(2021); 	break;	// 2021
+		case 21: 	showYearMap(2022); 	break;	// 2022
+	}	
+}
+
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera position
+		Module.XDSetCamPositionLonLat(128.555323, 35.814567, 1000000, 90);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

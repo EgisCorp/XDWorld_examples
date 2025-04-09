@@ -20,39 +20,92 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <input type="button" style="color:red" value="Create V-WORLD WMTS(please use the API key issued for you)." onClick="createLayerWMTS();">
+<input type="button" value="Clear" onClick="clearMap();">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    // This feature requires a VWorld API Key.
+// Please obtain an API Key from the VWorld OpenAPI (https://www.vworld.kr/dev/v4dv_opnws3dmap2guide_s001.do) and use it.
+var apikey = "";
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+// Create a VWorld WMTS layer
+function createLayerWMTS() {
+    
+    /* Configuration information (values ​​that do not change unless re-tiling)
+     * url: Request URL
+     * vworldTileSet: true if it is a VWorld tile structure
+     * serviceLevel: Minimum and maximum levels tiled
+     */
+    
+    // How to use VWorld WMTS
+    let option = {    
+        // Information about the tile structure.
+        // Base: Basic map
+        url: "https://api.vworld.kr/req/wmts/1.0.0/" + apikey + "/Base/{z}/{y}/{x}.png",
+        
+        // 2D Night map
+        // url: "https://api.vworld.kr/req/wmts/1.0.0/" + apikey + "/midnight/{z}/{y}/{x}.png",
+        
+        // 2D white map
+        // url: "https://api.vworld.kr/req/wmts/1.0.0/" + apikey + "/white/{z}/{y}/{x}.png",
+        
+        // 2D Satellite map
+        // url: "https://api.vworld.kr/req/wmts/1.0.0/" + apikey + "/Satellite/{z}/{y}/{x}.jpeg",
+        serviceLevel: {
+            min: 3,
+            max: 18
+        },
+        vworldTileSet: true    // true if it is a VWorld tile structure
+    };                  
+    
+    var wmts = Module.WMTS();    // WMTS class
+    wmts.provider = option;        // wmts provider property
+    wmts.quality = "middle";    // wmts image quality
+}
+
+// Clear the background map
+function clearMap() {
+    
+    Module.WMTS().clear();
+}
+
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+		// Set camera position
+		Module.XDSetCamPositionLonLat(128.555323, 35.814567, 1000000, 90);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

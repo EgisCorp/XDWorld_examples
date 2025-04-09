@@ -20,39 +20,242 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <table>
+        <tr>
+          <td>
+            <span>Base Map </span>
+          </td>
+          <td>
+            <Select id="BaseMapMode" onChange="SetBaseMap(parseInt(this.value));">
+              <option value="0">Choose Base Map.</option>
+              <option value="1">Google(normal)</option>
+              <option value="2">Google(terrain)</option>
+              <option value="3">Google(vector hybrid)</option>
+              <option value="4">Google(satellite hybrid)</option>
+              <option value="5">Google(satellite)</option>
+              <option value="6">ArcMap(normal)</option>
+              <option value="7">ArcMap(terrain)</option>
+              <option value="8">ArcMap(vector hybrid)</option>
+              <option value="9">ArcMap(satellite)</option>
+              <option value="10">MapBox(satellite)</option>
+              <option value="11">MapBox(normal)</option>
+              <option value="12">OpenStreetMap(normal)</option>
+                      <option value="13">clear</option>
+            </Select>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span>Base Map Option</span>
+          </td>
+          <td>
+            <Select id="BaseMapOption" onChange="SetBaseMapOption(this.value);">
+              <option value="low">low Quality</option>
+              <option value="middle">middle Quality</option>
+              <option value="high">high Quality</option>
+            </Select>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span>Image Resolution</span>
+          </td>
+          <td>
+            <input type="text" id="quality" disabled="disabled">
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span>zeroLevel Offset</span>
+          </td>
+          <td>
+            <input type="text" id="offset" disabled="disabled">
+          </td>
+        </tr>
+        <tr>
+          <td col=2>
+            <input type="button" value="Clear" onClick="clearMap();">
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+              dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+    
+    Module.getViewCamera().moveLonLatAlt(127.0273188, 37.4977981, 1000000, true);
+        
+    // Current UI: background map
+  document.getElementById("quality").value = null;
+  document.getElementById("offset").value = null;
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+// Background map global variable
+var basemap;
+
+//////// Google Map //////
+function GoogleNormalMap() {
+  // Normal map
+  basemap = Module.GoogleMap();
+  basemap.layername = "normal";
+}
+
+function GoogleTerrainMap() {
+  // Terrain map
+  basemap = Module.GoogleMap();
+  basemap.layername = "terrain";
+}
+
+function GoogleVectorHybridMap() {
+  // Vector hybrid map
+  basemap = Module.GoogleMap();
+  basemap.layername = "vectorhybrid";
+}
+
+function GoogleSatelliteHybridMap() {
+  // Satellite hybrid map
+  basemap = Module.GoogleMap();
+  basemap.layername = "satellitehybrid";
+}
+
+function GoogleSatelliteMap() {
+  // Satellite map
+  basemap = Module.GoogleMap();
+  basemap.layername = "satellite";
+}
+
+////// Arc Map //////
+function ArcNormalMap() {
+  // Normal map
+  basemap = Module.ArcMap();
+  basemap.layername = "normal";
+}
+
+function ArcTerrainMap() {
+  // Terrain map
+  basemap = Module.ArcMap();
+  basemap.layername = "terrain";
+}
+
+function ArcVectorHybridMap() {
+  // Vector hybrid map
+  basemap = Module.ArcMap();
+  basemap.layername = "vectorhybrid";
+}
+
+function ArcSatelliteMap() {
+  // Satellite map
+  basemap = Module.ArcMap();
+  basemap.layername = "satellite";
+}
+
+////// Map Box //////
+function MapBoxNormalMap() {
+  // Normal map
+  basemap = Module.MapBox();
+  basemap.layername = "normal";
+}
+
+function MapBoxSatelliteMap() {
+  // Satellite map
+  basemap = Module.MapBox();
+  basemap.layername = "satellite";
+}
+
+////// OpenStreetMap //////
+function OpenStreetMapNormalMap() {
+  // Normal map
+  basemap = Module.OpenStreetMap();
+  basemap.layername = "normal";
+}
+
+// Background map options
+function SetBaseMapOption(_value) {
+  /* quality parameter information
+   *      low     : Low quality
+   *      middle  : Medium quality
+   *      high    : High quality
+   * 
+   * zerolevelOffset parameter information
+   *      Image LOD
+   */
+      
+  // Image LOD setting
+  if(_value.toLowerCase().search("low") != -1) basemap.zerolevelOffset = 0;
+  else basemap.zerolevelOffset = 1;    // Ideal image LOD is 1 for middle and higher quality (subject to user modification)
+  
+  // Image quality setting
+  basemap.quality = _value;
+
+basemap.refresh();
+  
+  // Current UI state of background map
+  document.getElementById("quality").value = basemap.quality;
+  document.getElementById("offset").value = basemap.zerolevelOffset;
+}
+
+function clearMap() {
+  // Clearing properties of the created class
+  basemap.clear();
+  
+  document.getElementById("BaseMapOption").options[0].selected = true;
+  document.getElementById("quality").value = null;
+  document.getElementById("offset").value = null;  
+  document.getElementById("BaseMapMode").value = 0;
+}
+
+function SetBaseMap(_type) {
+  switch(_type) {
+      case 1: GoogleNormalMap();             break;    // Google Normal map
+      case 2: GoogleTerrainMap();            break;    // Google Terrain map
+      case 3: GoogleVectorHybridMap();       break;    // Google Vector hybrid map
+      case 4: GoogleSatelliteHybridMap();    break;    // Google Satellite hybrid map
+      case 5: GoogleSatelliteMap();          break;    // Google Satellite map
+      case 6: ArcNormalMap();                break;    // Arc Normal map
+      case 7: ArcTerrainMap();               break;    // Arc Terrain map
+      case 8: ArcVectorHybridMap();          break;    // Arc Vector hybrid map
+      case 9: ArcSatelliteMap();             break;    // Arc Satellite map
+      case 10: MapBoxSatelliteMap();         break;    // Map Box Satellite map
+      case 11: MapBoxNormalMap();            break;    // Map Box Normal map
+      case 12: OpenStreetMapNormalMap();     break;    // OpenStreetMap Normal map
+      case 13: Module.GoogleMap().setblank(); break;  // Clear map
+  }
+  
+  // Reflecting the background map state
+  document.getElementById("BaseMapOption").options[0].selected = true;    
+  document.getElementById("quality").value = basemap.quality;
+  document.getElementById("offset").value = basemap.zerolevelOffset;
+}
   </script>
 </body>
 </html>

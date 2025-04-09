@@ -20,39 +20,247 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Layer Choose</span>
+<table>
+	<tr>
+		<td>
+			<span>Polygons</span>
+		</td>
+		<td>
+			<input type="button" id="poly2d" value="Polygon" onclick="createCustomTileWFSPolyLayer();">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>Points</span>
+		</td>
+		<td>
+			<input type="button" id="point2d" value="Point" onclick="createCustomTileWFSPOILayer();">
+		</td>
+	</tr>
+</table>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(128.946281, 35.148845, 500.0));
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+function createPoly(_data, _layer, _tileInfo) {
+  if(_data.type == undefined || _data.type != "FeatureCollection" || _data.features == undefined || _data.features.length < 1) {
+      console.log('No Json or No Features');
+      return;
+  }
+
+let features = _data.features;
+  features.forEach((e) => {
+      if(e.type != "Feature" || (e.geometry.type != "Polygon" && e.geometry.type != "MultiPolygon")) {
+          console.log('No Feature or No Polygon');
+          return;
+      }
+      let id = e.id;	// unique id;
+      if(e.geometry.type == "MultiPolygon") { // loop single poly create
+          let polyCnt = e.geometry.coordinates.length;
+          for(let i=0;i<polyCnt;i++) {
+              let poly = Module.createPolygon(id + '_' + i.toString());
+              let vertex = new Module.JSVec3Array();
+              let part = new Module.Collection();
+              let polyVA = e.geometry.coordinates[i];
+              let partCnt = polyVA.length;
+              for(let j=0;j<polyVA.length;j++) {
+                  let partVA = polyVA[j];
+                  let vaCnt = partVA.length;
+                  part.add(vaCnt);
+                  for(let k=0;k<vaCnt;k++) {
+                      let va = partVA[k];
+                      vertex.pushLonLatAlt(parseFloat(va[0]), parseFloat(va[1]), 10);
+                  }
+              }
+
+              poly.setPartCoordinates(vertex, part);
+              let polygonStyle = new Module.JSPolygonStyle();
+              polygonStyle.setFill(true);
+              if(e.properties.clsf_nm == "논") {
+                  polygonStyle.setFillColor(new Module.JSColor(150, 255, 150));    
+              }else if(e.properties.clsf_nm == "밭") {
+                  polygonStyle.setFillColor(new Module.JSColor(255, 150, 150));    
+              }else if(e.properties.clsf_nm == "시설") {
+                  polygonStyle.setFillColor(new Module.JSColor(150, 150, 255));    
+              }else {
+                  polygonStyle.setFillColor(new Module.JSColor(150, 150, 150));
+              }
+              
+              poly.setStyle(polygonStyle);
+              poly.setHeight(30.0);
+              poly.setUnionMode(false);
+              _layer.addTileInObject(_tileInfo, poly);
+          }
+      }else {	// single polygon
+          let poly = Module.createPolygon(id);
+          let vertex = new Module.JSVec3Array();
+          let part = new Module.Collection();
+          let polyVA = e.geometry.coordinates;
+          for(let j=0;j<polyVA.length;j++) 
+          {
+              let partVA = polyVA[j];
+              part.add(partVA.length);
+              for(let k=0;i<partVA.length;k++) {
+                  vertex.pushLonLatAlt(partVA[k][0], partVA[k][1], 10);
+              }
+          }
+          poly.setPartCoordinates(vertex, part);
+          let polygonStyle = new Module.JSPolygonStyle();
+          polygonStyle.setFill(true);
+          if(e.properties.clsf_nm == "논") {
+              polygonStyle.setFillColor(new Module.JSColor(150, 255, 150));    
+          }else if(e.properties.clsf_nm == "밭") {
+              polygonStyle.setFillColor(new Module.JSColor(255, 150, 150));    
+          }else if(e.properties.clsf_nm == "시설") {
+              polygonStyle.setFillColor(new Module.JSColor(150, 150, 255));    
+          }else {
+              polygonStyle.setFillColor(new Module.JSColor(150, 150, 150));
+          }
+          poly.setStyle(polygonStyle);
+          poly.setHeight(30.0);
+          poly.setUnionMode(false);
+          _layer.addTileInObject(_tileInfo, poly);
+      }
+  });
+  _layer.setTileInObjectEnd(_tileInfo);
+}
+
+// set WFS URL
+function polycallback( e ) {
+  var layer = Module.getTileLayerList().nameAtLayer('WorldBoundry_poly');
+  let minx = parseFloat(e.rect.minx);
+  let miny = parseFloat(e.rect.miny);
+  let maxx = parseFloat(e.rect.maxx);
+  let maxy = parseFloat(e.rect.maxy);
+  let _url = 'https://2dmap.egiscloud.com/geoserver/wfs?';
+  let srs = '&srsName=EPSG:4326';
+  let service_request = "SERVICE=WFS&REQUEST=GetFeature&typeNames=w_workspace_typhoon:2023_busan_farmland_poly";
+  let version = "&VERSION=2.0.0&OUTPUTFORMAT=application/json";
+  let bbox = '&BBOX='+miny+','+minx+','+maxy+','+maxx+',urn:x-ogc:def:crs:EPSG:4326';
+  var url =_url+service_request+srs+version+bbox;
+
+  fetch(url)
+      .then(res=>res.json())
+          .then(res=>{
+              createPoly(res ,layer, e);
+          });
+          //.catch(function(error) {
+          //	console.log('Fetch Error :-S', error);
+          //}
+      //);
+}
+
+function createCustomTileWFSPolyLayer( ) {
+  var layer = Module.getTileLayerList().delLayerAtName('WorldBoundry');
+  layer = Module.getTileLayerList().delLayerAtName('WorldBoundry_poly');
+  layer = Module.getTileLayerList().createXDServerLayer({
+      url : 'http://0.0.0.0', 	// not use
+      servername : "",        	// not use
+      name : 'WorldBoundry_poly',
+      type : 23,
+      minLevel : 13, 		// set Level
+      maxLevel : 13		// set Level
+  });
+  layer.setVisible(true);
+  layer.setUserTileLoadCallback(polycallback);
+}
+
+function createPOI(_data, _layer, _tileInfo) {
+  if(_data.type == undefined || _data.type != "FeatureCollection" || _data.features == undefined || _data.features.length < 1) {
+      console.log('No Json or No Features');
+      return;
+  }
+
+  let features = _data.features;
+  features.forEach((e) => {
+      if(e.type != "Feature" || (e.geometry.type != "Point")) {
+          console.log('No Feature or No Point');
+          return;
+      }
+      let poi_with_text = Module.createPoint(e.id);
+      let dHeight = Module.getMap().getTerrHeightFast(e.geometry.coordinates[0],e.geometry.coordinates[1]);
+      poi_with_text.setPosition(new Module.JSVector3D(e.geometry.coordinates[0],e.geometry.coordinates[1],dHeight));
+      poi_with_text.setText(e.properties.clsf_nm);
+      poi_with_text.setVisibleRange(true, 0.0001, 1000000);
+      _layer.addTileInObject(_tileInfo, poi_with_text);
+  });
+  _layer.setTileInObjectEnd(_tileInfo);
+}
+
+// set WFS URL 
+function poicallback( e ) {
+  var layer = Module.getTileLayerList().nameAtLayer('WorldBoundry');
+  let minx = parseFloat(e.rect.minx);
+  let miny = parseFloat(e.rect.miny);
+  let maxx = parseFloat(e.rect.maxx);
+  let maxy = parseFloat(e.rect.maxy);
+  let _url = 'https://2dmap.egiscloud.com/geoserver/wfs?';
+  let srs = '&srsName=EPSG:4326';
+  let service_request = "SERVICE=WFS&REQUEST=GetFeature&typeNames=w_workspace_typhoon:busan_farmland_poi";
+  let version = "&VERSION=2.0.0&OUTPUTFORMAT=application/json";
+  let bbox = '&BBOX='+miny+','+minx+','+maxy+','+maxx+',urn:x-ogc:def:crs:EPSG:4326';
+  var url =_url+service_request+srs+version+bbox;
+  fetch(url)
+      .then(res=>res.json())
+          .then(res=>{
+              createPOI(res ,layer, e);
+          });
+          //.catch(function(error) {
+          //	console.log('Fetch Error :-S', error);
+          //}
+      //);
+}
+
+function createCustomTileWFSPOILayer( ) {
+  var layer = Module.getTileLayerList().delLayerAtName('WorldBoundry');
+  layer = Module.getTileLayerList().delLayerAtName('WorldBoundry_poly');
+  layer = Module.getTileLayerList().createXDServerLayer({
+      url : 'http://0.0.0.0', 	// not use
+      servername : "", 			// not use
+      name : 'WorldBoundry',
+      type : 23,
+      minLevel : 11,				// set Level 
+      maxLevel : 11 				// set Level
+  });
+  layer.setVisible(true);
+  layer.setUserTileLoadCallback(poicallback);
+}
+
   </script>
 </body>
 </html>

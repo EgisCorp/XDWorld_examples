@@ -20,39 +20,319 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Start point: </span>
+<span id="start" style="font-weight: normal">click to set point.</span>
+<br>
+<span>End point: </span>
+<span id="end" style="font-weight: normal">click to set point.</span>
+<canvas id="chart" width="0" height="0"></canvas>
+<input type="button" id="buttonDownloadToJSON" style="display:none;width:300px;" value="Download JSON" onclick="downloadToJSON();">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+PATH_SLICE_DISTANCE: 1.0, // Cross-section analysis segment length
+chart: null, // Result chart
+mouseState : {
+
+  down : false,
+  clickPosition : {x : -1, y : -1},
+
+  isSetStartPoint : false,
+  startPosition : null,
+
+  isDraged : function(_x, _y) {
+    if (!this.down) {
+      return false;
+    }
+    return (Math.abs(this.clickPosition.x-_x) > 3) && (Math.abs(this.clickPosition.y-_y) > 3);
+  }
+}
+};
+
+var Module = {
+
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+              dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Load Chart.js library
+  var chartScript = document.createElement("script");
+  chartScript.src = "https://cdn.jsdelivr.net/npm/chart.js";
+  document.body.appendChild(chartScript);
+
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.92856048339037, 37.52443685243951, 450.51057897601277));
+
+  // Add building layer
+  Module.getTileLayerList().createXDServerLayer({
+    url: "https://xdworld.vworld.kr",
+    servername: "XDServer3d",
+    name: "facility_build",
+    type: 9,
+    minLevel: 0,
+    maxLevel: 15
+  });
+
+  // Set map events
+  initCanvasEvent();
+}
+};
+
+/* Init map event */
+function initCanvasEvent() {
+  Module.canvas.onmousedown = (e) => {
+      GLOBAL.mouseState.down = true;
+      GLOBAL.mouseState.clickPosition = {
+          x: e.x,
+          y: e.y
+      };
+  };
+
+  Module.canvas.onmouseup = (e) => {
+      if (!GLOBAL.mouseState.isDraged(e.x, e.y) && e.button == 0) {
+          var clickPosition = Module.getMap().ScreenToMapPointEX(new Module.JSVector2D(e.x, e.y));
+          if (GLOBAL.isSetStartPoint) {
+              document.getElementById("end").innerHTML = clickPosition.Longitude.toFixed(6) + ", " + clickPosition.Latitude.toFixed(6) + ", " + clickPosition.Altitude.toFixed(2);
+              setSliceEndPoint(clickPosition);
+              var path = new Module.JSVec3Array();
+              path.push(GLOBAL.startPosition);
+              path.push(clickPosition);
+              createInputLine(path);
+              executeSliceDEM(path);
+              document.getElementById("buttonDownloadToJSON").style.display = "block";
+          } else {
+              clear();
+              document.getElementById("start").innerHTML = clickPosition.Longitude.toFixed(6) + ", " + clickPosition.Latitude.toFixed(6) + ", " + clickPosition.Altitude.toFixed(2);
+              setSliceStartPoint(clickPosition);
+          }
+      }
+      GLOBAL.mouseState.down = false;
+  };
+}
+
+/* Set the starting point of the slice */
+function setSliceStartPoint(_position) {
+  GLOBAL.startPosition = _position;
+  createPoint(_position, "Start");
+  GLOBAL.isSetStartPoint = true;
+}
+
+/* Set the ending point of the slice */
+function setSliceEndPoint(_position) {
+  createPoint(_position, "End");
+  GLOBAL.isSetStartPoint = false;
+}
+
+/* Create a text point */
+function createPoint(_position, _text) {
+  var layer = Module.getObjectLayerList().nameAtLayer("SLICE_POSITION_POI_LAYER");
+  if (layer == null) {
+      layer = Module.getObjectLayerList().createLayer("SLICE_POSITION_POI_LAYER", Module.ELT_3DPOINT);
+  }
+  var point = Module.createPoint("SLICE_POSITION_START");
+  point.setPosition(_position);
+  point.setText(_text);
+  layer.addObject(point, 0);
+}
+
+/* Create a line for slice analysis */
+function createInputLine(_path) {
+  var layer = Module.getObjectLayerList().nameAtLayer("INPUT_LINE_LAYER");
+  if (layer == null) {
+      layer = Module.getObjectLayerList().createLayer("INPUT_LINE_LAYER", Module.ELT_3DLINE);
+  }
+  var line = Module.createLineString("INPUT_LINE_LAYER");
+  line.createbyJson({
+      coordinates: {
+          coordinate: _path,
+          style: "JSVector3D"
+      },
+      type: 0,
+      depth: false,
+      width: 2.0
+  });
+  layer.addObject(line, 0);
+}
+
+/* Execute slice analysis */
+function executeSliceDEM(_slicePath) {
+  var pathPoints = Module.getMap().GetPathIntervalPositions(_slicePath, GLOBAL.PATH_SLICE_DISTANCE, false);
+  var crossSections = getCrossSections(pathPoints);
+  displayCrossSectionsOnChart(crossSections);
+  displaycrossSectionsOnMap(crossSections);
+}
+
+/* Get the elevation (slice) for each coordinate */
+function getCrossSections(_pathPoints) {
+  var pointCount = _pathPoints.count();
+  if (pointCount < 2) {
+      return;
+  }
+  var buildingLayer = Module.getTileLayerList().nameAtLayer("facility_build");
+  if (buildingLayer == null) {
+      return;
+  }
+  var result = {
+      positions: [],
+      building: []
+  };
+  var map = Module.getMap();
+  for (var i = 0; i < pointCount; i++) {
+      var position = _pathPoints.get(i);
+      result.positions.push(position);
+      var pickPosition = buildingLayer.getPickInfoAtView(
+          new Module.JSVector3D(position.Longitude, position.Latitude, 10000.0),
+          new Module.JSVector3D(position.Longitude, position.Latitude, -10000.0)
+      );
+      if (pickPosition == null) {
+          result.building.push(0);
+      } else {
+          result.building.push(pickPosition.position.Altitude);
+      }
+  }
+  return result;
+}
+
+/* Display slice information on chart */
+function displayCrossSectionsOnChart(_crossSections) {
+  var labels = [];
+  for (var i = 0; i < _crossSections.positions.length; i++) {
+      labels.push((i * GLOBAL.PATH_SLICE_DISTANCE).toString());
+  }
+  if (GLOBAL.chart == null) {
+      var chartCanvas = document.getElementById('chart');
+      chartCanvas.width = 300;
+      chartCanvas.height = 300;
+      GLOBAL.chart = new Chart(
+          chartCanvas, {
+              type: 'line',
+              data: {
+                  labels: labels,
+                  datasets: [{
+                      label: "Building",
+                      backgroundColor: 'rgb(0, 191, 48)',
+                      borderColor: 'rgb(2, 173, 45)',
+                      data: _crossSections.building,
+                  }]
+              }
+          }
+      );
+  } else {
+      GLOBAL.chart.data = {
+          labels: labels,
+          datasets: [{
+              label: "Building",
+              backgroundColor: 'rgb(0, 191, 48)',
+              borderColor: 'rgb(2, 173, 45)',
+              data: _crossSections.building,
+          }]
+      };
+      GLOBAL.chart.update();
+  }
+}
+
+/* Display slice location information on map */
+function displaycrossSectionsOnMap(_crossSections) {
+  var layerList = new Module.JSLayerList(true);
+  var positions = [];
+  for (var i = 0; i < _crossSections.positions.length; i++) {
+      positions.push([
+          _crossSections.positions[i].Longitude,
+          _crossSections.positions[i].Latitude,
+          _crossSections.building[i]
+      ])
+  }
+  var lineLayer = layerList.nameAtLayer("CROSS_SECTION_LINE");
+  if (lineLayer == null) {
+      lineLayer = layerList.createLayer("CROSS_SECTION_LINE", Module.ELT_3DLINE);
+      lineLayer.setMaxDistance(100000);
+  } else {
+      lineLayer.removeAll();
+  }
+  var line = Module.createLineString("CROSS_SECTION_LINE");
+  line.createbyJson({
+      coordinates: {
+          coordinate: positions,
+          style: "XYZ"
+      },
+      type: 0,
+      depth: false,
+      color: Module.COLOR_YELLOW,
+      width: 2.0
+  });
+  lineLayer.addObject(line, 0);
+}
+
+/* Clear objects */
+function clear() {
+  var pointLayer = Module.getObjectLayerList().nameAtLayer("SLICE_POSITION_POI_LAYER");
+  if (pointLayer != null) {
+      pointLayer.removeAll();
+  }
+  var inputLineLayer = Module.getObjectLayerList().nameAtLayer("INPUT_LINE_LAYER");
+  if (inputLineLayer != null) {
+      inputLineLayer.removeAll();
+  }
+  var crossSectionLineLayer = Module.getObjectLayerList().nameAtLayer("CROSS_SECTION_LINE");
+  if (crossSectionLineLayer != null) {
+      crossSectionLineLayer.removeAll();
+  }
+}
+
+/* Download analysis results in JSON format */
+function downloadToJSON() {
+  if (GLOBAL.chart == null) {
+      alert("There is no data to export.");
+      return;
+  }
+  var labels = GLOBAL.chart.data.labels;
+  var values = GLOBAL.chart.data.datasets[0].data;
+  if (labels.length != values.length) {
+      return;
+  }
+  var result = [];
+  for (var i = 0; i < labels.length; i++) {
+      result.push({
+          distance: labels[i],
+          altitude: values[i]
+      });
+  }
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(
+      new Blob([JSON.stringify(result)], {
+          type: "application/json"
+      })
+  );
+  a.download = "SlicedDEM.json";
+  a.click();
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>
