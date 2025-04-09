@@ -20,39 +20,127 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <style>
+        #splitMapScreen {
+          display: none;
+          position: fixed;
+          top: 0px;
+          left: 50%;
+          width: 3px;
+          height: 100%;
+          background-color: white;
+          z-index: 8;
+          cursor: pointer;
+        }
+      </style>
+      <span>Split Screen</span>
+      <input type="radio" name="mouseMode" onclick="setSplitScreen(2);" checked> on
+      <input type="radio" name="mouseMode" onclick="setSplitScreen(1);"> off
+      <br>
+      <span>Split Ratio</span>
+      <input type="range" id="splitRange" min="0.0" max="1.0" step="0.01" value="0.5" onChange="setSplitScreenRate(parseFloat(this.value));">
+      <div id="splitMapScreen"></div>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	option : null
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		// Set camera position
+		Module.getViewCamera().setLocation(new Module.JSVector3D(126.92836647767662, 37.52439503321471, 500.0));
+		
+		// Add building layer
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+		Module.setVisibleRange("facility_build", 3.0, 100000.0);
+		
+		GLOBAL.option = Module.getOption();
+		setSplitScreen(2);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set Split Screen */
+function setSplitScreen(_screenCount) {
+	if (GLOBAL.option == null) {
+		return;
+	}
+	
+	// Set the number of split screens
+	GLOBAL.option.setSlideScreenCount(_screenCount);
+	
+	// Set the layers to display for each screen
+	if (_screenCount > 1) {
+		var serverLayerList = new Module.JSLayerList(false);
+		var memoryLayerList = new Module.JSLayerList(true);
+		
+		GLOBAL.option.setTwoSlideScreenDivideRate(
+			parseFloat(document.getElementById("splitRange").value)
+		);
+		GLOBAL.option.setTwoSlideScreenLayerList(
+			"facility_build",
+			""
+		);
+		
+		document.getElementById("splitMapScreen").style.display = "block";
+		
+	} else {
+		document.getElementById("splitMapScreen").style.display = "none";
+	}
+	
+	// Update the screen
+	Module.XDRenderData();
+}
+
+/* Set Split Screen Rate */
+function setSplitScreenRate(_rate) {
+	if (GLOBAL.option == null) {
+		return;
+	}
+	
+	// Set the split rate and update the screen
+	GLOBAL.option.setTwoSlideScreenDivideRate(_rate);
+	Module.XDRenderData();
+	
+	document.getElementById("splitMapScreen").style.left = (_rate*100.0)+"%";
+}
   </script>
 </body>
 </html>

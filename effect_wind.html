@@ -20,39 +20,254 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Wind Direction</span>
+<table>
+	<tr>
+		<td>
+			<input type="button" value="↘" onclick="setWindDirection('1');" checked>
+		</td>
+		<td>
+			<input type="button" value="↓" onclick="setWindDirection('2');">
+		</td>
+		<td>
+			<input type="button" value="↙" onclick="setWindDirection('3');">
+		</td>
+	</tr>
+	<tr>
+		<td colspan="2">
+			<input type="button" value="→" onclick="setWindDirection('4');">
+		</td>
+		<td>
+			<input type="button" value="←" onclick="setWindDirection('6');">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<input type="button" value="↗" onclick="setWindDirection('7');">
+		</td>
+		<td>
+			<input type="button" value="↑" onclick="setWindDirection('8');">
+		</td>
+		<td>
+			<input type="button" value="↖" onclick="setWindDirection('9');">
+		</td>
+	</tr>
+</table>
+<br>
+<span>Type</span>
+<br>
+<input type="radio" name="wind_render_mode" onchange="setWindRenderMode('strength_2d');" checked>Wind 2D
+<input type="radio" name="wind_render_mode" onchange="setWindRenderMode('strength_3d');" >Wind 3D
+<br>
+<input type="radio" name="wind_render_mode" onchange="setWindRenderMode('direction_3d');" >Wind Direction 3D
+<input type="radio" name="wind_render_mode" onchange="setWindRenderMode('line');" >Wind Path
+<br>
+<br>
+<span>Time</span>
+<br>
+<input type="range" min="0" max="5" step="1" value="0" onchange="setTime(this.value);" checked>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+    windTime: 0,            // Wind progression time
+    windRenderMode: -1,     // Wind render mode
+    
+    // Wind file names for each time (windTime)
+    windFileName: ["FT001800.win", "FT003600.win", "FT007200.win", "FT014400.win", "FT021600.win", "FT028800.win"],    
+    
+    windGrid: null,         // Wind representation object
+    windDirection: '1'      // Wind direction
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		// Call engine initialization API(essential)
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+	    Module.getViewCamera().setLocation(new Module.JSVector3D(129.05117818015933, 35.10710216460596, 7702.660518950783));
+		
+		// Set event listener for wind data (.win) loading completion
+		Module.canvas.addEventListener("Fire_EventLoadDataFinish", OnWindDataLoad);
+
+		// Visualize wind field data
+		setWindRenderMode('strength_2d');
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Set wind direction */
+function setWindDirection(_direction) {
+
+    GLOBAL.windDirection = _direction;
+
+    if (GLOBAL.windRenderMode == 0) {
+        setWindRenderMode('strength_2d');
+    } else if (GLOBAL.windRenderMode == 1) {
+        setWindRenderMode('strength_3d');
+    } else if (GLOBAL.windRenderMode == 2) {
+        setWindRenderMode('direction_3d');
+    } else if (GLOBAL.windRenderMode == 3) {
+        setWindRenderMode('line');
+    }
+}
+
+/* Wind data (.win) loading completion event */
+function OnWindDataLoad() {
+
+    if (GLOBAL.windGrid == null) {
+        return;
+    }
+
+    // Visualize wind data based on loaded data type
+    if (GLOBAL.windRenderMode == 0) {
+        GLOBAL.windGrid.createRasterData("WindForce", GLOBAL.windTime);
+    } else if (GLOBAL.windRenderMode == 1) {
+        GLOBAL.windGrid.createPlaneData("WindForce");
+    } else if (GLOBAL.windRenderMode == 2) {
+        GLOBAL.windGrid.createArrowData(GLOBAL.windTime);
+    }
+    
+    // Refresh the screen
+    Module.XDRenderData();
+}
+
+/* Change wind data (.win) time */
+function setTime(_time) {
+
+    GLOBAL.windTime = parseInt(_time);
+
+    var pLayer = Module.getUserLayer();
+    pLayer.removeAll();
+
+    if (GLOBAL.windRenderMode == 0) {
+        GLOBAL.windGrid.createRasterData("WindForce", GLOBAL.windTime);
+    } else if (GLOBAL.windRenderMode == 1) {
+        setWindRenderMode('strength_3d');
+    } else if (GLOBAL.windRenderMode == 2) {
+        GLOBAL.windGrid.createArrowData(GLOBAL.windTime);
+    } else if (GLOBAL.windRenderMode == 3) {
+        setWindRenderMode('line');
+    }
+
+    Module.XDRenderData();
+}
+
+/* Load wind data */
+function setWindRenderMode(_type) {
+
+    if (_type == 'strength_2d') {
+
+        Module.SetFlowVisible(false);
+        var pLayer = Module.getUserLayer();
+        pLayer.removeAll();
+
+        var analysis = Module.getAnalysis();
+        var grid = analysis.getGridAnal();
+
+        GLOBAL.windGrid = grid;
+        
+        var dataCount = 6;
+
+        grid.clear();
+        grid.setTimeRange(dataCount);
+        
+        // Preload data
+        var i;
+        for (i = 0; i < dataCount; i++) {
+            grid.openGridDataURL("./data/wind_grid/"+GLOBAL.windDirection+"/"+GLOBAL.windFileName[i], i, 8, 0, 4, 1);
+        }
+
+        GLOBAL.windRenderMode = 0;
+        Module.XDRenderData();
+
+    } else if (_type == 'strength_3d') {
+        
+        Module.SetFlowVisible(false);
+        var pLayer = Module.getUserLayer();
+        pLayer.removeAll();
+
+        var analysis = Module.getAnalysis();
+        var grid = analysis.getGridAnal();
+
+        GLOBAL.windGrid = grid;
+        
+        var dataCount = 6;
+
+        grid.clear();
+        grid.setTimeRange(dataCount);
+        
+        // Preload data
+        var i;
+        for (i = 0; i < dataCount; i++) {
+            grid.openGridDataURL("./data/wind_grid/"+GLOBAL.windDirection+"/"+GLOBAL.windFileName[i], i, 8, 0, 4, 1);
+        }
+
+        GLOBAL.windRenderMode = 1;
+        Module.XDRenderData();
+
+    } else if (_type == 'direction_3d') {
+
+        Module.SetFlowVisible(false);
+        var pLayer = Module.getUserLayer();
+        pLayer.removeAll();
+
+        var analysis = Module.getAnalysis();
+        var grid = analysis.getGridAnal();
+
+        GLOBAL.windGrid = grid;
+        
+        var dataCount = 6;
+
+        grid.clear();
+        grid.setTimeRange(dataCount);
+        
+        // Preload data
+        var i;
+        for (i = 0; i < dataCount; i++) {
+            grid.openGridDataURL("./data/wind_grid/"+GLOBAL.windDirection+"/"+GLOBAL.windFileName[i], i, 8, 0, 8, 1);
+        }
+
+        GLOBAL.windRenderMode = 2;
+        Module.XDRenderData();
+
+    } else if (_type == 'line') {
+        
+        var pLayer = Module.getUserLayer();
+        pLayer.removeAll();
+        
+        Module.SetFlowVisible(true);
+        Module.GetFlowData("./data/wind_flow/"+GLOBAL.windDirection+"/"+GLOBAL.windFileName[GLOBAL.windTime], 1, 0.001, 5, 1000);
+
+        GLOBAL.windRenderMode = 3;
+
+    } else;
+}
   </script>
 </body>
 </html>

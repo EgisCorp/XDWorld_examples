@@ -20,39 +20,353 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <table>
+        <tr>
+          <td style="width : 100px">
+            <input type="button" value="Visualization (Curtain)" onclick="loadtimepolygon('effect_time_visualization_inflow', 1)">
+          </td>
+          <td style="width : 100px">
+            <input type="button" value="Visualization (Shape)" onclick="loadtimepolygon('effect_time_visualization_rainfall', 1)">
+          </td>
+          <td style="width : 100px">
+            <input type="button" value="Detailed Visualization" onclick="loadloadtimeDetailspolygon(1)">
+          </td>
+        </tr>
+      </table>
+      <table>
+        <tr>
+          <td style="width : 50px">
+            <input type="button" value="0th" style="width : 50px" onclick="setTime(0)">
+          </td>
+          <td style="width : 50px">
+            <input type="button" value="1st" style="width : 50px" onclick="setTime(1)">
+          </td>
+          <td style="width : 50px">
+            <input type="button" value="2nd" style="width : 50px" onclick="setTime(2)">
+          </td>
+          <td style="width : 50px">
+            <input type="button" value="3rd" style="width : 50px" onclick="setTime(3)">
+          </td>
+          <td style="width : 50px">
+            <input type="button" value="4th" style="width : 50px" onclick="setTime(4)">
+          </td>
+          <td style="width : 50px">
+            <input type="button" value="5th" style="width : 50px" onclick="setTime(5)">
+          </td>
+          <td style="width : 50px">
+            <input type="button" value="6th" style="width : 50px" onclick="setTime(6)">
+          </td>
+          <td style="width : 50px">
+            <input type="button" value="7th" style="width : 50px" onclick="setTime(7)">
+          </td>
+          <td style="width : 50px">
+            <input type="button" value="8th" style="width : 50px" onclick="setTime(8)">
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function loadtimepolygon(_kind, _mode) {
+// Initialization 
+gMode = _mode;
+var url = "https://www.egiscloud.com/siteData/sandBox_data/" + _kind + "/";
+var pAnal = Module.getAnalysis();
+var gAnal = pAnal.getGridAnal();
+gAnal.clear();
+// Check type
+switch (_kind) {
+  case 'effect_time_visualization_inflow':	// Inflow data option 
+    gAnal.setHRatio(100.0);					// Screen representation scale
+    break;
+  case 'effect_time_visualization_rainfall': // Rainfall data option
+    gAnal.setHRatio(5000.0);
+    break;
+}
+
+// Maximum data time
+var nMaxCount = 9;
+// Load 10 data for testing 
+for (var i = 1; i < nMaxCount; i++) {
+  loadData(url + i.toString() + ".csv", _kind, nMaxCount - 1, i - 1);
+}
+}
+
+function loadData(_url, _kind, _timeRange, _index) {
+var option = {
+  url: _url,
+  type: "GET",
+  kind: _kind,
+  timeRange: _timeRange,
+  timeIndex: _index,
+  success: function (_data) {			
+    var rst = parseData(_data);
+    if (rst == null) return;	
+    ////////////////////////////
+    // Apply at the engine API level
+    // this.kind  layer name
+    // this.index passed as parameter
+    ///////////////////////////
+    rst.timeRange = this.timeRange;
+    rst.timeIndex = this.timeIndex;
+    rst.kind = this.kind;
+    var pAnal = Module.getAnalysis();
+    var gAnal = pAnal.getGridAnal();
+    gAnal.openGridDataJSON(rst);			// Load data (by time)
+  }
+};
+$.ajax(option);
+}
+
+function parseData(_data) {
+// Used as constants
+var no_data = "-9999";
+var ncols = 372;
+var nrows = 515;
+var xpos = 187289.3182;
+var ypos = 131135.849;
+var cellSize = 250;
+
+// Interpret CSV grid data into an array and calculate minimum and maximum values
+var nData = _data.split(',');
+var fData = [];
+var fMin = 9999999, fMax = -9998;
+var nDataCount = 0;
+for (var i = 0; i < nData.length; i++) {
+  if ($.isNumeric(nData[i]) == false) {
+    continue;
+  }
+  if (no_data == nData[i]) {
+    fData[nDataCount] = -1;
+  } else {
+    fData[nDataCount] = parseFloat(nData[i]);
+    if (fMin > fData[nDataCount]) fMin = fData[nDataCount];
+    if (fMax < fData[nDataCount]) fMax = fData[nDataCount];
+  }
+  nDataCount++;
+}
+
+// Output result JSON
+var rst = {
+  timeRange: 0,
+  timeIndex: 0,
+  callback: cbLoad,		// Callback function to be called when all data is loaded
+  kind: "",
+  cols: ncols,
+  rows: nrows,
+  llcorner: {
+    projNum: 17,
+    pos: [xpos, ypos]
+  },
+  size: cellSize,
+  fMin: fMin,
+  fMax: fMax,
+  data: fData
+};
+return rst;
+}
+
+function cbLoad(_kind, _dlon, _dlat, _dDist) {
+var pAnal = Module.getAnalysis();
+var gAnal = pAnal.getGridAnal();
+
+gKind = _kind;
+if (gMode == 0) gAnal.createRasterData(_kind, 0);
+else {
+  gAnal.setHRange(3000, 10000);
+  gAnal.createPlaneData(_kind);
+}
+Module.getViewCamera().moveOval( new Module.JSVector3D(_dlon+0.5, _dlat+0.2, _dDist), 90, 0, 1);
+}
+
+// CSV file loader
+function loadloadtimeDetailspolygon(_mode)
+{
+// Initialization
+gMode = _mode;
+var pAnal = Module.getAnalysis();
+var gAnal = pAnal.getGridAnal();
+gAnal.clear();
+
+// Reset flood legend
+gAnal.clearLegend();
+gAnal.addLegendColor(0, 198, 198, 238);
+gAnal.addLegendColor(170, 178, 178, 238);
+gAnal.addLegendColor(190, 158, 158, 238);
+gAnal.addLegendColor(210, 138, 138, 238);
+gAnal.addLegendColor(230, 118, 118, 238);
+gAnal.addLegendColor(250, 98, 98, 238);
+gAnal.setHRatio(25.0);
+
+// Set ASCII file data
+var url = "https://www.egiscloud.com/siteData/sandBox_data/effect_time_visualization_flood/";
+var vheader = "Base_H_";
+var yyyymmdd = "20000101";
+var hh = "";
+var mmss = "0000";
+for(var h=0;h<8;h++) {		// Check file number per hour
+  if(h<10) hh = "0" + h.toString();
+  else	 hh = h.toString();
+
+  loadDetailsData(url + vheader + yyyymmdd + "_" + hh + mmss + ".asc", "flood_1", 8, h);
+}
+}
+
+// Request files based on URL and handle interpretation, balancing loads is important as multiple files need to be loaded
+function loadDetailsData( _url, _kind, _timeRange, _index )	
+{
+var option = {
+  url : _url,
+  type : 'GET',
+//		dataType : "Application/octet-stream",
+//		contentType : "Application/octet-stream; charset=UTF-8",
+  kind : _kind,		// Flood area ID
+  timeRange : _timeRange,
+  timeIndex : _index,		// 0~336 hours information
+  success: function( _data) { 
+    var rst = parseDetailsData(_data);
+    if(rst == null) return;
+    ////////////////////////////
+    // Apply at the engine API level
+    // this.index passed as parameter
+    ///////////////////////////
+    //console.log(rst);
+    rst.timeRange = this.timeRange;
+    rst.timeIndex = this.timeIndex;
+    rst.kind = this.kind;
+    var pAnal = Module.getAnalysis();
+    var gAnal = pAnal.getGridAnal();
+    gAnal.openGridDataJSON(rst);
+  }
+};
+$.ajax(option);
+}
+
+// Interpret ASCII file data
+function parseDetailsData( _data )
+{
+var lines = _data.split('\n');
+if(lines.length<7) return null;
+var i;
+
+// Interpret grid header information
+var ncols = parseInt(lines[0].replace("ncols\t\t", ""));
+var nrows = parseInt(lines[1].replace("nrows\t\t", ""));
+var xpos = parseFloat(lines[2].replace("xllcorner\t", ""));
+var ypos = parseFloat(lines[3].replace("yllcorner\t", ""));
+var cellSize = parseFloat(lines[4].replace("cellsize\t", ""));
+var no_data = lines[5].replace("nodata_value\t", "");
+
+// Convert grid data to an array
+var nData = [];
+var fData = [];
+var fMin = 9999999, fMax = -9998;
+var x = 0, y = nrows - 1;
+var nDataCount = (ncols * y);
+for(j = 6; j < lines.length; j++) {
+  nData = lines[j].split(' ');
+  for(i = 0; i < nData.length;i++) {
+    if($.isNumeric(nData[i]) == false ) {
+      continue;
+    }
+    
+    if(no_data == nData[i]) {
+      fData[nDataCount] = -1;
+    }else {
+      fData[nDataCount] = parseFloat(nData[i]);
+      if(fMin > fData[nDataCount]) fMin = fData[nDataCount];
+      if(fMax < fData[nDataCount]) fMax = fData[nDataCount];
+    }
+    x++;
+    if(x>=ncols) {
+      x = 0;
+      y--;
+    }
+    //nDataCount++;
+    nDataCount = (ncols * y) + x;
+  }
+}
+
+// Create result JSON
+var rst = {
+  timeRange : 0,
+  timeIndex : 0,
+  callback : cbDetailsLoad,		// Callback function to be called when all data is loaded
+  kind : "",
+  cols : ncols,
+  rows : nrows,
+  llcorner : {
+    projNum : 20,
+    pos : [xpos, ypos]
+  },
+  size : cellSize,
+  fMin : fMin,
+  fMax : fMax,
+  data : fData
+};
+return 	rst;
+}
+
+// Callback function executed when all data is processed
+function cbDetailsLoad( _kind, _dlon, _dlat, _dDist )
+{
+var pAnal = Module.getAnalysis();
+var gAnal = pAnal.getGridAnal();
+
+gKind = _kind;
+if(gMode == 0) gAnal.createRasterData( _kind, 0);
+else {
+  gAnal.setHRange(65, 10000);
+  gAnal.createPlaneData( _kind);
+}
+//Module.getViewCamera().moveLonLatAlt( _dlon, _dlat, _dDist, true);
+Module.getViewCamera().moveOval( new Module.JSVector3D(_dlon, _dlat, _dDist), 90, 0, 1);
+}
+
+function setTime( _index )
+{
+var pAnal = Module.getAnalysis();
+var gAnal = pAnal.getGridAnal();
+if(gMode==0) {
+  var pLayer = Module.getUserLayer();
+  pLayer.removeAll();
+  gAnal.createRasterData( gKind, _index);
+}
+gAnal.setTime( parseFloat(_index.toFixed(2)));
+}
   </script>
 </body>
 </html>

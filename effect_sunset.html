@@ -20,39 +20,226 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <div style="width: 200px;">
+        <input id="timeRateBar" type="range" min="0" max="1440" step="1" value="360" onchange="setAtmosphericTime(this.value);"/>
+        <span id="timeRate">06 : 00</span>
+    </div>
+    <input type="button" style="width:45%;" onclick="setAtmosphericTimePlay();" value="play">
+    <input type="button" style="width:45%;" onclick="setAtmosphericTimeStop();" value="stop">
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+	timePlayHandle: null, // Delay time play handle
+	
+	real3d_layer: null, // Building layer
+	
+	sunrise_time: 390, // Sunrise time (minutes)
+	sunset_time: 1100 // Sunset time (minutes)
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        // Call engine initialization API(essential)
+        Module.initialize({
+            container: document.getElementById("map"),
+            terrain: {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+            },
+            worker: {
+                use: true,
+				path : "./worker/XDWorldWorker.js",
+				count : 5
+            },
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
+        });
+
+        // Set camera
+        var camera = Module.getViewCamera();
+        camera.setPermitUnderGround(true);
+        camera.setLimitTilt(-88.0);
+        camera.setLimitAltitude(-1000.0);
+        Module.getViewCamera().look(
+            new Module.JSVector3D(
+                126.91356605343184,
+                37.51639915807984,
+                160.99033989477903
+            ),
+            new Module.JSVector3D(
+                126.9418444894394,
+                37.517514401644654,
+                9.162854644469917
+            )
+        );
+
+        // Enable terrain coloring settings
+        Module.getTerrain().recoverHSV = true;
+
+        // Add building layer
+        GLOBAL.real3d_layer = Module.getTileLayerList().createXDServerLayer({
+            url: "https://xdworld.vworld.kr",
+            servername: "XDServer3d",
+            name: "facility_build",
+            type: 9,
+            minLevel: 0,
+            maxLevel: 15,
+        });
+        GLOBAL.real3d_layer.setUseRecoverHsv(true);
+        GLOBAL.real3d_layer.tile_load_ratio = 3.0;
+
+        // Set sunrise and sunset times
+        Module.getOption().setAtmosphericSunriseTime(
+            Math.floor(GLOBAL.sunrise_time / 60),
+            GLOBAL.sunrise_time % 60
+        );
+        Module.getOption().setAtmosphericSunsetTime(
+            Math.floor(GLOBAL.sunset_time / 60),
+            GLOBAL.sunset_time % 60
+        );
+
+        // Set atmospheric time
+        setAtmosphericTime(360);
+    },
+};
+
+/* Atmospheric time playback */
+function setAtmosphericTimePlay() {
+
+	if (GLOBAL.timePlayHandle == null) {
+
+		GLOBAL.timePlayHandle = setInterval(function() {
+			
+			var timeBar = document.getElementById("timeRateBar");
+			var time = parseInt(timeBar.value);
+			time += 1;
+			
+			if (time > 1440) {
+				time = 0;
+			}
+			
+			var hour = Math.floor(time / 60);
+			var minute = time % 60;
+
+			// Set atmospheric time
+			Module.getOption().setAtmosphericTime(hour, minute);
+
+			// Adjust brightness of buildings and terrain
+			setTerrainBuildingBright(time);
+
+			if (hour < 10) {
+				hour = "0" + hour;
+			}
+
+			if (minute < 10) {
+				minute = "0" + minute;
+			}
+
+			document.getElementById("timeRate").innerHTML = hour + " : " + minute;
+			document.getElementById("timeRateBar").value = time;
+
+		}, 100);
+	}
+}
+
+/* Stop atmospheric time playback */
+function setAtmosphericTimeStop() {
+
+	if (GLOBAL.timePlayHandle != null) {
+		clearInterval(GLOBAL.timePlayHandle);
+		GLOBAL.timePlayHandle = null;
+	}
+}
+
+/* Set atmospheric time */
+function setAtmosphericTime(_time) {
+
+	setAtmosphericTimeStop();
+
+	var hour = Math.floor(_time / 60);
+	var minute = _time % 60;
+
+	// Set atmospheric time
+	Module.getOption().setAtmosphericTime(hour, minute);
+	
+	// Adjust brightness of buildings and terrain
+	setTerrainBuildingBright(parseInt(_time));
+
+	if (hour < 10) {
+		hour = "0" + hour;
+	}
+
+	if (minute < 10) {
+		minute = "0" + minute;
+	}
+
+	document.getElementById("timeRate").innerHTML = hour + " : " + minute;
+
+	time = parseInt(_time);
+}
+
+/* Linear interpolation between two values */
+function mix(_from, _to, _rate) {
+	return _from + ((_to - _from) * _rate);
+}
+
+/* Adjust brightness of buildings and terrain */
+function setTerrainBuildingBright(_time) {
+
+	// Minimum brightness of terrain at night
+	var nightTerrainBright = 0.2;
+
+	// Brightness of buildings and terrain
+	var bright = 1.0;
+
+	if (_time < GLOBAL.sunrise_time || _time > GLOBAL.sunset_time) {
+		
+		bright = nightTerrainBright;	// Night
+		Module.getAnalysis().clearShadow();
+
+	} else {
+
+		var sunrise_time_term = _time - GLOBAL.sunrise_time;
+		var sunset_time_term = GLOBAL.sunset_time - _time;
+		
+		if (sunrise_time_term < 60) {
+			bright = mix(nightTerrainBright, 1.0, sunrise_time_term / 60);	// Sunrise
+		} else if (sunset_time_term < 60) {
+			bright = mix(nightTerrainBright, 1.0, sunset_time_term / 60);	// Sunset
+		} else {
+			bright = 1.0;	// Daytime
+		}
+	}
+
+	// Set shadow
+	var hour = Math.floor(_time / 60);
+	var minute = _time % 60;
+	Module.getAnalysis().CreateShadowOutLine(new Module.JSDateTime(2023, 9, 25, hour, minute, 0), new Module.JSColor(0, 0, 0, 0));
+	Module.getAnalysis().setShadowDrawMode(1);
+
+	// Set terrain brightness
+	Module.getTerrain().recoverValue = bright;
+	
+	// Set building brightness
+	GLOBAL.real3d_layer.setRecoverHsvValue(1.0, 1.0, bright);
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

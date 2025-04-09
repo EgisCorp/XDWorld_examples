@@ -20,39 +20,202 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <div class="control">
+        <label>Speed</label>
+        <input id="speed" type="range" min="0.1" max="20.0" step="0.1" value="1" onchange="updateSpeed()">
+        <span id="speedVal">1.0</span>
+      </div>
+      
+      <div class="control">
+        <label>Direction</label>
+        <input id="direction" type="range" min="0" max="360" step="1" value="90" onchange="updateDirection()">
+        <span id="dirVal">90°</span>
+      </div>
+      
+      <div class="control">
+        <label>Gravity</label>
+        <input id="gravity" type="range" min="-2" max="2" step="0.1" value="1" onchange="updateGravity()">
+        <span id="gravityVal">1.0</span>
+      </div>
+      
+      <div class="control">
+        <label>Particle</label>
+        <input id="particle" type="checkbox" checked onchange="Module.getMap().setWaterFallActive('user', this.checked);">
+        <span id="particleVal">on</span>
+      </div>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+              dem : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "dem",
+                  servername : "XDServer3d",
+                  encoding : true
+              },
+              image : {
+                  url : "https://xdworld.vworld.kr",
+                  name : "tile",
+                  servername : "XDServer3d"
+              }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+
+  // Set camera position
+      Module.getViewCamera().look(
+          new Module.JSVector3D(127.02693106137569, 37.53021917844711, 315.9351136814803), 
+          new Module.JSVector3D(127.02593158793408, 37.53771691301619, 3.4452602630481124)
+      );
+      
+      loadGhostSymbolModel("./data/sphere.3ds", function (_modelID) {
+  
+          createSphere(
+              _modelID,
+              [{
+                  position : new Module.JSVector3D(127.0249, 37.5377, 50.0),
+                  color : Module.COLOR_RED,
+              },{
+                  position : new Module.JSVector3D(127.0259, 37.5377, 50.0),
+                  color : Module.COLOR_WHITE,
+              },{
+                  position : new Module.JSVector3D(127.0269, 37.5377, 50.0),
+                  color : Module.COLOR_BLUE,
+              }]
+          );
+      });
+
+      createParticle(
+          "smoke",	// id
+          new Module.JSVector3D(127.0249, 37.5377, 50.0),	// position
+          "./data/water_particle.png",	// image url
+          -90,	// direction
+          80,		// tilt
+          -1.0,	// gravity
+          1.0,	// speed
+          1000,	// particle count
+          200.0	// size
+      );
+
+      createParticle(
+          "user",	// id
+          new Module.JSVector3D(127.0259, 37.5377, 50.0),	// position
+          "./data/water_particle.png",	// image url
+          180.0,	// direction
+          0,		// tilt
+          1.0,	// gravity
+          document.getElementById("speed").value,	// speed
+          5000,	// particle count
+          50.0	// size
+      );
+
+      createParticle(
+          "waterfall",	// id
+          new Module.JSVector3D(127.0269, 37.5377, 50.0),	// position
+          "./data/water_particle.png",	// image url
+          90.0,	// direction
+          0,		// tilt
+          1.0,	// gravity
+          6.0,	// speed
+          5000,	// particle count
+          50.0	// size
+      );
+}
+};
+
+function loadGhostSymbolModel(_url, _callback) {
+
+  Module.getGhostSymbolMap().insert({
+  
+      id : "sphere",
+      url : _url,
+      callback : function(e) {
+          _callback(e.id);
+      }
+  });
+}
+
+function createSphere(_modelID, _options) {
+
+  // Create ghost symbol layer
+  var ghostSymbolLayer = Module.getObjectLayerList().createObjectLayer({
+      name : "SPHERE_LAYER",
+      type : Module.ELT_GHOST_3DSYMBOL,
+      maxDistance : 1000000
+  });
+
+  // Create object
+  for (var i=0; i<_options.length; i++) {
+
+      // Create ghost symbol
+      var sphere = Module.createGhostSymbol("SPHERE_" + i);
+      sphere.setGhostSymbol(_modelID);
+      sphere.setPosition(_options[i].position);
+      sphere.setScale(new Module.JSSize3D(5.0, 5.0, 5.0));
+      sphere.color = _options[i].color;
+
+      // Add to layer
+      ghostSymbolLayer.addObject(sphere, 0);
+  }
+}
+
+function createParticle(_id, _position, _imageURL, _direction, _tilt, _gravity, _speed, _particleCount, _size) {
+
+  // Load particle image
+  var image = new Image();
+  image.src = _imageURL;
+  image.onload = function(){
+      
+      // Return pixel data from particle image
+      var canvas = document.createElement('canvas');
+      canvas.width = image.width;
+      canvas.height= image.height;
+      
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(image, 0, 0);
+      
+      var ImageDataWater = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      
+      // Add particle objects
+      var map = Module.getMap();
+      map.addWaterFall(_id, _position, 0,0, _particleCount, _size, ImageDataWater, image.width, image.height);
+      map.setWaterFallDirection(_id, _direction, 0.0);
+      map.setWaterFallSpeedRatio(_id, _speed);
+      map.setWaterFallGravityRatio(_id, _gravity);
+  }	
+}
+
+function updateSpeed() {
+  const val = parseFloat(document.getElementById("speed").value);
+  document.getElementById("speedVal").textContent = val.toFixed(1);
+  Module.getMap().setWaterFallSpeedRatio("user", val);
+}
+
+function updateDirection() {
+  const dir = parseFloat(document.getElementById("direction").value);
+  document.getElementById("dirVal").textContent = dir + "°";
+  Module.getMap().setWaterFallDirection("user", dir, 0);
+}
+
+function updateGravity() {
+  const val = parseFloat(document.getElementById("gravity").value);
+  document.getElementById("gravityVal").textContent = val.toFixed(1);
+  Module.getMap().setWaterFallGravityRatio("user", val);
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

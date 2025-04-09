@@ -20,39 +20,372 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <span>Wind Field Test</span>
+<br>
+<input type="button" value="Wind Speed Scale" onclick="setWindLegendLoad()">
+<br>
+<input type="button" value="Path Trajectory" onclick="setWindBandLoad()">
+<table>
+	<tr>
+		<td>
+			<span>Wind Speed Adjustment</span>
+		</td>
+		<td>
+			<input name="slider" id="slider1" type="range" min="0.00001" max="0.0001" value="0.00001" step="0.00001" onchange="updateVelocity(this.value)">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>Particle Amount Adjustment</span>
+		</td>
+		<td>
+			<input name="slider" id="slider2" type="range" min="100" max="5000" value="100" step="100" onchange="updateParticleNum(this.value)">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<span>Altitude Correction</span>
+		</td>
+		<td>
+			<input name="slider" id="slider3" type="range" min="5" max="100" value="5" step="5" onchange="updateOffsetHeight(this.value)">
+		</td>
+	</tr>
+</table>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+    pFlow: null,    // Store analysis class
+    dem: null,      // Store DEM data
+}
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+// Wind field analysis files and DEM data visualize results through wind field analysis in DIGITAL TWIN CLOUD.
+// Request DEM data (ESRI ASCII Raster Format)
+requestURL = (_url) => {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', _url, true);
+    xhr.onload = function () {
+        GLOBAL.dem = parseASC(xhr.responseText);
+    }
+    xhr.send();
+}
+
+// Parse DEM information from Height.txt and convert it to Float Array data
+parseASC = (_data) => {
+    var lines = _data.split('\n');
+    if (lines.length < 7) return null;
+    var i;
+
+    // Interpret grid header information, wind field analysis row and column information are reversed from the header order
+    var nrows = forceInt(lines[0]);
+    var ncols = forceInt(lines[1]);
+    var xpos = forceNumber(lines[2]);
+    var ypos = forceNumber(lines[3]);
+    var cellSize = forceNumber(lines[4]);
+    var no_data = forceNumber(lines[5]);
+
+    // Convert grid data to array
+    var nData = [];
+    var fData = [];
+    var fMin = 9999999,
+        fMax = -9998;
+    var x = 0,
+        y = nrows - 1;
+    var nDataCount = (ncols * y);
+    for (j = 6; j < lines.length; j++) {
+        nData = lines[j].split(' ');
+        for (i = 0; i < nData.length; i++) {
+            if ($.isNumeric(nData[i]) == false) {
+                continue;
+            }
+
+            if (no_data == Math.floor(Number(nData[i]))) {
+                fData[nDataCount] = -1;
+            } else {
+                fData[nDataCount] = parseFloat(nData[i]);
+                if (fMin > fData[nDataCount]) fMin = fData[nDataCount];
+                if (fMax < fData[nDataCount]) fMax = fData[nDataCount];
+            }
+            x++;
+            if (x >= ncols) {
+                x = 0;
+                y--;
+            }
+            nDataCount = (ncols * y) + x;
+        }
+    }
+
+    // Generate result JSON
+    var rst = {
+        cols: ncols,            // Number of DEM columns
+        rows: nrows,            // Number of DEM rows
+        size: cellSize,         // Resolution of DEM (unit: meter)
+        llcorner: {             // Lower-left corner coordinates of DEM (GRS80 TM Central, 600,000)
+            left: xpos,
+            lower: ypos,
+            projCord: 20         // Apply fixed value
+        },
+        data: fData
+    };
+    return rst;
+}
+
+
+// Return including decimal point value
+function forceNumber(i) {
+    switch (typeof (i)) {
+        case 'number':
+            return Number(i);
+        case 'string':
+            return Number(i.replace(/[^0-9\.-]+/g, ""));
+        default:
+            return 0;
+    }
+}
+
+// Return as a natural number
+function forceInt(i) {
+    switch (typeof (i)) {
+        case 'number':
+            return parseInt(i);
+        case 'string':
+            return parseInt(Number(i.replace(/[^0-9\.-]+/g, "")));
+        default:
+            return 0;
+    }
+}
+
+
+function updataSlider()
+{
+	if(GLOBAL.pFlow == null) return;
+	// Setting value on the slider
+	document.getElementById("slider1").value = GLOBAL.pFlow.velocity;
+	document.getElementById("slider2").value = GLOBAL.pFlow.particleNum;
+	document.getElementById("slider3").value = GLOBAL.pFlow.offsetHeight;
+}
+
+function updateVelocity( _val )
+{
+	if(GLOBAL.pFlow != null) GLOBAL.pFlow.velocity = Number(_val);
+}
+
+function updateParticleNum( _val )
+{
+	if(GLOBAL.pFlow != null) GLOBAL.pFlow.particleNum = Number(_val);
+}
+
+function updateOffsetHeight( _val )
+{
+	if(GLOBAL.pFlow != null) GLOBAL.pFlow.offsetHeight = Number(_val);
+}
+
+// Load wind data with wind speed legend representation
+function setWindLegendLoad() {
+    Module.SetFlowVisible(true);
+    var flowParam = {
+        data: {
+            url: "./data/FT021600.win",
+            dem: GLOBAL.dem
+        },
+        option: {
+            velocity: 0.00001,
+            offsetHeight: 20,
+            maxParticle: 5000,
+            minLifeTime: 1000000,
+            maxLifeTime: 2000000
+        },
+        legend: {
+            maxIndex: 255,
+            fixValue: [
+                {
+                    value: 0.2,
+                    color: {
+                        r: 128,
+                        g: 128,
+                        b: 128
+                    }
+                },
+                {
+                    value: 0.4,
+                    color: {
+                        r: 128,
+                        g: 128,
+                        b: 220
+                    }
+                },
+                {
+                    value: 0.6,
+                    color: {
+                        r: 168,
+                        g: 168,
+                        b: 255
+                    }
+                },
+                {
+                    value: 0.8,
+                    color: {
+                        r: 64,
+                        g: 64,
+                        b: 255
+                    }
+                },
+                {
+                    value: 1.0,
+                    color: {
+                        r: 128,
+                        g: 220,
+                        b: 128
+                    }
+                },
+                {
+                    value: 1.2,
+                    color: {
+                        r: 64,
+                        g: 255,
+                        b: 64
+                    }
+                },
+                {
+                    value: 1.4,
+                    color: {
+                        r: 168,
+                        g: 220,
+                        b: 64
+                    }
+                },
+                {
+                    value: 1.6,
+                    color: {
+                        r: 220,
+                        g: 168,
+                        b: 64
+                    }
+                },
+                {
+                    value: 1.8,
+                    color: {
+                        r: 255,
+                        g: 128,
+                        b: 64
+                    }
+                },
+                {
+                    value: 2.0,
+                    color: {
+                        r: 255,
+                        g: 64,
+                        b: 64
+                    }
+                }
+            ]
+        }
+    };
+    GLOBAL.pFlow.setJSON(flowParam);
+    updataSlider();
+}
+
+// Load wind data with wind trajectory gradient representation
+function setWindBandLoad() {
+    Module.SetFlowVisible(true);
+    var flowParam = {
+        data: {
+            url: "./data/FT021600.win",
+            dem: GLOBAL.dem
+        },
+        option: {
+            velocity: 0.00001,
+            offsetHeight: 10,
+            maxParticle: 5000,
+            minLifeTime: 100,
+            maxLifeTime: 200
+        },
+        legend: {
+            maxIndex: 255,
+            band: [
+                {
+                    startIndex: 0,
+                    startColor: {
+                        r: 128,
+                        g: 128,
+                        b: 128
+                    },
+                    endIndex: 128,
+                    endColor: {
+                        r: 255,
+                        g: 255,
+                        b: 255
+                    }
+                },
+                {
+                    startIndex: 128,
+                    startColor: {
+                        r: 255,
+                        g: 255,
+                        b: 255
+                    },
+                    endIndex: 255,
+                    endColor: {
+                        r: 168,
+                        g: 168,
+                        b: 255
+                    }
+                }
+            ]
+        }
+    };
+    GLOBAL.pFlow.setJSON(flowParam);
+    updataSlider();
+}
+
+var Module = {
+
+	locateFile : function(s) {
+		return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+	},
+	postRun: function() {
+		
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+
+		Module.getViewCamera().setLocation(new Module.JSVector3D(129.15071139877386, 35.168414692529225, 2000));	
+
+		var layer = Module.getTileLayerList().createXDServerLayer({
+		url : "https://xdworld.vworld.kr",
+		servername : "XDServer3d",
+		name : "facility_build",
+		type : 9,
+		minLevel : 0,
+		maxLevel : 15
+	});
+
+		// Load DEM data in ASCII format first (Prioritize DEM processing before applying analysis, then request *.win files)
+		requestURL("./data/height.txt");
+
+		GLOBAL.pFlow = Module.getFlow();
+		updataSlider();
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

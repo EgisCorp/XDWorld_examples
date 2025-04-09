@@ -20,39 +20,261 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    var GLOBAL = {
+    roadPaths: [],
+    movingVehicles: [],
+};
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+var Module = {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+		// Call engine initialization API
+		Module.initialize({
+            container: document.getElementById("map"),
+            terrain: {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
+            },
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
+        });
+
+        // Set camera location
+        Module.getViewCamera().setLocation(
+            new Module.JSVector3D(
+                126.92464598925064,
+                37.524595043515234,
+                459.73045662324876
+            )
+        );
+
+        // Terrain visualization OFF
+        Module.XDESetPlanetTransparecny(0.0);
+
+        // Load building layer
+        var buildingLayer = Module.getTileLayerList().createXDServerLayer({
+            name: "facility_build",
+            url: "https://xdworld.vworld.kr",
+            servername: "XDServer3d",
+            type: Module.TILE_LAYER_TYPE_REAL3D,
+        });
+        buildingLayer.simple_real3d = true;
+
+        // Load car model and path movement Create object
+        $.getJSON("./data/traffic_vehicle_moving.json", function (_data) {
+            // Parse the list of coordinates for vehicle movement paths
+            var roadPaths = getVehicleMovingStepList(_data);
+
+            // Store as a global variable (used in the moveVehicle function continuously executed by setInterval)
+            GLOBAL.roadPaths = roadPaths;
+
+            // Load car models
+            loadVehicleModels(function (e) {
+                // Create a Ghost Symbol layer
+                var vehicleLayer =
+                    Module.getObjectLayerList().nameAtLayer(
+                        "GHOST_SYMBOL_LAYER"
+                    );
+                if (vehicleLayer == null) {
+                    vehicleLayer =
+                        Module.getObjectLayerList().createObjectLayer({
+                            name: "GHOST_SYMBOL_LAYER",
+                            type: Module.ELT_GHOST_3DSYMBOL,
+                        });
+                }
+
+                // Add Ghost Symbol objects using car models
+                createMovingCar(vehicleLayer, roadPaths, e.id);
+            });
+
+            // Create road paths Create object
+            $.getJSON("./data/traffic_line.geojson", function (_data) {
+                // Create pipes for path display
+                createPathPipes(_data.features);
+            });
+
+            // Execute vehicle movement
+            setInterval(moveVehicle, 10);
+        });
+    },
+};
+
+/* Parsing road path coordinate list */
+function getVehicleMovingStepList(_jsonData) {
+    var pathList = [];
+
+    for (var i = 0; i < _jsonData.pathList.length; i++) {
+        var jsonPath = _jsonData.pathList[i];
+        var path = [];
+        for (var j = 0; j < jsonPath.length; j++) {
+            // Parse longitude, latitude, and direction information from data
+            var jsonPathPoint = jsonPath[j];
+            path.push({
+                position: new Module.JSVector3D(
+                    parseFloat(jsonPathPoint.position[0]),
+                    parseFloat(jsonPathPoint.position[1]),
+                    12.0
+                ),
+                direction: parseFloat(jsonPathPoint.direction),
+            });
+        }
+
+        pathList.push(path);
+    }
+
+    return pathList;
+}
+
+/* Create animation pipes for displaying paths */
+function createPathPipes(_pathFeatures) {
+    // Create layer
+    var pipeLayer = Module.getObjectLayerList().createObjectLayer({
+        name: "ROAD_PATH_PIPE_LAYER",
+        type: Module.ELT_PIPE,
+        selectable: false,
+    });
+
+    // Display flow animation from path data
+    for (var i = 0; i < _pathFeatures.length; i++) {
+        var positions = _pathFeatures[i].geometry.coordinates;
+        if (positions.length < 2) {
+            continue;
+        }
+
+        // Parse coordinate list from path data
+        let pipePathInput = new Module.Collection();
+        for (var j = 0; j < positions.length; j++) {
+            pipePathInput.add(
+                new Module.JSVector3D(positions[j][0], positions[j][1], 11.8)
+            );
+        }
+
+        // Create path pipe
+        var pathPipe = createPipe("path_" + i, pipePathInput);
+        if (pathPipe != null) {
+            pipeLayer.addObject(pathPipe, 0);
+        }
+    }
+}
+
+/* Create object for pipe */
+function createPipe(_objectKey, _path) {
+    var pipe = Module.createPipe(_objectKey);
+    pipe.create(
+        _path,
+        new Module.JSColor(0, 0, 0, 0), // Transparent outer cylindrical pipe
+        new Module.JSColor(0, 0, 0, 0), // Transparent outer cylindrical pipe
+        3.0, // Set minimum for outer cylindrical segment since only inner pipe flow is displayed
+        1.0,
+        2
+    );
+
+    // Set flow animation for pipe
+    pipe.setFlow(
+        new Module.JSColor(255, 0, 200, 0), // Start color for arrow display
+        new Module.JSColor(255, 40, 40, 40), // End color for arrow display
+        5, // Number of divisions for arrow color
+        1.0 // Arrow interval
+    );
+    pipe.setFlowWaitFrame(10);
+    pipe.setFlowDisplay(true);
+
+    pipe.setSimplifyRange(1200);
+
+    return pipe;
+}
+
+/* Load vehicle 3DS models */
+function loadVehicleModels(_callback) {
+    // Load 3ds car model and execute callback
+    for (var i = 0; i < 8; i++) {
+        Module.getGhostSymbolMap().insert({
+            id: "car" + i,
+            url: "./data/car_" + i + ".3ds",
+            callback: function (e) {
+                _callback(e);
+            },
+        });
+    }
+}
+
+/* Add ghost symbol objects using vehicle models */
+function createMovingCar(_layer, _movingPath, _modelID) {
+    var modelHalfHeight =
+        Module.getGhostSymbolMap().getGhostSymbolSize(_modelID).Height * 0.5;
+
+    // Create 200 objects per model and place them at random positions
+    for (var i = 0; i < 200; i++) {
+        // Create ghost symbol object
+        var vehicle = Module.createGhostSymbol(_modelID + "_copy_" + i);
+        vehicle.setBasePoint(0, -modelHalfHeight, 0);
+        vehicle.setScale(new Module.JSSize3D(0.3, 0.3, 0.3));
+        vehicle.setGhostSymbol(_modelID);
+
+        // Specify random path from input road paths and save path index
+        var pathIndex = parseInt(Math.random() * _movingPath.length);
+        var path = _movingPath[pathIndex];
+
+        // Specify random starting point from specified road path
+        var startPointIndex = parseInt(Math.random() * path.length);
+        var startPoint = path[startPointIndex];
+
+        // Set object position at specified starting point
+        vehicle.setPosition(startPoint.position);
+
+        // Save movement playback information (used in setInterval for continuous execution of moveVehicle function)
+        GLOBAL.movingVehicles.push({
+            object: vehicle,
+            pathIndex: pathIndex,
+            positionIndex: startPointIndex,
+        });
+
+        _layer.addObject(vehicle, 0);
+    }
+}
+
+/* Move vehicles */
+function moveVehicle() {
+    var vehicleList = GLOBAL.movingVehicles;
+
+    // Move vehicles to next section positions
+    for (var i = 0; i < vehicleList.length; i++) {
+        var vehicle = vehicleList[i];
+
+        // Retrieve path list based on index value
+        var path = GLOBAL.roadPaths[vehicle.pathIndex];
+
+        // Calculate index value for next position
+        var nextPositionIndex = (vehicle.positionIndex + 1) % path.length;
+        vehicle.positionIndex = nextPositionIndex;
+
+        // Reset object position and direction
+        var next = path[nextPositionIndex];
+        vehicle.object.setPosition(next.position);
+        vehicle.object.setDirection(next.direction);
+    }
+
+    Module.XDRenderData();
+}
+
+var script = document.createElement("script");
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
   </script>
 </body>
 </html>

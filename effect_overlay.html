@@ -20,39 +20,118 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <button onclick="setOverlay()">Activate</button>
+<button onclick="unsetOverlay()">Deactivate</button>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    worker : {
+      use : true,
+      path : "./worker/XDWorldWorker.js",
+      count : 5
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+      
+  let camera = Module.getViewCamera();
+  camera.setLocation(new Module.JSVector3D(126.92830873171059, 37.51928582855065, 646.815276497975));
+  camera.setTilt(34.75);
+  camera.setDirect(-2.75);
+  
+  var layer = Module.getTileLayerList().createXDServerLayer({
+    url : "https://xdworld.vworld.kr",
+    servername : "XDServer3d",
+    name : "facility_build",
+    type : 9,
+    minLevel : 0,
+    maxLevel : 15
+  });
+      
+        // Increase the rendering visibility range for buildings for testing purposes
+        Module.setVisibleRange("facility_build", parseFloat(5), 300000);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+function setOverlay() {
+var layerList = new Module.JSLayerList(true);
+var layer = layerList.createLayer("Cadastral", Module.ELT_OVERLAY);
+
+var _vertices1 = [[126.923204, 37.524584, 0.0],
+    [126.926400, 37.523056, 0.0],
+    [126.927920, 37.524158, 0.0],
+    [126.925698, 37.526314, 0.0]];
+var _vertices2 = [[126.927920, 37.524158, 0.0], 
+    [126.925698, 37.526314, 0.0],
+    [126.927126, 37.527342, 0.0],
+    [126.929401, 37.524913, 0.0]];
+var _vertices3 = [[126.927326, 37.527442, 0.0],
+    [126.929501, 37.525013, 0.0],
+    [126.930959, 37.525899, 0.0],
+    [126.929922, 37.528946, 0.0]];
+
+addOverlayObject(layer, _vertices1, 1);
+addOverlayObject(layer, _vertices2, 2);
+addOverlayObject(layer, _vertices3, 3);
+
+Module.setOverlayMode(true);
+}
+
+function unsetOverlay() {
+ Module.setOverlayMode(false);
+}
+
+function addOverlayObject(_layer, _vertices, _index) {
+
+// Create vertex array
+var vertex = new Module.JSVec3Array();
+for (var i=0; i<_vertices.length; i++) {
+  vertex.push(new Module.JSVector3D(_vertices[i][0], _vertices[i][1], _vertices[i][2]));
+}
+
+var polygon = Module.createOverlayObject("POLYGON" + _index);
+
+var _color = new Module.JSColor(255, 255, 255);
+if (_index == 1) _color = new Module.JSColor(255, 0, 0);
+else if (_index == 2) _color = new Module.JSColor(255, 255, 0);
+else if (_index == 3) _color = new Module.JSColor(0, 255, 0);
+
+polygon.setOverlayObject({
+  style : "polygon",
+  coordinate : vertex,
+  color : _color,
+});
+
+_layer.addObject(polygon, 0);
+}
+
   </script>
 </body>
 </html>

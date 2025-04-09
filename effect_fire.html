@@ -20,39 +20,171 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
+    locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/" + s;
+    },
+    postRun: function () {
+        // Call engine initialization API(essential)
         Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
+            container: document.getElementById("map"),
+            terrain: {
+                dem : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "dem",
+                    servername : "XDServer3d",
+                    encoding : true
+                },
+                image : {
+                    url : "https://xdworld.vworld.kr",
+                    name : "tile",
+                    servername : "XDServer3d"
+                }
             },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+            defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I==",
         });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+        // Set camera position
+        Module.getViewCamera().setLocation(
+            new Module.JSVector3D(
+                127.85371441411269,
+                35.95605739298761,
+                3169.471018491313
+            )
+        );
+
+        // Create Burn Effect Plane Object
+        createBurnEffectPolygon();
+    },
+};
+
+/* Create Burn Effect Plane Object */
+function createBurnEffectPolygon() {
+    // Create Layer and Set Max Visibility Distance
+    var layerList = new Module.JSLayerList(true);
+    var layer = layerList.createLayer("Layer", Module.ELT_PLANE);
+    layer.setMaxDistance(10000000.0);
+
+    // Create Polygon Object
+    var polygon = Module.createPolygon("polygon");
+
+    var position = [
+        {
+            lon: 127.8488127607841,
+            lat: 35.96002670624844,
+            alt: 443.3005337761715,
+        },
+        {
+            lon: 127.84834414155372,
+            lat: 35.95314795931361,
+            alt: 408.28353430423886,
+        },
+        {
+            lon: 127.85888764981425,
+            lat: 35.952761851794094,
+            alt: 433.7931145709008,
+        },
+        {
+            lon: 127.85830188825179,
+            lat: 35.95968888408861,
+            alt: 538.7390085235238,
+        },
+    ];
+
+    // Calculate Vertices
+    var vertices = new Module.JSVec3Array();
+    var verticesNum = position.length;
+    for (var i = 0; i < verticesNum; i++) {
+        vertices.push(
+            new Module.JSVector3D(
+                position[i].lon,
+                position[i].lat,
+                position[i].alt
+            )
+        );
+    }
+
+    // Calculate Parts
+    var part = new Module.Collection();
+    part.add(verticesNum);
+
+    // Calculate UV Coordinates
+    var polygonRect = getPolygonRect(position);
+    var width = Math.abs(polygonRect.max.lon - polygonRect.min.lon);
+    var height = Math.abs(polygonRect.max.lat - polygonRect.min.lat);
+
+    // Normalize UV Texture Coordinates based on the maximum and minimum longitude and latitude coordinates of the polygon to a range of 0.0~20.0
+    var uv = new Module.JSVec2Array();
+    for (var i = 0; i < verticesNum; i++) {
+        uv.push(
+            new Module.JSVector2D(
+                (Math.abs(polygonRect.max.lon - position[i].lon) / width) *
+                    20.0,
+                (Math.abs(polygonRect.max.lat - position[i].lat) / height) *
+                    20.0
+            )
+        );
+    }
+
+    // Set Polygon Shape (vertices, parts, texture uv)
+    polygon.setPartCoordinatesUV(vertices, part, uv, true);
+
+    // Set Fire Effect
+    polygon.setFireEffect(true);
+
+    // Make Polygon Outline Line Transparent
+    var polygonStyle = new Module.JSPolygonStyle();
+    polygonStyle.setOutLine(true);
+    polygonStyle.setOutLineColor(new Module.JSColor(0, 0, 0, 0));
+    polygonStyle.setFill(true);
+    polygonStyle.setFillColor(new Module.JSColor(26, 255, 255, 255));
+    polygon.setStyle(polygonStyle);
+
+    // Add Object to Layer
+    layer.addObject(polygon, 5);
+}
+
+/* Calculate the Longitude and Latitude Rect of the entire polygon for UV coordinate calculation */
+function getPolygonRect(_positions) {
+	
+	var min = {
+		lon : _positions[0].lon,
+		lat : _positions[0].lat
+	};
+	
+	var max = {
+		lon : _positions[0].lon,
+		lat : _positions[0].lat
+	};
+	
+	for (var i=1; i<_positions.length; i++) {
+		
+		if (_positions[i].lon < min.lon) {
+			min.lon = _positions[i].lon;
+		} else if (_positions[i].lon > max.lon) {
+			max.lon = _positions[i].lon;
+		}
+		
+		if (_positions[i].lat < min.lat) {
+			min.lat = _positions[i].lat;
+		} else if (_positions[i].lat > max.lat) {
+			max.lat = _positions[i].lat;
+		}
+	}
+	
+	return {
+		min : min,
+		max : max
+	};
+}
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
   </script>
 </body>
 </html>

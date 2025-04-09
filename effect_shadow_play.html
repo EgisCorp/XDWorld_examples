@@ -20,39 +20,195 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <table>
+        <tr>
+          <td>Date</td>
+          <td>
+            <select id="SE_Year" onchange="setSimulationTime()"></select> Y
+            <select id="SE_Month" onchange="setSimulationTime()"></select> M
+            <select id="SE_Day" onchange="setSimulationTime()"></select> D
+          </td>
+        </tr>
+        <tr>
+          <td>Start time</td>
+          <td>
+            <select id="SE_StartHour"></select> H
+            <select id="SE_StartMinute"></select> M
+          </td>
+        </tr>
+        <tr>
+          <td>End time</td>
+          <td>
+            <select id="SE_StopHour"></select> H
+            <select id="SE_StopMinute"></select> M
+          </td>
+        </tr>
+        <tr>
+          <td>Time interval</td>
+          <td>
+            <form>
+              <select id="SE_TimeTerm" onChange="setShadowSimulationTimeTerm(parseInt(this.value));"></select> M
+            </form>
+          </td>
+        </tr>
+      </table>
+      <input type="button" value="Play Shadow Simulation" onclick="executeShadowSimulation(true);">	</div>
     </div>
   </div>
 
   <script>
     var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+locateFile : function(s) {
+  return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+},
+postRun: function() {
+  
+  // Call engine initialization API(essential)
+  Module.initialize({
+    container: document.getElementById("map"),
+    terrain : {
+      dem : {
+        url : "https://xdworld.vworld.kr",
+        name : "dem",
+        servername : "XDServer3d",
+        encoding : true
+      },
+      image : {
+        url : "https://xdworld.vworld.kr",
+        name : "tile",
+        servername : "XDServer3d"
+      }
+    },
+    defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+  });
+  
+  // Set camera position
+  Module.getViewCamera().setLocation(new Module.JSVector3D(126.92836647767662, 37.52439503321471, 500.0));
+  
+  // Add building layer
+  var layer = Module.getTileLayerList().createXDServerLayer({
+  url : "https://xdworld.vworld.kr",
+  servername : "XDServer3d",
+  name : "facility_build",
+  type : 9,
+  minLevel : 0,
+  maxLevel : 15
+});
+  
+  // Return the analysis API class object
+  GLOBAL.Analysis = Module.getAnalysis();
+  GLOBAL.Analysis.setAllObjectRenderShadow(true);
+  
+  var date = new Date();
+  insertTimeList("SE_Year", 1900, date.getFullYear(), date.getFullYear());
+  insertTimeList("SE_Month", 1, 12, date.getMonth()+1);
+  insertTimeList("SE_Day", 1, 30, date.getDate());
+  insertTimeList("SE_StartHour", 0, 23, 9);
+  insertTimeList("SE_StartMinute", 0, 59, 0);
+  insertTimeList("SE_StopHour", 0, 23, 18);
+  insertTimeList("SE_StopMinute", 0, 59, 0);
+  insertTimeList("SE_TimeTerm", 1, 60, 30);
+  
+  // Set the limit of the sun angle
+  Module.getAnalysis().SetLimitSunAngle(true, 7.5);
+  setSimulationTime();
+  setShadowSimulationTimeTerm(30);
+}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/* Global Variable List */
+var GLOBAL = {
+Analysis: null
+};
+
+/* Initialize Settings */
+function initPage() {
+// Set camera position
+Module.getViewCamera().setLocation(new Module.JSVector3D(126.92836647767662, 37.52439503321471, 500.0));
+
+// Add building layer
+var layer = Module.getTileLayerList().createXDServerLayer({
+  url: "https://xdworld.vworld.kr",
+  servername: "XDServer3d",
+  name: "facility_build",
+  type: 9,
+  minLevel: 0,
+  maxLevel: 15
+});
+
+// Return the analysis API class object
+GLOBAL.Analysis = Module.getAnalysis();
+GLOBAL.Analysis.setAllObjectRenderShadow(true);
+}
+
+/* Add Time Option Elements */
+function insertTimeList(_elementID, _startValue, _endValue, _currentValue) {
+var eTime = document.getElementById(_elementID);
+if (eTime == null) {
+  return;
+}
+
+var strhtml = "";
+for (var i = _startValue; i <= _endValue; i++) {
+  strhtml += ("<option value=" + i + ">" + i + "</option>");
+}
+
+eTime.innerHTML = strhtml;
+eTime.value = _currentValue;
+}
+
+/* Set the Simulation Time */
+function setSimulationTime() {
+let nYear = parseInt(document.getElementById("SE_Year").value);
+let	nMonth = parseInt(document.getElementById("SE_Month").value);
+let nDay = parseInt(document.getElementById("SE_Day").value);
+
+let sunRise = Module.getAnalysis().GetSunrise(nYear, nMonth, nDay);
+let sunSet = Module.getAnalysis().GetSunset(nYear, nMonth, nDay);
+console.log(sunRise % 1.0, sunRise % 1.0 * 60.0, sunSet % 1.0, sunSet % 1.0 * 60.0);
+// change the minute expressed in decimal to 60
+let riseMinute = sunRise % 1.0 * 60.0;
+let setMinute = sunSet % 1.0 * 60.0;
+
+document.getElementById("SE_StartHour").value = parseInt(sunRise);
+document.getElementById("SE_StartMinute").value = parseInt(riseMinute);
+document.getElementById("SE_StopHour").value = parseInt(sunSet);
+document.getElementById("SE_StopMinute").value = parseInt(setMinute);
+}
+
+/* Set the Interval for Solar Shadow Analysis */
+function setShadowSimulationTimeTerm(_nTimeTerm) {
+if (GLOBAL.Analysis == null) {
+  return;
+}
+
+GLOBAL.Analysis.setShadowSimulTerm(_nTimeTerm);
+}
+
+/* Run Solar Shadow Simulation */
+function executeShadowSimulation(_eButton) {
+if (GLOBAL.Analysis == null) {
+  return;
+}
+
+// Run solar shadow simulation
+var nYear = parseInt(document.getElementById("SE_Year").value),
+  nMonth = parseInt(document.getElementById("SE_Month").value),
+  nDay = parseInt(document.getElementById("SE_Day").value),
+  nStartHour = parseInt(document.getElementById("SE_StartHour").value),
+  nStartMinute = parseInt(document.getElementById("SE_StartMinute").value),
+  nStopHour = parseInt(document.getElementById("SE_StopHour").value),
+  nStopMinute = parseInt(document.getElementById("SE_StopMinute").value)
+  ;
+  
+GLOBAL.Analysis.setShadowSimulTime(nYear, nMonth, nDay, nStartHour, nStartMinute, nStopHour, nStopMinute);
+GLOBAL.Analysis.setShadowSimulation(true);
+}
   </script>
 </body>
 </html>

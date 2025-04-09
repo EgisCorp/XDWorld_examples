@@ -20,39 +20,293 @@
 <body>
   <div id="map">
     <div id="interface">
-      <!-- 샘플 UI 코드 여기에 삽입 -->
+      <label>
+        <input role="switch" id="heatMapSwitch" type="checkbox" checked/>
+        <span> Activate Heat Map Mode </span>
+      </label><br/>
+      <label>
+        <input role="switch" id="createHeatMapSwitch" type="checkbox" checked/>
+        <span> Create Heat Map(on Heat Map mode) </span>
+      </label><br/>
+      <code>Distance</code>  <input class="slider-width1000" type="range" min="100" max="100000" value="9500" step="10"  id="sliderDistance"/><label id="heat-map-distance">9500</label><br/>
+      <code>Weight</code>  <input class="slider-width1000" type="range" min="0.0" max="3.0" value="0.3" step="0.1" id="sliderHeatWeight"/><label id="heat-map-weight">0.3</label><br/>
+      <code>Alpha</code>  <input class="slider-width1000" type="range" min="0.0" max="1.0" value="0.75" step="0.001" id="sliderOpacity"/><label id="heat-map-alpha">0.75</label><br/>
+      
+      <code>Color</code> 
+      <input type="button" value="Color 1" onclick="setHeatMapColor(0);" checked="checked"/>
+      <input type="button" value="Color 2" onclick="setHeatMapColor(1);"/><br/>
+      <code>Add Sample</code>
+      <input type="button" value="Sample(random)" onclick="addHeatMapSample(2);"/><br/>
+      <input type="button" value="Clear" onclick="clearHeatMap();"/><br/>
     </div>
   </div>
 
   <script>
-    var Module = {
-      locateFile : function(s) {
-        return "https://cdn.xdworld.kr/latest/"+ s;
-      },
-      postRun: function() {
-        Module.initialize({
-          container: document.getElementById("map"),
-          terrain: {
-            dem : {
-              url : "https://xdworld.vworld.kr",
-              name : "dem",
-              servername : "XDServer3d",
-              encoding : true
-            },
-            image : {
-              url : "https://xdworld.vworld.kr",
-              name : "tile",
-              servername : "XDServer3d"
-            }
-          },
-          defaultKey: "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
-        });
-      }
-    };
+    /*********************************************************
+*	엔진파일 로드 후 Module 객체가 생성되며,
+*  Module 객체를 통해 API 클래스에 접근 할 수 있습니다.
+*	 - Module.postRun : 엔진파일 로드 후 n실행할 함수를 연결합니다.
+*	 - Module.canvas : 지도를 표시할 canvas 엘리먼트를 연결합니다.
+*********************************************************/
+var Module = {
+	locateFile: function (s) {
+        return "https://cdn.xdworld.kr/{engineVersion}/"+ s;
+    },
+	postRun: function() {
+		Module.initialize({
+			container: document.getElementById("map"),
+			terrain : {
+				dem : {
+					url : "https://xdworld.vworld.kr",
+					name : "dem",
+					servername : "XDServer3d",
+					encoding : true
+				},
+				image : {
+					url : "https://xdworld.vworld.kr",
+					name : "tile",
+					servername : "XDServer3d"
+				}
+			},
+			defaultKey : "DFG~EpIREQDmdJe1E9QpdBca#FBSDJFmdzHoe(fB4!e1E(JS1I=="
+		});
+		
+		Module.SetMobileMode(2);
+	
+		Module.getViewCamera().moveLonLatAlt(129.05, 35.05, 60000, true);
+		Module.getViewCamera().setTilt(55.0);
 
-    var script = document.createElement('script');
-    script.src = "https://cdn.xdworld.kr/latest/XDWorldEM.js";
-    document.body.appendChild(script);
+		Module.getOption().setTextureCapacityLimit(false);
+		Module.getOption().setPickingCalculateType(1);
+		Module.getOption().setMaxRequestTileMeshSize(20);
+	
+		addHeatMapEvent();
+	
+		GLOBAL.map = Module.getMap();
+		GLOBAL.map.setTerrainEffect(9);	// 히트맵 사용 활성화
+		GLOBAL.map.setDistance(9500);
+		GLOBAL.map.setWeight(0.3);
+		GLOBAL.map.setHeatMapOpacity(0.75);
+
+		addHeatMapSample(1);
+	}
+};
+
+var script = document.createElement('script');
+script.src = "https://cdn.xdworld.kr/{engineVersion}/XDWorldEM.js";
+document.body.appendChild(script);
+
+/*********************** 아래부터 API 테스트 영역 입니다 ********************************************/
+var GLOBAL = {
+	map : null,
+	isHeatMapMode : true,
+	isHeatMapCreateMode : true
+};
+
+function addHeatMapEvent() {
+	let canvas = Module.canvas;
+
+	canvas.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+	
+	canvas.addEventListener("Fire_MouseDown", function(e){
+		if (GLOBAL.isHeatMapCreateMode == false) return;
+		
+		var strPosition = Module.GetClickPosition();
+		console.log("HeatMap : " + strPosition);
+		var strArray = strPosition.split('_');
+		
+		GLOBAL.map.addHeatMapEX(new Module.JSVector3D(parseFloat(strArray[0]), parseFloat(strArray[1]), 1.0));
+	});
+
+	const heatMapSwitch = document.getElementById('heatMapSwitch');
+	heatMapSwitch.addEventListener('change', function() {
+        setHeatMapMode(heatMapSwitch.checked);
+		createHeatMapSwitch.checked = false;
+		createHeatMapSwitch.disabled = !heatMapSwitch.checked
+    });
+
+	const createHeatMapSwitch = document.getElementById('createHeatMapSwitch');
+	createHeatMapSwitch.addEventListener('change', function() {
+        GLOBAL.isHeatMapCreateMode = createHeatMapSwitch.checked;
+    });
+}
+
+function setHeatMapMode(_activate)
+{
+	clearHeatMap();
+	if (_activate == true) {
+		GLOBAL.map.setTerrainEffect(9);	// 히트맵 사용 활성화
+		GLOBAL.map.setHeatMapOpacity(parseFloat(gSliderOpacity.value));
+		GLOBAL.isHeatMapMode = true;
+	}
+	else {
+		GLOBAL.map.setTerrainEffect(0);	// 히트맵 사용 비활성화
+		GLOBAL.isHeatMapMode = false;
+		GLOBAL.isHeatMapCreateMode = false;
+	}
+}
+
+var gSliderDistance	= document.getElementById("sliderDistance");
+var gSliderWeight 	= document.getElementById("sliderHeatWeight");
+var gSliderOpacity	= document.getElementById("sliderOpacity");
+
+gSliderDistance.onmousemove = function(){
+	let distance = parseFloat(gSliderDistance.value)
+	GLOBAL.map.setDistance(distance);
+	document.getElementById("heat-map-distance").innerHTML = distance;
+	console.log("Distance : "+distance);
+}
+
+gSliderWeight.onmousemove = function() {
+	let weight = parseFloat(gSliderWeight.value);
+	GLOBAL.map.setWeight(weight);
+	document.getElementById("heat-map-weight").innerHTML = weight;
+	console.log("Weight : "+gSliderWeight.value);
+}
+
+gSliderOpacity.onmousemove = function(){
+	let opacity = parseFloat(gSliderOpacity.value);
+	GLOBAL.map.setHeatMapOpacity(opacity);
+	document.getElementById("heat-map-alpha").innerHTML = opacity;
+	console.log("Alpha : "+gSliderOpacity.value);
+}
+
+function addHeatMapSample(_nIndex) {
+	if (GLOBAL.isHeatMapCreateMode == false) return;
+
+	clearHeatMap();
+	if(_nIndex==1)
+	{
+		var vList = new Module.JSVec3Array();
+		
+        vList.push(new Module.JSVector3D(129.224975, 35.421770, 1.0));
+        vList.push(new Module.JSVector3D(129.224847, 35.407919, 1.0));
+        vList.push(new Module.JSVector3D(129.211865, 35.368295, 1.0));
+        vList.push(new Module.JSVector3D(129.213015, 35.360856, 1.0));
+        vList.push(new Module.JSVector3D(129.105984, 35.332331, 1.0));
+        vList.push(new Module.JSVector3D(129.121636, 35.320602, 1.0));
+        vList.push(new Module.JSVector3D(129.137794, 35.319605, 1.0));
+        vList.push(new Module.JSVector3D(129.153900, 35.319871, 1.0));
+        vList.push(new Module.JSVector3D(129.171100, 35.323526, 1.0));
+        vList.push(new Module.JSVector3D(128.988976, 35.357097, 1.0));
+        vList.push(new Module.JSVector3D(128.990049, 35.349212, 1.0));
+        vList.push(new Module.JSVector3D(128.997665, 35.332726, 1.0));
+        vList.push(new Module.JSVector3D(128.823025, 35.488733, 1.0));
+        vList.push(new Module.JSVector3D(128.812018, 35.478447, 1.0));
+        vList.push(new Module.JSVector3D(128.820570, 35.464401, 1.0));
+        vList.push(new Module.JSVector3D(128.847547, 35.455828, 1.0));
+        vList.push(new Module.JSVector3D(128.836909, 35.480896, 1.0));
+        vList.push(new Module.JSVector3D(128.850877, 35.482017, 1.0));
+        vList.push(new Module.JSVector3D(128.850674, 35.484710, 1.0));
+        vList.push(new Module.JSVector3D(128.872165, 35.488628, 1.0));
+        vList.push(new Module.JSVector3D(128.889644, 35.491803, 1.0));
+        vList.push(new Module.JSVector3D(128.916203, 35.490439, 1.0));
+		vList.push(new Module.JSVector3D(129.293837, 35.509882, 1.0));
+		vList.push(new Module.JSVector3D(129.292579, 35.509858, 1.0));
+		vList.push(new Module.JSVector3D(129.147099, 35.557649, 1.0));
+		vList.push(new Module.JSVector3D(129.145975, 35.535542, 1.0));
+		vList.push(new Module.JSVector3D(129.038336, 35.459617, 1.0));
+		vList.push(new Module.JSVector3D(129.006092, 35.453352, 1.0));
+		vList.push(new Module.JSVector3D(129.014610, 35.451557, 1.0));
+		vList.push(new Module.JSVector3D(129.012380, 35.334726, 1.0));
+		vList.push(new Module.JSVector3D(129.002267, 35.334434, 1.0));
+		vList.push(new Module.JSVector3D(129.128364, 35.325472, 1.0));
+		vList.push(new Module.JSVector3D(129.091403, 35.320025, 1.0));
+		vList.push(new Module.JSVector3D(129.089320, 35.316722, 1.0));
+		vList.push(new Module.JSVector3D(129.076943, 35.316976, 1.0));
+		vList.push(new Module.JSVector3D(129.150983, 35.322584, 1.0));
+		vList.push(new Module.JSVector3D(129.163325, 35.321100, 1.0));
+		vList.push(new Module.JSVector3D(129.211456, 35.352726, 1.0));
+		vList.push(new Module.JSVector3D(129.208961, 35.345321, 1.0));
+		vList.push(new Module.JSVector3D(129.201868, 35.332616, 1.0));
+		vList.push(new Module.JSVector3D(129.197076, 35.319524, 1.0));
+		vList.push(new Module.JSVector3D(128.817428, 35.521175, 1.0));
+		vList.push(new Module.JSVector3D(128.799078, 35.521766, 1.0));
+		vList.push(new Module.JSVector3D(128.805088, 35.510146, 1.0));
+		vList.push(new Module.JSVector3D(128.807939, 35.507837, 1.0));
+		vList.push(new Module.JSVector3D(128.810780, 35.453713, 1.0));
+		vList.push(new Module.JSVector3D(128.803921, 35.438589, 1.0));
+		vList.push(new Module.JSVector3D(128.804180, 35.437367, 1.0));
+		vList.push(new Module.JSVector3D(128.805685, 35.431734, 1.0));
+
+		GLOBAL.map.addHeatMapsEX(vList);
+	}
+	else if(_nIndex==2)
+	{
+		let sampleValue = 0.5;
+		for(var i=0; i<1200; ++i)
+		{
+			GLOBAL.map.addHeatMapEX(new Module.JSVector3D(124.0+Math.random()*7.0, 34.0+Math.random()*6.0, 1.0));
+		}
+        GLOBAL.map.setDistance(50000);
+		GLOBAL.map.setWeight(sampleValue);
+        document.getElementById("sliderDistance").value = 50000;
+		document.getElementById("heat-map-distance").textContent = 50000;
+		document.getElementById("sliderHeatWeight").value = sampleValue;
+		document.getElementById("heat-map-weight").textContent = sampleValue;
+        
+        Module.getViewCamera().moveLonLatAlt(127.5, 32.5633, 600000, true);
+		Module.getViewCamera().setTilt(55.0);
+	}
+}
+
+function clearHeatMap() {
+	GLOBAL.map.clearHeatMap();
+}
+
+// 히트맵 색상 조절
+function setHeatMapColor(_nIndex)
+{
+	var vColorList = new Module.Collection();
+	if(_nIndex==0)
+	{
+		GLOBAL.map.setDefaultHeatMapColor();
+	}
+	else if(_nIndex==1)
+	{
+		vColorList.add(new Module.JSColor(   0, 255, 0 ));
+		vColorList.add(new Module.JSColor(  67, 178, 73 ));
+		vColorList.add(new Module.JSColor(  98, 187, 70));
+		vColorList.add(new Module.JSColor( 139, 198, 67 ));
+		vColorList.add(new Module.JSColor( 192, 217, 90 ));
+		vColorList.add(new Module.JSColor( 241, 227, 112 ));
+		vColorList.add(new Module.JSColor( 244, 200, 111 ));
+		vColorList.add(new Module.JSColor( 231, 169, 80 ));
+		vColorList.add(new Module.JSColor( 222, 141, 54 ));
+		vColorList.add(new Module.JSColor( 213, 113, 41 ));
+		
+		GLOBAL.map.setHeatMapColor(vColorList);
+	}
+	else if(_nIndex==2)
+	{
+		vColorList.add(new Module.JSColor(   0, 255, 0 ));
+		vColorList.add(new Module.JSColor( 255, 255, 255 ));
+		vColorList.add(new Module.JSColor( 255, 255, 208));
+		vColorList.add(new Module.JSColor( 237, 255, 208 ));
+		vColorList.add(new Module.JSColor( 211, 255, 144 ));
+		vColorList.add(new Module.JSColor( 192, 255, 95 ));
+		vColorList.add(new Module.JSColor( 154, 255, 0 ));
+		vColorList.add(new Module.JSColor( 124, 208, 0 ));
+		vColorList.add(new Module.JSColor( 111, 255, 111 ));
+		vColorList.add(new Module.JSColor(  79, 255, 79 ));
+		vColorList.add(new Module.JSColor(   0, 208, 41 ));
+		
+		vColorList.add(new Module.JSColor( 86, 144, 0 ));
+		vColorList.add(new Module.JSColor( 77, 128, 0 ));
+		vColorList.add(new Module.JSColor( 58,  96, 0 ));
+		
+		vColorList.add(new Module.JSColor( 255, 215, 95 ));
+		vColorList.add(new Module.JSColor( 255, 192, 0 ));
+		vColorList.add(new Module.JSColor( 208, 156, 0 ));
+		vColorList.add(new Module.JSColor( 192, 144, 0 ));
+		vColorList.add(new Module.JSColor( 160, 120, 6 ));
+		vColorList.add(new Module.JSColor( 144, 108, 0 ));
+		vColorList.add(new Module.JSColor(  96,  72, 0 ));
+		
+		GLOBAL.map.setHeatMapColor(vColorList);
+	}
+}
+
   </script>
 </body>
 </html>
